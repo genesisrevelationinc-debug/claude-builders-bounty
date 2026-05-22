@@ -12,12 +12,12 @@
 | Runtime | Node.js 20+ | `next/after`, native `fetch` with `keepalive`, stable `crypto` |
 | Database | `better-sqlite3` | Synchronous, fast, zero network latency, perfect for single-tenant SaaS |
 | ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, no codegen bloat, migrations in `.sql` |
-| Auth | Lucia (or custom session with `iron-session`) | No vendor lock-in, works with any DB, minimal bundle size |
-| Styling | Tailwind CSS + shadcn/ui | Copy-paste components, no runtime CSS, easy to customize |
-| Validation | Zod | Same schemas for API, forms, and DB; runs on edge and node |
-| Testing | Vitest + Playwright | Unit tests in-memory SQLite, E2E against real build |
+| Auth | Lucia + `oslo` | Session-based, no JWT complexity, works with SQLite out of the box |
+| Styling | Tailwind CSS + `shadcn/ui` | Utility-first, copy-paste components, no version drift |
+| Validation | Zod | Same schemas for API, forms, and DB; single source of truth |
+| Testing | Vitest + Playwright | Unit tests fast, E2E tests real browser behavior |
 
-**Hard constraint:** We do not use Turso, PlanetScale, or any remote database in development or for single-tenant deployments. The network boundary is the enemy of simplicity. If we ever need multi-region, we migrate then—not before.
+**Non-negotiable:** We do not use Prisma. The binary engine and connection pooling add complexity that SQLite doesn't need. Drizzle's SQL-like API is explicit and debuggable.
 
 ---
 
