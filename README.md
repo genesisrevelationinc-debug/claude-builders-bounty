@@ -15,9 +15,17 @@ You're in the right place.
 2. Comment `/opire create $XXX` in the issue to set the reward
 3. Share the link — contributors will find it
 
-**To claim a bounty**
-1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
+---
+
+## Pre-tool-use Hook for Destructive Command Blocking
+
+This is a Claude Code `pre-tool-use` hook that blocks destructive bash commands before they are executed.
+
+### Installation
+1. Save the hook file to `~/.claude/hooks/pre_tool_use`
+2. Make the hook executable: `chmod +x ~/.claude/hooks/pre_tool_use`
+
+## Active Bounties
 3. Submit a PR — payment is automatic on merge ✅
 
 ---
@@ -49,14 +57,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# Claude Destructive Command Blocker
-
-## Description
-
-This is a Claude Code `pre-tool-use` hook that blocks dangerous bash commands before they are executed. It prevents common destructive operations like `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without a WHERE clause.
-
-## Installation
-
 
 *Started by the Claude builder community · March 2026 · MIT License*
