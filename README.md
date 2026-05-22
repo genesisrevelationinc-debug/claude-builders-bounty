@@ -50,4 +50,19 @@ You're in the right place.
 
 ---
 
+# CHANGELOG Generator
+
+Automatically generate a structured CHANGELOG.md from a project's git history.
+
+## Setup
+
+1. Clone the repository
+2. Make the script executable: `chmod +x changelog.sh`
+3. Run the script: `./changelog.sh`
+
+## Usage
+
+Run the script with:
+
+
 *Started by the Claude builder community · March 2026 · MIT License*
