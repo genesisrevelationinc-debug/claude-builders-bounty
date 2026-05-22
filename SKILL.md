@@ -1,7 +1,16 @@
-introduction: "This is a skill for Claude Code that automatically generates a structured CHANGELOG.md from your git history. Use the command /generate-changelog to create a changelog."
-tags: [git, changelog, automation]
-input_format:
-  type: string
-  description: "The input is the command to generate changelog"
-
-runtime_context: 200
+{
+  "name": "Generate Changelog",
+  "description": "Generate a structured CHANGELOG.md from git history",
+  "command": "/generate-changelog",
+  "code": "bash changelog.sh",
+  "arguments": [],
+  "introduction": "I'll generate a structured changelog from the repository's git history.",
+  "conversation_starters": [
+    "Generate a changelog from the recent commits",
+    "Create a changelog from the latest tag",
+    "Show me the changelog for the last few commits"
+  ],
+  "conversation_examples": [
+    ["/generate-changelog"]
+  ]
+}
