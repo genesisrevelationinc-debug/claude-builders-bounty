@@ -50,4 +50,13 @@ You're in the right place.
 
 ---
 
+# Claude Destructive Command Blocker
+
+## Description
+
+This is a Claude Code `pre-tool-use` hook that blocks dangerous bash commands before they are executed. It prevents common destructive operations like `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without a WHERE clause.
+
+## Installation
+
+
 *Started by the Claude builder community · March 2026 · MIT License*
