@@ -1,162 +1,192 @@
 ```diff
---- a/README.md
-+++ b/README.md
-@@ -1,5 +1,5 @@
--# Claude Builders Bounty 🤖
-+ # Claude Builders Bounty 🤖
- 
- > A community bounty board for Claude Code builders.
- 
-@@ -7,6 +7,11 @@ 
--# How it works
-+# $150 bounty - PR reviewer with structured Markdown output
-+## Description
-+Create a Claude Code agent that takes a PR diff as input, analyzes it,
-+and returns a structured Markdown review comment.
+--- /dev/null
++++ b/claude-review
+@@ -0,0 +1,3 @@
++#!/usr/bin/env bash
++set -euo pipefail
++exec python3 -m claude_review.cli "$@"
+--- /dev/null
++++ b/claude_review/__init__.py
+@@ -0,0 +1,1 @@
++"""Claude Code PR Review Agent."""
+--- /dev/null
++++ b/claude_review/cli.py
+@@ -0,0 +1,68 @@
++"""CLI entry-point for the Claude Code PR review agent."""
 +
-+## Acceptance Criteria
- - [ ] Works via CLI: `claude-review --pr https://github.com/owner/repo/pull/123`
-- OR via GitHub Action (include the workflow YAML)
-- [ ] Structured Markdown output with:
--   - Summary of changes (2–3 sentences)
--   - Identified risks (list)
--  - Improvement suggestions (list)
--  - Confidence score: Low / Medium / High
-- [ ] Tested on at least 2 real GitHub PRs (include outputs in the PR)
-- [ ] README with setup and usage instructions
-+## How to Claim
-+1. Comment `/opire try` in this issue
-+2. Submit a PR with the agent + sample outputs
-+3. Payment is released automatically on merge ✅
++from __future__ import annotations
++
++import argparse
++import os
++import sys
++
++from .reviewer import review_pr
 +
 +
-+## How to Claim
-+1. Comment `/opire try` in this issue
-+2. Submit a PR with the agent + sample outputs
-+3. Payment is released automatically on merge ✅
++def main(argv: list[str] | None = None) -> int:
++    parser = argparse.ArgumentParser(
++        prog="claude-review",
++        description="Claude Code PR Review Agent — structured Markdown review comments.",
++    )
++    parser.add_argument(
++        "--pr",
++        required=True,
++        help="GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)",
++    )
++    parser.add_argument(
++        "--api-key",
++        default=os.getenv("ANTHROPIC_API_KEY"),
++        help="Anthropic API key (defaults to ANTHROPIC_API_KEY env var)",
++    )
++    parser.add_argument(
++        "--model",
++        default="claude-sonnet-4-20250514",
++        help="Anthropic model to use (default: claude-sonnet-4-20250514)",
++    )
++    parser.add_argument(
++        "--output",
++        "-o",
++        default=None,
++        help="Write review to file instead of stdout",
++    )
++    parser.add_argument(
++        "--post-comment",
++        action="store_true",
++        help="Post the review as a comment on the PR (requires GITHUB_TOKEN)",
++    )
++
++    args = parser.parse_args(argv)
++
++    if not args.api_key:
++        print(
++            "Error: Anthropic API key required. Set ANTHROPIC_API_KEY or pass --api-key.",
++            file=sys.stderr,
++        )
++        return 1
++
++    review = review_pr(
++        pr_url=args.pr,
++        api_key=args.api_key,
++        model=args.model,
++        post_comment=args.post_comment,
++    )
++
++    if args.output:
++        with open(args.output, "w", encoding="utf-8") as f:
++            f.write(review)
++    else:
++        print(review)
++
++    return 0
 +
 +
-+## Active Bounties
++if __name__ == "__main__":
++    raise SystemExit(main())
+--- /dev/null
++++ b/claude_review/reviewer.py
+@@ -0,0 +1,213 @@
++"""Core PR review logic using Claude Code / Anthropic API."""
 +
-+| # | Task | Amount | Status |
-+|---|------|--------|--------|
-+| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-+| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-+| [#5](../../issues/5) | WORKFLOW: n80n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
++from __future__ import annotations
 +
-+<hr>
++import json
++import os
++import re
++import subprocess
++import tempfile
++from pathlib import Path
 +
-+## Rules
++try:
++    import anthropic
++except ImportError:  # pragma: no cover
++    anthropic = None  # type: ignore[assignment]
 +
-+- Tasks must be related to Claude Code or AI tooling
-+- Every issue must have clear acceptance criteria before a bounty is activated
-+- Payment is handled by [Opire](https://opire.dev) (Stripe)
-+- Quality over speed — a solid PR beats a fast one
 +
-+---
++SYSTEM_PROMPT = """\
++You are an elite software engineer performing code review on a GitHub pull request.
++Analyze the diff carefully. Be concise but thorough.
 +
-+## Community
++Respond ONLY with a JSON object in this exact shape:
 +
-+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-+- 📧 Contact: claudebounty@gmail.com
++{
++  "summary": "string (2-3 sentences describing what the PR does)",
++  "risks": ["list of specific risks or concerns"],
++  "suggestions": ["list of concrete improvement suggestions"],
++  "confidence": "Low|Medium|High"
++}
 +
-+---
++Rules:
++- summary: 2-3 sentences, plain English, no jargon.
++- risks: empty list if none; otherwise specific, actionable items.
++- suggestions: empty list if none; otherwise specific and actionable.
++- confidence: Low = major concerns, Medium = minor issues, High = LGTM.
++"""
 +
-+*Started by the Claude builder community · March 2026 · MIT License*
 +
-+## How it works
++def _run(cmd: list[str], cwd: str | None = None) -> str:
++    result = subprocess.run(
++        cmd,
++        capture_output=True,
++        text=True,
++        cwd=cwd,
++        check=True,
++    )
++    return result.stdout
 +
-+- To post a bounty
-+1. Open a GitHub issue with a clear description and acceptance criteria
-+2. Comment `/opire create $XXX` in the issue to set the reward
-+3. Share the link — contributors will find it
 +
-+## How to Claim
-+1. Browse the open issues below
-+2. Comment `/opire try` in the issue you want to work on
-+3. Submit a PR — payment is automatic on merge ✅
++def _parse_pr_url(pr_url: str) -> tuple[str, str, int]:
++    """Extract owner, repo, and PR number from a GitHub PR URL."""
++    patterns = [
++        r"github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pull/(?P<number>\d+)",
++        r"github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pulls/(?P<number>\d+)",
++    ]
++    for pattern in patterns:
++        match = re.search(pattern, pr_url)
++        if match:
++            return (
++                match.group("owner"),
++                match.group("repo"),
++                int(match.group("number")),
++            )
++    raise ValueError(f"Could not parse PR URL: {pr_url}")
 +
-+## Active Bounties
 +
-+| # | Task | Amount | Status |
-+|---|------|--------|--------|
-+| [#1](../../issues/1) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-+| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
++def _fetch_diff(pr_url: str) -> str:
++    """Fetch the diff for a PR using gh CLI or curl."""
++    # Try gh CLI first
++    try:
++        _run(["gh", "--version"])
++    except (subprocess.CalledProcessError, FileNotFoundError):
++        pass
++    else:
++        return _run(["gh", "pr", "view", pr_url, "--json", "diff"])
 +
-+<hr>
++    # Fallback: use curl with the .diff endpoint
++    match = re.search(r"github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
++    if match:
++        owner, repo, number = match.groups()
++        diff_url = f"https://github.com/{owner}/{repo}/pull/{number}.diff"
++        return _run(["curl", "-sL", diff_url])
 +
-+## Rules
++    raise RuntimeError(f"Cannot fetch diff for {pr_url}")
 +
-+<h2>How to Claim</h2>
-+<ol>
-+<li>Comment <code>/opire try</code> in this issue</li>
-+<li>Submit a PR — payment is released automatically on merge ✅</li>
-+</ol>
 +
-+<h2>Active Bounties</h2>
++def _call_claude(
++    diff: str,
++    api_key: str,
++    model: str,
++) -> dict:
++    """Send the diff to Claude and return structured JSON."""
++    if anthropic is None:
++        raise RuntimeError(
++            "anthropic package not installed. Run: pip install anthropic"
++        )
 +
-+<ul>
-+<li>Browse the open issues below</li>
-+<li>Comment <code>/opire try</code> in the issue you want to work on</li>
-+<li>Submit a PR — payment is released automatically on merge ✅</li>
-+</ul>
++    client = anthropic.Anthropic(api_key=api_key)
 +
-+<h2>Community</h2>
++    # Truncate very large diffs
++    max_chars = 100_000
++    if len(diff) > max_chars:
++        diff = diff[:max_chars] + "\n\n[... diff truncated ...]"
 +
-+<ul>
-+<li>🐦 X: <a href="https://x.com/ClaudeBounty">ClaudeBounty</a></li>
-+<li>📧 Contact: claudebounty@gmail.com</li>
-+</ul>
-+
-+<p>---
-+
-+<p>*Started by the Claude builder community · March 2026 · MIT License*</p>
-+
-+<h2>How to Claim</h2>
-+
-+<ol>
-+<li>Open a GitHub issue with a clear description and acceptance criteria</li>
-+<li>Comment <code>/opire create $XXX</code> in this issue</li>
-+<li>Share the link — contributors will find it</li>
-+</ol>
-+
-+<h2>Active Bounties</h2>
-+
-+<table>
-+<thead>
-+<tr>
-+<th>#</th>
-+<th>Task</th>
-+<th>Amount</th>
-+<th>Status</th>
-+</tr>
-+</thead>
-+<tbody>
-+<tr>
-+<td><a href="https://github.com/owner/repo/pull/123">PR</a></td>
-+<td>$150</td>
-+<td>🟢</td>
-+</tr>
-+</tbody>
-+</table>
-+
-+<hr>
-+
-+<h2>Active Bounties</h2>
-+
-+<table>
-+<thead>
-+<tr>
-+<th>#</th>
-+<th>Task</th>
-+<th>Amount</th>
-+<th>Status</th>
-+</tr>
-+</thead>
-+<tr>
-+<td><a href="https://github.com/owner/repo/p
++    response = client.messages.create(
