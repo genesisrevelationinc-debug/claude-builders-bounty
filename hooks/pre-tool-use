@@ -17,27 +17,23 @@ BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 
 # Destructive patterns to block
 DANGEROUS_PATTERNS = [
-    # rm -rf (recursive force delete)
-    (r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+', "rm -rf: Recursive force delete"),
-    (r'\brm\s+.*\s+-[a-zA-Z]*rf', "rm -rf: Recursive force delete"),
+    # rm -rf (destructive recursive force remove)
+    (r'\brm\s+(?:-[a-zA-Z]*f[a-zA-Z]*\s+)?(?:-[a-zA-Z]*r[a-zA-Z]*\s+)?-?[a-zA-Z]*rf[a-zA-Z]*\s', "rm -rf: recursive force deletion"),
     # DROP TABLE
-    (r'\bDROP\s+TABLE\b', "DROP TABLE: Database table deletion"),
+    (r'\bDROP\s+TABLE\b', "DROP TABLE: destructive SQL operation"),
     # git push --force
-    (r'\bgit\s+push\s+.*--force\b', "git push --force: Force push to remote"),
-    (r'\bgit\s+push\s+-f\b', "git push --force: Force push to remote"),
+    (r'\bgit\s+push\s+(?:-[a-zA-Z]*f[a-zA-Z]*|--force)\b', "git push --force: force push can overwrite remote history"),
     # TRUNCATE
-    (r'\bTRUNCATE\s+TABLE\b', "TRUNCATE TABLE: Table data deletion"),
-    (r'\bTRUNCATE\s+\w+', "TRUNCATE: Table data deletion"),
+    (r'\bTRUNCATE\s+TABLE?\b', "TRUNCATE: destructive SQL operation that removes all data"),
     # DELETE FROM without WHERE
-    (r'\bDELETE\s+FROM\s+\w+\s*$', "DELETE FROM without WHERE: Unconditional row deletion"),
-    (r'\bDELETE\s+FROM\s+\w+\s+(?!WHERE\b)', "DELETE FROM without WHERE: Unconditional row deletion"),
+    (r'\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)', "DELETE FROM without WHERE: would delete all rows"),
 ]
 
 
-def log_blocked_attempt(command, reason, project_path):
+def log_blocked_attempt(command, project_path):
     """Log a blocked command attempt to the log file."""
-    timestamp = datetime.now().isoformat()
-    log_entry = f"[{timestamp}] BLOCKED: {reason}\n  Command: {command}\n  Project: {project_path}\n\n"
+    timestamp = datetime.utcnow().isoformat() + "Z"
+    log_entry = f"{timestamp} | project={project_path} | command={command}\n"
     
     # Ensure the hooks directory exists
     os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
@@ -46,23 +42,26 @@ def log_blocked_attempt(command, reason, project_path):
         f.write(log_entry)
 
 
-def check_command(command, project_path):
-    """Check if a command matches any dangerous pattern."""
-    for pattern, description in DANGEROUS_PATTERNS:
+def check_command(command):
+    """Check if a command contains dangerous patterns. Returns (is_blocked, reason)."""
+    command_upper = command.upper()
+    
+    for pattern, reason in DANGEROUS_PATTERNS:
         if re.search(pattern, command, re.IGNORECASE):
-            return description
-    return None
+            return True, reason
+    
+    return False, None
 
 
 def main():
-    # Read the hook input from stdin (Claude Code passes tool info as JSON)
+    # Read the hook input from stdin (Claude Code passes JSON)
     try:
         hook_input = json.loads(sys.stdin.read())
     except json.JSONDecodeError:
-        # If not valid JSON, allow the tool use to proceed
+        # If not valid JSON, allow the command to proceed
         sys.exit(0)
     
-    # Extract tool information
+    # Extract tool name and input
     tool_name = hook_input.get("tool_name", "")
     tool_input = hook_input.get("tool_input", {})
     
@@ -71,21 +70,20 @@ def main():
         sys.exit(0)
     
     command = tool_input.get("command", "")
-    project_path = hook_input.get("project_path", os.getcwd())
+    project_path = hook_input.get("project_path", "unknown")
     
-    # Check for dangerous patterns
-    block_reason = check_command(command, project_path)
+    # Check if the command is dangerous
+    is_blocked, reason = check_command(command)
     
-    if block_reason:
-        log_blocked_attempt(command, block_reason, project_path)
+    if is_blocked:
+        # Log the blocked attempt
+        log_blocked_attempt(command, project_path)
         
-        # Output the block message to stderr for Claude to see
-        print(f"\n🚫 BLOCKED: {block_reason}\n", file=sys.stderr)
-        print(f"The command was blocked for safety: {command}\n", file=sys.stderr)
-        sys.exit(1)  # Non-zero exit code blocks the tool use
-    
-    # Allow the command to proceed
-    sys.exit(0)
+        # Print the error message for Claude to see
+        print(f"\n🛡️  SECURITY HOOK BLOCKED: {reason}\n", file=sys.stderr)
+        print(f"The command was: {command}\n", file=sys.stderr)
+        print("If you need to run this command, please ask the user for explicit confirmation.\n", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
