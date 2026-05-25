@@ -6,33 +6,6 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
-## Automated Weekly Dev Summary Workflow
-
-This workflow automates the generation of weekly development summaries using n8n and Claude API.
-
-### Features
-- Runs weekly to summarize GitHub repository activity
-- Generates narrative summaries of commits, issues and pull requests
-- Sends output to configured notification channels
-- Supports both English and French language output
-
-### Setup Instructions
-
-1. **Import the Workflow**: Import the `weekly-dev-summary.json` file into your n8n instance.
-2. **Configure GitHub Token**: Add your GitHub personal access token for API access.
-2. **Set Up Environment Variables**: Configure the following variables:
-   - `GITHUB_REPOSITORY`: Target GitHub repository
-   - `NOTIFY_SLACK`: Optional Slack webhook URL
-   - `NOTIFY_EMAIL`: Optional email configuration
-   - `LANGUAGE`: 'EN' or 'FR' for output language
-3. **Configure the Schedule**: Set your workflow to run on a weekly schedule (e.g., every Friday at 5pm).
-4. **Test the Workflow**: Run a test execution to verify data and notification flows.
-
-### Configuration
-To customize the workflow for your specific needs, update the corresponding fields in the n8n environment settings.
-
-### Example Output
-
 ---
 
 ## How it works
