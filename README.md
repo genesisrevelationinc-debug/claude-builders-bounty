@@ -50,10 +50,9 @@ You're in the right place.
 
 ---
 
-## Installation
+# Claude Code Destructive Command Blocker
 
-1. Create a `~/.claude/hooks` directory in your home directory
-2. Copy the following files there:
+## Installation
 
 
 *Started by the Claude builder community · March 2026 · MIT License*
