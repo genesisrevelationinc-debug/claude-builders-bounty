@@ -36,12 +36,13 @@ You're in the right place.
 
 ## Rules
 
-- Tasks must be related to Claude Code or AI tooling
-- Every issue must have clear acceptance criteria before a bounty is activated
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
-- Quality over speed — a solid PR beats a fast one
+is a
+ to
+- How it works
+How it works
 
----
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
 
 ## Community
 
