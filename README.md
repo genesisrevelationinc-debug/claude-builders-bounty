@@ -2,31 +2,6 @@
 
 > A community bounty board for Claude Code builders.
 
-## GitHub PR Reviewer
-
-This tool analyzes pull requests and provides structured feedback.
-
-### Features
-
-- Works via CLI: `claude-review --pr <PR_URL>`
-- OR via GitHub Action
-- Provides structured feedback:
-  - Summary of changes
-  - Identified risks
-  - Improvement suggestions
-  - Confidence score
-
-## Setup & Usage
-
-### Prerequisites
-
-- Python 3.7+
-- A GitHub token with `repo` scope
-
-### Installation
-
-
-
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
@@ -62,6 +37,11 @@ You're in the right place.
 ## Rules
 
 - Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
++- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
+ 
+- Started by the Claude builder community · March 2026 · MIT License
 - Every issue must have clear acceptance criteria before a bounty is activated
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Quality over speed — a solid PR beats a fast one
