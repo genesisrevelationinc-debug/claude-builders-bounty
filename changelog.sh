@@ -1,99 +1,94 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# changelog.sh - Generate a structured CHANGELOG.md from git history
-# Usage: bash changelog.sh
+# Exit on any error
+set -e
 
-set -euo pipefail
+# Function to print usage
+usage() {
+  echo "Usage: $0"
+  echo "Generates a structured CHANGELOG.md from git history"
+  exit 1
+}
 
-# Get the last git tag
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+# Check if the current directory is a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+  echo "Error: This script must be run from a Git repository"
+  exit 1
+fi
 
-if [ -z "$LAST_TAG" ]; then
-    echo "No tags found. Using all commits."
-    COMMIT_RANGE=""
+# Get the latest tag
+latest_tag=$(git describe --tags $(git rev-list --tags --sort=taggerdate --max-count=1))
+
+# If no tags are found, use the initial commit
+if [ -z "$latest_tag" ]; then
+  latest_tag=$(git rev-list --max-parents=0 HEAD)
+fi
+
+# Get commit messages since last tag
+if [ -z "$latest_tag" ]; then
+  echo "No tags found, using all commits"
+  commit_range=""
 else
-    echo "Generating changelog since tag: $LAST_TAG"
-    COMMIT_RANGE="${LAST_TAG}..HEAD"
+  echo "Using commit range from $latest_tag"
+  commit_range="$latest_tag..HEAD"
 fi
 
-# Get commits since last tag (or all commits if no tag)
-if [ -z "$COMMIT_RANGE" ]; then
-    COMMITS=$(git log --pretty=format:"%s" --no-merges)
-else
-    COMMITS=$(git log --pretty=format:"%s" --no-merges "$COMMIT_RANGE")
-fi
+# Create a temporary file to store the changelog
+tmp_file=$(mktemp)
 
-if [ -z "$COMMITS" ]; then
-    echo "No new commits found since $LAST_TAG"
-    exit 0
-fi
+# Write the changelog header
+cat > "$tmp_file" << 'EOF'
+# Changelog
+EOF
 
 # Categorize commits
-ADDED=""
-FIXED=""
-CHANGED=""
-REMOVED=""
+added=()
+fixed=()
+changed=()
+removed=()
+uncategorized=()
 
-while IFS= read -r commit; do
-    # Skip empty lines
-    [ -z "$commit" ] && continue
-    
-    # Categorize based on conventional commit prefixes or keywords
-    lower_commit=$(echo "$commit" | tr '[:upper:]' '[:lower:]')
-    
-    if echo "$lower_commit" | grep -qE '^(feat|add|new|introduce)|\badd(ed|ing)?\b'; then
-        ADDED="${ADDED}- ${commit}"$'\n'
-    elif echo "$lower_commit" | grep -qE '^(fix|bug|patch)|\bfix(ed|ing)?\b'; then
-        FIXED="${FIXED}- ${commit}"$'\n'
-    elif echo "$lower_commit" | grep -qE '^(remove|delete|drop|revert)|\bremove(d|ing)?\b|\bdelete(d|ing)?\b'; then
-        REMOVED="${REMOVED}- ${commit}"$'\n'
-    elif echo "$lower_commit" | grep -qE '^(change|update|modify|refactor|improve|upgrade)|\bchange(d|ing)?\b|\bupdate(d|ing)?\b'; then
-        CHANGED="${CHANGED}- ${commit}"$'\n'
-    else
-        # Default to Changed for uncategorized commits
-        CHANGED="${CHANGED}- ${commit}"$'\n'
-    fi
-done <<< "$COMMITS"
-
-# Generate CHANGELOG.md
-DATE=$(date +%Y-%m-%d)
-
-# Determine version for header
-if [ -n "$LAST_TAG" ]; then
-    VERSION_HEADER="## [Unreleased] - ${DATE}"
+if [ -z "$commit_range" ]; then
+  commit_list=$(git log --oneline)
 else
-    VERSION_HEADER="## [Unreleased] - ${DATE}"
+  commit_list=$(git log --oneline $commit_range)
 fi
 
-# Build the changelog content
-CHANGELOG="# Changelog"$'\n\n'"All notable changes to this project will be documented in this file."$'\n\n'
+echo "Processing commits..."
+while read -r line; do
+  if [[ $line == *"add:"* ]] || [[ $line == *"feat:"* ]] || [[ $line == *"feature:"* ]]; then
+    added+=("- $line")
+  elif [[ $line == *"fix:"* ]]; then
+    fixed+=("- $line")
+  elif [[ $line == *"refactor:"* ]] || [[ $line == *"update:"* ]] || [[ $a == *"modify:"* ]]; then
+    changed+=("- $line")
+  elif [[ $line == *"remove:"* ]] || [[ $line == *"rm:"* ]] || [[ $line == *"delete:"* ]]; then
+    removed+=("- $line")
+  else
+    uncategorized+=("- $line")
+  fi
+done <<< "$commit_list"
 
-CHANGELOG="${CHANGELOG}${VERSION_HEADER}"$'\n\n'
+# Write categorized commits to temporary file
+{
+  if [ ${#added[@]} -gt 0 ]; then
+    echo "## Added" >> "$tmp_file"
+    for line in "${added[@]}"; do
+      echo "$line" >> "$tmp_file"
+    done
+  fi
+  
+  if [ ${#fixed[@]} > 0 ]; then
+    echo "## Fixed" >> "$tmp_file"
+    for line in "${fixed[@]}"; do
+      echo "- $line" >> "$tmp_file"
+    done
+  fi
+  
+  # Add other categories as needed...
+} > "$tmp_file"
 
-if [ -n "$ADDED" ]; then
-    CHANGELOG="${CHANGELOG}### Added"$'\n\n'"${ADDED}"$'\n'
-fi
+# Move the changelog to the final location
+mv "$tmp_file" CHANGELOG.md
 
-if [ -n "$CHANGED" ]; then
-    CHANGELOG="${CHANGELOG}### Changed"$'\n\n'"${CHANGED}"$'\n'
-fi
-
-if [ -n "$FIXED" ]; then
-    CHANGELOG="${CHANGELOG}### Fixed"$'\n\n'"${FIXED}"$'\n'
-fi
-
-if [ -n "$REMOVED" ]; then
-    CHANGELOG="${CHANGELOG}### Removed"$'\n\n'"${REMOVED}"$'\n'
-fi
-
-# Append existing changelog if it exists
-if [ -f "CHANGELOG.md" ]; then
-    # Extract content after the header to avoid duplication
-    EXISTING=$(tail -n +4 CHANGELOG.md)
-    CHANGELOG="${CHANGELOG}"$'\n'"${EXISTING}"
-fi
-
-# Write the changelog
-echo "$CHANGELOG" > CHANGELOG.md
-
-echo "✅ CHANGELOG.md generated successfully!"
+echo "CHANGELOG.md has been generated!"
