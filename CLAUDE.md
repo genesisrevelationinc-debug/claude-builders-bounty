@@ -1,24 +1,18 @@
-# CLAUDE.md — Next.js 15 + SQLite SaaS
+# CLAUDE.md — AI Assistant Onboarding Guide
 
-> Opinionated conventions for this repo.  
-> If Claude Code (or you) is generating code, it follows this file. No generic advice — every rule has a reason.
-
----
-
-## Stack & Versions
-
-| Layer | Choice | Pin / Note |
-|-------|--------|------------|
-| Framework | Next.js 15 (App Router) | Use `async` Server Components by default |
-| Runtime | Node.js 20+ | |
-| Database | SQLite via `better-sqlite3` | Local file for dev, `libsql`/`turso` client for prod |
-| ORM / Query | Drizzle ORM | See **Migrations** below |
-| Auth | NextAuth.js v5 (Auth.js) | Credentials provider + JWT session |
-| Styling | Tailwind CSS + shadcn/ui | Base color: `neutral` |
-| Validation | Zod | Reuse schemas in API + forms |
-| Testing | Vitest + Playwright | Unit: `*.test.ts`; E2E: `*.spec.ts` |
+> **Purpose**: This document ensures Claude (and other AI assistants) produce
+> high-quality, consistent code when contributing to this codebase.
+>
+> **Last updated**: 2024-03-15
+> **Stack**: Next.js 14 (App Router), TypeScript, SQLite (better-sqlite3), Tailwind CSS
 
 ---
 
-## Folder Structure
+## 1. Folder Structure & Naming Conventions
+
+### Absolute Rules
+- **Use kebab-case for ALL file and folder names**: `user-profile.tsx`, `api/webhooks/route.ts`
+- **PascalCase ONLY for React component exports**: `export function UserProfile() {}`
+- **camelCase for utilities, hooks, and non-component files**: `useAuth.ts`, `dbHelpers.ts`
+- **NO index files as barrel exports** — import directly from source
 
