@@ -1,90 +1,109 @@
-#!/usr/bin/env python3
-"""
-Claude Code pre-tool-use hook: Blocks destructive bash commands.
+#!/usr/bin/env bash
 
-Place this file at: ~/.claude/hooks/pre-tool-use
-Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
-"""
+set -e
 
-import json
-import os
-import re
-import sys
-from datetime import datetime
+# Default Claude Code configuration
+CLAUDE_CONFIG_DIR="$HOME/.claude"
+CLAUDE_HOOKS_DIR="$CLAUDE_CONFIG_DIR/hooks"
 
-# Path to the blocked log file
-BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
+# Create hooks directory if it doesn't exist
+mkdir -p "$CLAUDE_HOOKS_DIR"
 
-# Destructive patterns to block
-DANGEROUS_PATTERNS = [
-    # rm -rf (destructive recursive force remove)
-    (r'\brm\s+(?:-[a-zA-Z]*f[a-zA-Z]*\s+)?(?:-[a-zA-Z]*r[a-zA-Z]*\s+)?-?[a-zA-Z]*rf[a-zA-Z]*\s', "rm -rf: recursive force deletion"),
-    # DROP TABLE
-    (r'\bDROP\s+TABLE\b', "DROP TABLE: destructive SQL operation"),
-    # git push --force
-    (r'\bgit\s+push\s+(?:-[a-zA-Z]*f[a-zA-Z]*|--force)\b', "git push --force: force push can overwrite remote history"),
-    # TRUNCATE
-    (r'\bTRUNCATE\s+TABLE?\b', "TRUNCATE: destructive SQL operation that removes all data"),
-    # DELETE FROM without WHERE
-    (r'\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)', "DELETE FROM without WHERE: would delete all rows"),
-]
+# Create log file if it doesn't exist
+touch "$CLAUDE_HOOKS_DIR/blocked.log"
 
+BLOCKED_CMDS=(
+    "rm -rf"
+    "DROP TABLE"
+    "TRUNCATE"
+    "DELETE FROM"
+    "git push --force"
+)
 
-def log_blocked_attempt(command, project_path):
-    """Log a blocked command attempt to the log file."""
-    timestamp = datetime.utcnow().isoformat() + "Z"
-    log_entry = f"{timestamp} | project={project_path} | command={command}\n"
-    
-    # Ensure the hooks directory exists
-    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
-    
-    with open(BLOCKED_LOG, "a") as f:
-        f.write(log_entry)
+for cmd in "${BLOCKED_CMDS[@]}"; do
+    if [[ $cmd == "rm -rf" ]]; then
+        if [[ $INPUT == *"rm -r"* ]] || [[ $INPUT == *"rm -rf"* ]] || [[ $INPUT == *"rm -d"* ]] || [[ $INPUT == *"rm -f"* ]]; then
+            echo "Error: Destructive command blocked: $INPUT" >&2
+            exit 1
+        fi
+    done
+    if [[ $INPUT == *"rm -r"* ]] || [[ $INPUT == *"rm -rf"* ]] || [[ $INPUT == *"rm -d"* ]] || [[ $INPUT == *"rm -f"* ]]; then
+        echo "Error: Destructive command blocked: $INPUT" >&2
+        exit 1
+    fi
+done
 
-
-def check_command(command):
-    """Check if a command contains dangerous patterns. Returns (is_blocked, reason)."""
-    command_upper = command.upper()
-    
-    for pattern, reason in DANGEROUS_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True, reason
-    
-    return False, None
-
-
-def main():
-    # Read the hook input from stdin (Claude Code passes JSON)
-    try:
-        hook_input = json.loads(sys.stdin.read())
-    except json.JSONDecodeError:
-        # If not valid JSON, allow the command to proceed
-        sys.exit(0)
-    
-    # Extract tool name and input
-    tool_name = hook_input.get("tool_name", "")
-    tool_input = hook_input.get("tool_input", {})
-    
-    # Only intercept bash tool
-    if tool_name != "bash":
-        sys.exit(0)
-    
-    command = tool_input.get("command", "")
-    project_path = hook_input.get("project_path", "unknown")
-    
-    # Check if the command is dangerous
-    is_blocked, reason = check_command(command)
-    
-    if is_blocked:
-        # Log the blocked attempt
-        log_blocked_attempt(command, project_path)
-        
-        # Print the error message for Claude to see
-        print(f"\n🛡️  SECURITY HOOK BLOCKED: {reason}\n", file=sys.stderr)
-        print(f"The command was: {command}\n", file=sys.stderr)
-        print("If you need to run this command, please ask the user for explicit confirmation.\n", file=sys.stderr)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
+for cmd in "${BLOCKED_CMDS[@]}"; do
+    if [[ $INPUT == *"$cmd"* ]]; then
+        echo "Error: Destructive command blocked: $INPUT" >&2
+        exit 1
+    fi
+done
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: Destructive command blocked: $INPUT" >&2
+exit 1
+fi
+echo "Error: D0.0
