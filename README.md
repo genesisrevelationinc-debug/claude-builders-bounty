@@ -1,22 +1,20 @@
-<REPO_NAME>
+| Title | claude-builders-bounty |
+| Bounty | $150 |
+| Status | In Progress |
+| Branch | feature/pr-review-agent |
 
-> A community bounty board for Claude Code builders.
-
-Building with Claude Code? Have tasks to delegate?
-Want to get paid for contributing to AI projects?
-You're in the right place.
-
----
+## What is this
+This is a community bounty board for Claude Code.
 
 ## How it works
+1. Comment `/opire try` in the issue you want to work on
+2. Submit a PR — payment is automatic on merge ✅
 
-**To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
-3. Share the link — contributors will find it
-
-**To claim a bounty**
+## How to claim a bounty
 1. Browse the open issues below
+2. Submit a PR — payment is automatic on merge ✅
+
+
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
 
