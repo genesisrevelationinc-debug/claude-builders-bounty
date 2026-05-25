@@ -1,23 +1,22 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this at the root of any greenfield Next.js 15 + SQLite project. No clarifying questions should be needed.
+> Opinionated project conventions. Read this before writing code.  
+> Last updated: 2026-03-01 · Stack: Next.js 15, React 19, TypeScript, SQLite (better-sqlite3), Tailwind CSS, shadcn/ui
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Runtime | Node.js 20+ | `next/after`, native `fetch` with `keepalive`, stable `crypto` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network latency, perfect for single-tenant SaaS |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, no codegen bloat, migrations in `.sql` |
-| Auth | Lucia + `oslo` | Session-based, no JWT complexity, works with SQLite out of the box |
-| Styling | Tailwind CSS + `shadcn/ui` | Utility-first, copy-paste components, no version drift |
-| Validation | Zod | Same schemas for API, forms, and DB; single source of truth |
-| Testing | Vitest + Playwright | Unit tests fast, E2E tests real browser behavior |
+| Package | Version | Why |
+|---------|---------|-----|
+| next | ^15.0.0 | App Router, stable since 15. Server Components by default. |
+| react | ^19.0.0 | Concurrent features, `use` hook for promises. |
+| typescript | ^5.7 | Strict mode always. `noUncheckedIndexedAccess` on. |
+| better-sqlite3 | ^11.0.0 | Synchronous SQLite. Faster than async for local DB. Turso only for multi-region deploy. |
+| tailwindcss | ^4.0 | CSS-first configuration. No `tailwind.config.js` — use `@theme` in CSS. |
+| shadcn/ui | latest | `npx shadcn add <component>`. Don't install manually. |
 
-**Non-negotiable:** We do not use Prisma. The binary engine and connection pooling add complexity that SQLite doesn't need. Drizzle's SQL-like API is explicit and debuggable.
+**Node:** >= 20. LTS only. No polyfills.
 
 ---
 
