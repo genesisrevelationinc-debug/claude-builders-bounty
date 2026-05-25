@@ -7,14 +7,14 @@ Want to get paid for contributing to AI projects?
 You're in the right place.
 
 ---
-How it works
 
-**Post a bounty**
+## How it works
+
+**To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XX` in the issue to set the reward
+2. Comment `/opire create $XXX` in the issue to set the reward
 3. Share the link — contributors will find it
-**Claim a bounty**
-1. Browse the open issues below
+
 **To claim a bounty**
 1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
