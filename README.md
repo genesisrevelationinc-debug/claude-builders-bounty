@@ -50,11 +50,10 @@ You're in the right place.
 
 ---
 
-# Destructive Command Blocker
-
-This hook blocks destructive bash commands from being executed by Claude Code.
-
 ## Installation
+
+1. Create a `~/.claude/hooks` directory in your home directory
+2. Copy the following files there:
 
 
 *Started by the Claude builder community · March 2026 · MIT License*
