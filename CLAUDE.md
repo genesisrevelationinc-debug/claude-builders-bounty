@@ -1,15 +1,11 @@
-# CLAUDE.md - Project Conventions
-
-> This document defines the standard practices for this Next.js + SQLite SaaS project. It's an opinionated guide for Claude Code to understand our stack, conventions, and development workflow.
+# CLAUDE.md
 
 ## Stack & Versions
 
-- **Next.js 15** with App Router
-- **SQLite** (Turso or better-sqlite3)
-- **TypeScript** for all application code
-- **Tailwind CSS** for styling
-- **Zod** for validation
-- **React Hook Form** for form handling
+- **Next.js**: 15.0.0 (App Router)
+- **SQLite**: better-sqlite3 or Turso
+- **Node.js**: 18.x LTS
+- **Package Manager**: pnpm 8.x
 
-## Folder Structure
+## Project Structure
 
