@@ -36,13 +36,12 @@ You're in the right place.
 
 ## Rules
 
-is a
- to
-- How it works
-How it works
+- Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
 
-**To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
+---
 
 ## Community
 
@@ -50,5 +49,12 @@ How it works
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Destructive Command Blocker
+
+This hook blocks destructive bash commands from being executed by Claude Code.
+
+## Installation
+
 
 *Started by the Claude builder community · March 2026 · MIT License*
