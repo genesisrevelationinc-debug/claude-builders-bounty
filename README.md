@@ -1,6 +1,4 @@
-# Claude PR Reviewer 🤖
-
-> A community bounty board for Claude Code builders.
+<REPO_NAME>
 
 > A community bounty board for Claude Code builders.
 
@@ -34,12 +32,7 @@ You're in the right place.
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
-## Claimed Bounties (In Progress)
-
-| # | Task | Amount | Builder | Status |
-|---|------|--------|--------|--------|
-
-## Rules
+---
 
 ## Rules
 
