@@ -1,15 +1,6 @@
-## Claude Builders Bounty 🤖
+# Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
-
-## Claude Code Security Hook
-
-This hook blocks destructive bash commands that could cause accidental harm when executed
-by Claude Code.
-
-### Installation
-
-
 
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
@@ -59,4 +50,9 @@ You're in the right place.
 
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
+- 📧 Contact: claudebounty@gmail.com
+---
+## Claude Code Hook: Block Destructive Commands
+
+### Installation
+
