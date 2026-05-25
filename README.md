@@ -1,15 +1,3 @@
-# Claude Builders Bounty Changelog Generator 🤖
-
-This tool automatically generates a structured `CHANGELOG.md` from git history.
-
-## Setup
-
-1. `git clone` this repository
-2. Make the script executable: `chmod +x changelog.sh`
-3. Run the changelog generator: `./changelog.sh`
-
-This will scan your git log and generate a `CHANGELOG.md` with categorized changes.
-
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -19,14 +7,14 @@ Want to get paid for contributing to AI projects?
 You're in the right place.
 
 ---
+How it works
 
-## How it works
-
-**To post a bounty**
+**Post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
+2. Comment `/opire create $XX` in the issue to set the reward
 3. Share the link — contributors will find it
-
+**Claim a bounty**
+1. Browse the open issues below
 **To claim a bounty**
 1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
