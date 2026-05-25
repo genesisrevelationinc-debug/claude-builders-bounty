@@ -1,9 +1,5 @@
-## claude-builders-bounty
-
-### CLI Usage
-
-
-
+* [BOUNTY: $150] AGENT: Claude Code sub-agent that reviews a PR and posts a structured comment
+ * [BOUNTY: $200] WORKFLOW: n8n + Claude API — automated weekly dev summary
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
