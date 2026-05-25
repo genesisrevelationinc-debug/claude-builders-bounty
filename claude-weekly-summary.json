@@ -1,0 +1,140 @@
+{
+  "name": "Weekly Development Summary",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "GithubTrigger",
+      "name": "Github Trigger",
+      "type": "n8n-nodes-github",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "xxx"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": "weeks",
+          "repeat": 1,
+          "day": "friday",
+          "time": "17:00"
+        }
+      },
+      "id": "Schedule Trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-schedule",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getChanges",
+        "repository": "claude-builders-bounty/claude-builders-bounty",
+        "timeRange": "lastWeek"
+      },
+      "id": "GetRepoChanges",
+      "name": "Get Repo Changes",
+      "type": "n8n-nodes-github",
+      "typeVersion": 1,
+      "position": [
+        250,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "model": "claude-sonnet-4-20250514",
+        "prompt": "Generate a weekly summary based on the GitHub activity with the following format: 1. Overview of commits with key changes 2. Summary of closed issues 3. Summary of merged pull requests 4. Overall project status. Be consice and focus on key changes.",
+        "maxTokens": 1000
+      },
+      "id": "ClaudeSonnet",
+      "name": "Claude Sonnet API",
+      "type": "n8n-nodes-anthropic",
+      "typeVersion": 1,
+      "position": [
+        250,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "bypass": ""
+        },
+      "id": "EmailSender",
+      "name": "Email Sender",
+      "type": "n8n-nodes-email",
+      "typeVersion": 1,
+      "position": [
+        250,
+        750
+      ]
+    },
+    {
+      "parameters": {
+        "transport": "smtp",
+        "to": "team@example.com",
+        "subject": "Weekly Development Summary",
+        "text": "Here is the weekly summary of the development activity:\n\nCommits:\n- {{ $json:commits }}\n\nClosed Issues:\n- {{ $json:issues }}\n\nMerged PRs:\n- {{ $json:pull_requests }}\n\nGenerated Summary:\n{{ $json:summary }}",
+        "from": "noreply@example.com"
+      },
+      "id": "SendEmail",
+      "name": "Send Email",
+      "type": "n8n-nodes-email",
+      "typeVersion": 1,
+      "position": [
+        450,
+        750
+      ]
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.1",
+  "settings": {
+    "executionOrder": "v1.0",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false,
+    "timeZone": "America/New_York",
+    "executionTimeout": 30,
+    "instanceId": "weekly_dev_summary"
+  },
+  "connectors": [
+    {
+      "sourceId": "Schedule Trigger",
+      "targetId": "GetRepoChanges",
+      "type": "main",
+      "data": {
+        "type": "main",
+        "source": "Schedule Trigger",
+        "target": "GetRepoChanges"
+      }
+    },
+    {
+      "sourceId": "GetRepoChanges",
+      "targetId": "ClaudeSonnet",
+      "type": "main",
+      "data": {
+        "type": "main",
+        "source": "GetRepoChanges",
+        "target": "ClaudeSonnet"
+      }
+    },
+    {
+      "sourceId": "ClaudeSonnet",
+      "targetId": "SendEmail",
+      "type": "main",
+      "data": {
+        "type": "main",
+        "source": "ClaudeSonnet",
+        "target": "SendEmail"
+      }
+    }
+  ]
+}
