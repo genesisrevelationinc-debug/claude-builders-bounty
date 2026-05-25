@@ -1,29 +1,34 @@
-# This workflow will run the claude-review script on pull request
-
-name: Claude Code PR Reviewer
+name: Claude PR Review
 
 on:
   pull_request:
     types: [opened, synchronize]
 
 jobs:
-  claude-review:
+  review:
     runs-on: ubuntu-latest
-    name: Claude Code PR Review
+    permissions:
+      pull-requests: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          python-version: '3.9'
-      
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install dependencies
         run: |
-          pip install requests
-          pip install openai
-      
-      - name: Run Claude Code Review
+          pip install -r claude-review/requirements.txt
+
+      - name: Run Claude PR Review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          python claude-review --pr ${{ github.event.pull_request.html_url }}
+          cd claude-review
+          python -m claude_review --pr "$PR_URL"
