@@ -1,192 +1,177 @@
 ```diff
 --- /dev/null
 +++ b/claude-review
-@@ -0,0 +1,3 @@
+@@ -0,0 +1,2 @@
 +#!/usr/bin/env bash
-+set -euo pipefail
 +exec python3 -m claude_review.cli "$@"
 --- /dev/null
 +++ b/claude_review/__init__.py
-@@ -0,0 +1,1 @@
+@@ -0,0 +1,3 @@
 +"""Claude Code PR Review Agent."""
++
++__version__ = "0.1.0"
 --- /dev/null
 +++ b/claude_review/cli.py
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,95 @@
++#!/usr/bin/env python3
 +"""CLI entry-point for the Claude Code PR review agent."""
-+
-+from __future__ import annotations
 +
 +import argparse
 +import os
++import re
++import subprocess
 +import sys
++from urllib.parse import urlparse
 +
 +from .reviewer import review_pr
 +
 +
-+def main(argv: list[str] | None = None) -> int:
-+    parser = argparse.ArgumentParser(
-+        prog="claude-review",
-+        description="Claude Code PR Review Agent — structured Markdown review comments.",
-+    )
-+    parser.add_argument(
-+        "--pr",
-+        required=True,
-+        help="GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)",
-+    )
-+    parser.add_argument(
-+        "--api-key",
-+        default=os.getenv("ANTHROPIC_API_KEY"),
-+        help="Anthropic API key (defaults to ANTHROPIC_API_KEY env var)",
-+    )
-+    parser.add_argument(
-+        "--model",
-+        default="claude-sonnet-4-20250514",
-+        help="Anthropic model to use (default: claude-sonnet-4-20250514)",
-+    )
-+    parser.add_argument(
-+        "--output",
-+        "-o",
-+        default=None,
-+        help="Write review to file instead of stdout",
-+    )
-+    parser.add_argument(
-+        "--post-comment",
-+        action="store_true",
-+        help="Post the review as a comment on the PR (requires GITHUB_TOKEN)",
-+    )
++def extract_pr_info(pr_url: str) -> tuple[str, str, int]:
++    """Extract owner, repo, and PR number from a GitHub PR URL."""
++    parsed = urlparse(pr_url)
++    # Path looks like /owner/repo/pull/123
++    match = re.match(r"^/([^/]+)/([^/]+)/pull/(\d+)", parsed.path)
++    if not match:
++        raise ValueError(f"Invalid PR URL: {pr_url}")
++    return match.group(1), match.group(2), int(match.group(3))
 +
-+    args = parser.parse_args(argv)
 +
-+    if not args.api_key:
-+        print(
-+            "Error: Anthropic API key required. Set ANTHROPIC_API_KEY or pass --api-key.",
-+            file=sys.stderr,
-+        )
++def fetch_pr_diff(owner: str, repo: str, pr_number: int, token: str | None = None) -> str:
++    """Fetch the PR diff from GitHub API."""
++    import urllib.request
++
++    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
++    headers = {
++        "Accept": "application/vnd.github.v3.diff",
++        "User-Agent": "claude-review/0.1.0",
++    }
++    if token:
++        headers["Authorization"] = f"Bearer {token}"
++
++    req = urllib.request.Request(url, headers=headers)
++    with urllib.request.urlopen(req, timeout=30) as response:
++        return response.read().decode("utf-8")
++
++
++def post_comment(owner: str, repo: str, pr_number: int, body: str, token: str) -> dict:
++    """Post a review comment to the PR."""
++    import json
++    import urllib.request
++
++    url = f"https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments"
++    data = json.dumps({"body": body}).encode("utf-8")
++    headers = {
++        "Authorization": f"Bearer {token}",
++        "Content-Type": "application/json",
++        "User-Agent": "claude-review/0.1.0",
++    }
++
++    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
++    with urllib.request.urlopen(req, timeout=30) as response:
++        return json.loads(response.read().decode("utf-8"))
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser(description="Claude Code PR Review Agent")
++    parser.add_argument("--pr", required=True, help="GitHub PR URL to review")
++    parser.add_argument("--post", action="store_true", help="Post review as a comment to the PR")
++    args = parser.parse_args()
++
++    token = os.environ.get("GITHUB_TOKEN")
++    if args.post and not token:
++        print("Error: GITHUB_TOKEN required when using --post", file=sys.stderr)
 +        return 1
 +
-+    review = review_pr(
-+        pr_url=args.pr,
-+        api_key=args.api_key,
-+        model=args.model,
-+        post_comment=args.post_comment,
-+    )
++    try:
++        owner, repo, pr_number = extract_pr_info(args.pr)
++    except ValueError as e:
++        print(f"Error: {e}", file=sys.stderr)
++        return 1
 +
-+    if args.output:
-+        with open(args.output, "w", encoding="utf-8") as f:
-+            f.write(review)
-+    else:
-+        print(review)
++    print(f"Fetching diff for {owner}/{repo}#{pr_number} ...")
++    diff = fetch_pr_diff(owner, repo, pr_number, token)
 +
++    print("Reviewing with Claude ...")
++    review = review_pr(diff, pr_url=args.pr)
++
++    if args.post and token:
++        print("Posting comment ...")
++        post_comment(owner, repo, pr_number, review, token)
++
++    print(review)
 +    return 0
 +
 +
 +if __name__ == "__main__":
-+    raise SystemExit(main())
++    sys.exit(main())
 --- /dev/null
 +++ b/claude_review/reviewer.py
-@@ -0,0 +1,213 @@
-+"""Core PR review logic using Claude Code / Anthropic API."""
-+
-+from __future__ import annotations
+@@ -0,0 +1,143 @@
++"""Core review logic using Claude Code / Anthropic API."""
 +
 +import json
 +import os
 +import re
 +import subprocess
-+import tempfile
-+from pathlib import Path
-+
-+try:
-+    import anthropic
-+except ImportError:  # pragma: no cover
-+    anthropic = None  # type: ignore[assignment]
++import sys
++from dataclasses import dataclass
++from typing import Literal
 +
 +
-+SYSTEM_PROMPT = """\
-+You are an elite software engineer performing code review on a GitHub pull request.
-+Analyze the diff carefully. Be concise but thorough.
-+
-+Respond ONLY with a JSON object in this exact shape:
-+
-+{
-+  "summary": "string (2-3 sentences describing what the PR does)",
-+  "risks": ["list of specific risks or concerns"],
-+  "suggestions": ["list of concrete improvement suggestions"],
-+  "confidence": "Low|Medium|High"
-+}
-+
-+Rules:
-+- summary: 2-3 sentences, plain English, no jargon.
-+- risks: empty list if none; otherwise specific, actionable items.
-+- suggestions: empty list if none; otherwise specific and actionable.
-+- confidence: Low = major concerns, Medium = minor issues, High = LGTM.
-+"""
++Confidence = Literal["Low", "Medium", "High"]
 +
 +
-+def _run(cmd: list[str], cwd: str | None = None) -> str:
-+    result = subprocess.run(
-+        cmd,
-+        capture_output=True,
-+        text=True,
-+        cwd=cwd,
-+        check=True,
-+    )
-+    return result.stdout
++@dataclass
++class ReviewResult:
++    summary: str
++    risks: list[str]
++    suggestions: list[str]
++    confidence: Confidence
 +
 +
-+def _parse_pr_url(pr_url: str) -> tuple[str, str, int]:
-+    """Extract owner, repo, and PR number from a GitHub PR URL."""
-+    patterns = [
-+        r"github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pull/(?P<number>\d+)",
-+        r"github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pulls/(?P<number>\d+)",
-+    ]
-+    for pattern in patterns:
-+        match = re.search(pattern, pr_url)
-+        if match:
-+            return (
-+                match.group("owner"),
-+                match.group("repo"),
-+                int(match.group("number")),
-+            )
-+    raise ValueError(f"Could not parse PR URL: {pr_url}")
++def _call_claude_code(prompt: str) -> str:
++    """Call Claude Code via subprocess and return its response."""
++    # Prefer `claude` CLI if available (Claude Code desktop)
++    claude_path = os.environ.get("CLAUDE_CODE_PATH", "claude")
 +
-+
-+def _fetch_diff(pr_url: str) -> str:
-+    """Fetch the diff for a PR using gh CLI or curl."""
-+    # Try gh CLI first
++    # Try Claude Code CLI first
 +    try:
-+        _run(["gh", "--version"])
-+    except (subprocess.CalledProcessError, FileNotFoundError):
++        result = subprocess.run(
++            [claude_path, "ask", "--print", prompt],
++            capture_output=True,
++            text=True,
++            timeout=300,
++            check=False,
++        )
++        if result.returncode == 0 and result.stdout.strip():
++            return result.stdout.strip()
++    except (FileNotFoundError, subprocess.TimeoutExpired):
 +        pass
-+    else:
-+        return _run(["gh", "pr", "view", pr_url, "--json", "diff"])
 +
-+    # Fallback: use curl with the .diff endpoint
-+    match = re.search(r"github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
-+    if match:
-+        owner, repo, number = match.groups()
-+        diff_url = f"https://github.com/{owner}/{repo}/pull/{number}.diff"
-+        return _run(["curl", "-sL", diff_url])
-+
-+    raise RuntimeError(f"Cannot fetch diff for {pr_url}")
++    # Fallback to Anthropic API directly
++    return _call_anthropic_api(prompt)
 +
 +
-+def _call_claude(
-+    diff: str,
-+    api_key: str,
-+    model: str,
-+) -> dict:
-+    """Send the diff to Claude and return structured JSON."""
-+    if anthropic is None:
++def _call_anthropic_api(prompt: str) -> str:
++    """Fallback to Anthropic API if Claude Code CLI is not available."""
++    import urllib.request
++
++    api_key = os.environ.get("ANTHROPIC_API_KEY")
++    if not api_key:
 +        raise RuntimeError(
-+            "anthropic package not installed. Run: pip install anthropic"
++            "Claude Code CLI not found and ANTHROPIC_API_KEY not set. "
++            "Please install Claude Code or set ANTHROPIC_API_KEY."
 +        )
 +
-+    client = anthropic.Anthropic(api_key=api_key)
++    url = "https://api.anthropic.com/v1/messages"
++    data = json.dumps({
++        "model": "claude-sonnet-4-20250514",
++        "max_tokens": 4096,
++        "messages": [{"role": "user", "content": prompt}],
++    }).encode("utf-8")
 +
-+    # Truncate very large diffs
-+    max_chars = 100_000
-+    if len(diff) > max_chars:
-+        diff = diff[:max_chars] + "\n\n[... diff truncated ...]"
-+
-+    response = client.messages.create(
++    headers = {
++        "Content-Type": "application/json",
++        "x-api-key": api_key,
++        "anthropic-version": "2023-06-01",
++   
