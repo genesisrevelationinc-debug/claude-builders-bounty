@@ -1,0 +1,30 @@
+#!/bin/bash
+   "rm -rf"
+   "DROP TABLE"
+   "git push --force"
+   "TRUNCATE"
+   "DELETE FROM"
+   local cmd="$1"
+   
+   # Check if the command matches any destructive pattern
+   for pattern in "${DESTRUCTIVE_PATTERNS[@]}"; do
+       if [[ "$cmd" == *"$pattern"* ]]; then
+           return 0
+       fi
+   done
+   
+   # Check for DELETE FROM without WHERE clause
+   if [[ "$cmd" == *"DELETE FROM"* ]] && ! [[ "$cmd" =~ WHERE ]]; then
+       return 0
+   fi
+   return 1
+   # Log the blocked attempt
+   TIMESTAMP=$(date -Iseconds)
+   PROJECT_PATH=$(pwd)
+   
+   echo "[$TIMESTAMP] Blocked command: $CMD_NAME in project: $PROJECT_PATH" >> "$LOG_FILE"
+   
+   # Output explanation for Claude
+   echo "CLAUDE, this command has been blocked due to containing destructive patterns."
+   echo "Command was: $CMD_NAME"
+   exit 1
