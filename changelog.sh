@@ -1,38 +1,85 @@
 #!/bin/bash
 
-echo "Fetching latest commits since last tag..."
-git log --oneline $(git describe --tags --abbrev=0 @~)..@ > /tmp/commits.txt
+set -e
 
-echo "Generating changelog..."
-python3 -c "
-import subprocess
-import shlex
+# Get the directory of the script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-def get_git_log():
-    # Get commits since last tag
-    result = subprocess.run(shlex.split('git log --onetch
-    return result.stdout.decode('utf-8')
-"
+# Function to get the latest tag
+get_latest_tag() {
+  git describe --tags --abbrev=0 2>/dev/null || echo "No tags found"
+}
 
-def parse_commit_messages(commit_messages):
-    return commit_messages.split()
+# Function to categorize commits
+categorize_commits() {
+  local commit_msg="$1"
+  local category="Changed"  # Default category
 
-def get_last_tag():
-    result = subprocess.run(shlex.split('git describe --tags --abbrev=0 @~'), capture_output=True, text=True)
-    return result.returncode == 0 and result.stdout.decode('utf-8').strip() or None
+  # Categorize based on commit message
+  case "$commit_msg" in
+    fix:*)          category="Fixed" ;;
+    feat:*)          category="Added" ;;
+    remove:*)         category="Removed" ;;
+    remove*          category="Removed" ;;
+    refactor:*)      category="Changed" ;;
+    *)               category="Changed" ;;
+  esac
 
-def main():
-    # Get the last tag
-    last_tag = get_last_tag()
-    if not last_tag:
-        print('No tags found')
-        return
+  echo "$category"
+}
+
+# Get the last tag or default to "v0.0.0"
+last_tag=$(get_latest_tag)
+if [ "$last_tag" = "No tags found" ]; then
+  last_tag="v0.0.0"
+  echo "No previous tags found. Using $last_tag as the starting point."
+fi
+
+# Get commit messages between the last tag and the current HEAD
+echo "Generating changelog since $last_tag..."
+
+# Create a temporary file to store commit history
+temp_file=$(mktemp)
+
+# Use git log to get the commits and write to the temp file
+git log "$last_tag..HEAD" --pretty=format:"%s" --no-merges > "$temp_file"
+
+# Initialize changelog content
+changelog_content=""
+
+# Check if the temp file has any content
+if [ -s "$temp_file" ]; then
+  # Read the commit messages from the temp file
+  while IFS= read -r commit; do
+    # Categorize the commit
+    category=$(categorize_commits "$commit")
     
-    # Get the commits since the last tag
-    commit_messages = parse_commit_messages  # Placeholder for actual commit messages
-    return commit_messages
-"
-    return
+    # Add to changelog content
+    if [ "$category" = "Added" ]; then
+      changelog_content="$changelog_content- $commit\n"
+    else
+      changelog_content="$changelog_content### $category\n\n$changelog_content"  
+    fi
+  done < "$temp_file"
+  
+  # If we have "Added" commits, add the section header
+  if [ "$category" = "Added" ]; then
+    changelog_content="### Added\n\n$changelog_content"
+  fi
+fi
 
-if __name__ == '__main__':
-    main()
+# Create or update CHANGELOG.md
+cat > CHANGELOG.md << EOF
+# Changelog
+
+## [Unreleased]
+
+$changelog_content
+
+<!-- Additional sections will be added here as needed for other types -->
+EOF
+
+# Clean up
+rm -f "$temp_file"
+
+echo "CHANGELOG.md has been generated."
