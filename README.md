@@ -1,3 +1,15 @@
+# Claude Builders Bounty Changelog Generator 🤖
+
+This tool automatically generates a structured `CHANGELOG.md` from git history.
+
+## Setup
+
+1. `git clone` this repository
+2. Make the script executable: `chmod +x changelog.sh`
+3. Run the changelog generator: `./changelog.sh`
+
+This will scan your git log and generate a `CHANGELOG.md` with categorized changes.
+
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -28,15 +40,9 @@ You're in the right place.
 |---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-
----
-
-## Active Bounties
-| # | Task | Amount | Status |
-|---|------|--------|--------|
-| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-- Tasks must be related to Claude Code or AI tooling
-- Every issue must have clear acceptance criteria before a bounty is activated
+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
 
@@ -44,6 +50,13 @@ You're in the right place.
 
 - Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
+
+---
+
+## Community
+
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
