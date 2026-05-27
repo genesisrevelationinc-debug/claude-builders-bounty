@@ -27,24 +27,16 @@ You're in the right place.
 | # | Task | Amount | Status |
 |---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
+| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 
 ---
 
-## Quick Start
+## Changelog Generation
 
-1. Clone this repository
-2. Make the changelog script executable: `chmod +x changelog.sh`
-3. Run the changelog generator: `bash changelog.sh`
+To automatically generate a structured changelog from git history:
 
-Or use the Claude Code skill:
 
-1. Load the SKILL.md file in Claude Code
-2. Run `/generate-changelog` command
-
----
-## How it works
-
-**To post a bounty**
 
 ## Rules
 
