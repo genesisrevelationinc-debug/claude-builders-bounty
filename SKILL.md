@@ -1,12 +1,6 @@
-# Generate Changelog Skill
+# Git Changelog Generator
 
-Generate a structured `CHANGELOG.md` from a project's git history.
-
-## Setup
-
-1. Save `changelog.sh` to your project root
-2. Make it executable: `chmod +x changelog.sh`
-3. Run: `bash changelog.sh`
+This skill automatically generates a structured CHANGELOG.md from your project's git history.
 
 ## Usage
 
