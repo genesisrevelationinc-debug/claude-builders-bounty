@@ -1,4 +1,6 @@
-name: Claude PR Review
+# This workflow will run the Claude Code PR reviewer on pull requests
+
+name: Claude Code Review
 
 on:
   pull_request:
@@ -7,54 +9,27 @@ on:
 jobs:
   review:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.9'
 
       - name: Install dependencies
         run: |
-          pip install -r claude-review/requirements.txt
+          python -m pip install --upgrade pip
+          pip install httpx
 
-      - name: Run Claude PR Review
+      - name: Run Claude Code Review
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          python -m claude-review.claude_review \
-            --pr "$PR_URL" \
-            --post-comment
-# Claude PR Review Agent 🤖
-
-An intelligent PR review agent powered by Claude that analyzes pull request diffs and posts structured Markdown review comments.
-
-## Features
-
-- **Structured Reviews**: Generates consistent, well-formatted review comments
-- **Risk Assessment**: Identifies potential issues and categorizes them by severity
-- **Actionable Suggestions**: Provides concrete improvement recommendations
-- **Confidence Scoring**: Rates review reliability as Low / Medium / High
-- **Flexible Usage**: Works via CLI or GitHub Actions
-
-## Installation
-
-### Prerequisites
-
-- Python 3.11+
-- An Anthropic API key
-
-### Setup
-
-1. Clone the repository:
+          # Save the claude-review script to a file
+          curl -s https://raw.githubusercontent.com/claudio-b/claude-review/main/claude-review -o claude-review
+          chmod +x claude-review
+          python claude-review --pr "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/$PR_NUMBER"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
