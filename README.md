@@ -1,3 +1,14 @@
+# Claude Builders Bounty 🤖
+
+> A community bounty board for Claude Code builders.
+
+Building with Claude Code? Have tasks to delegate?
+Want to get paid for contributing to AI projects?
+You're in the right place.
+
+---
+
+## How it works
 
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
@@ -16,12 +27,24 @@
 | # | Task | Amount | Status |
 |---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
+
+## Quick Start
+
+1. Clone this repository
+2. Make the changelog script executable: `chmod +x changelog.sh`
+3. Run the changelog generator: `bash changelog.sh`
+
+Or use the Claude Code skill:
+
+1. Load the SKILL.md file in Claude Code
+2. Run `/generate-changelog` command
+
+---
+## How it works
+
+**To post a bounty**
 
 ## Rules
 
