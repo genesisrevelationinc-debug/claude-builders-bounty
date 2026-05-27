@@ -1,38 +1,8 @@
-# Claude Builder Bounty
+# Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
 
-## Bounties
-
-| Task | Bounty |
-|------|-------|
-| Add .env file | $25 |
-| Add GitHub action | $50 |
-| Add skill template | $75 |
-| Add workflow | $100 |
-| Add agent | $150 |
-
----
-
-## Getting Started
-
-1. Create a Claude Code agent
-2. The agent should take a PR diff as input and return a structured Markdown review comment.
-3. The comment should include a summary, risks, and suggestions.
-4. The agent should work via CLI or GitHub Action.
-5. The agent should be tested on at least 2 real GitHub PRs.
-6. The agent should have a confidence score: Low, Medium, or High.
-
-## How to Claim
-
-1. Comment in this issue
-2. Submit a PR with the agent + sample outputs
-3. The agent should be tested on at least 2 real GitHub PRs (include outputs in the PR)
-4. The agent should work via CLI: `claude-review --pr https://github.com/owner/repo/pull/123
-5. OR via GitHub Action (include the workflow YAML)
-
-> A community bounty board for Claude Code builders.
-
+Building with Claude Code? Have tasks to delegate?
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
