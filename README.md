@@ -15,14 +15,10 @@ You're in the right place.
 2. Comment `/opire create $XXX` in the issue to set the reward
 3. Share the link — contributors will find it
 
-
-# Claude Builders Bounty 🤖
-
-> A community bounty board for Claude Code builders.
-
-Building with Claude Code? Have tasks to delegate?
-
-> A place for Claude Code builders.
+**To claim a bounty**
+1. Browse the open issues below
+2. Comment `/opire try` in the issue you want to work on
+3. Submit a PR — payment is automatic on merge ✅
 
 ---
 
