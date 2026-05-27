@@ -1,6 +1,7 @@
-# Claude Builders Bounty 🤖
+# Claude PR Reviewer
 
-> A community bounty board for Claude Code builders.
+This is an autonomous AI agent that reviews GitHub pull requests and provides structured feedback.
+
 
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
@@ -11,10 +12,11 @@ You're in the right place.
 ## How it works
 
 **To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
-3. Share the link — contributors will find it
-
+- Structured feedback includes:
+  - Summary of changes
+  - Potential issues identified
+  - Code improvement suggestions
+  - Risk assessment
 **To claim a bounty**
 1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
