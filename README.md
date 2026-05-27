@@ -15,10 +15,14 @@ You're in the right place.
 2. Comment `/opire create $XXX` in the issue to set the reward
 3. Share the link — contributors will find it
 
-**To claim a bounty**
-1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
-3. Submit a PR — payment is automatic on merge ✅
+
+# Claude Builders Bounty 🤖
+
+> A community bounty board for Claude Code builders.
+
+Building with Claude Code? Have tasks to delegate?
+
+> A place for Claude Code builders.
 
 ---
 
@@ -49,18 +53,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# Claude PR Review Agent
-
-An AI-powered code review agent that analyzes GitHub pull requests and provides structured feedback.
-
-## Features
-
-- Analyzes code changes in pull requests
-- Generates structured, actionable feedback
-- Works via CLI or as a GitHub Action
-
-## Installation
-
 
 *Started by the Claude builder community · March 2026 · MIT License*
