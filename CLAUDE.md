@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this at the root of any greenfield Next.js 15 + SQLite project. No clarifying questions should be needed.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3).
+> Paste this file at the root of your project. Claude Code reads it automatically.
 
 ---
 
@@ -8,16 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Runtime | Node.js 20+ | `next/after`, native `fetch` with `keepalive`, stable `crypto` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network latency, perfect for single-tenant SaaS |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, no codegen bloat, migrations in `.sql` |
-| Auth | Lucia + `oslo` | Session-based, no JWT complexity, works with SQLite out of the box |
-| Styling | Tailwind CSS + `shadcn/ui` | Utility-first, copy-paste components, no version drift |
-| Validation | Zod | Same schemas for API, forms, and DB; single source of truth |
-| Testing | Vitest + Playwright | Unit tests fast, E2E tests real browser behavior |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | Native `fetch`, stable `crypto`, `better-sqlite3` compatibility |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
+| Auth | Lucia + `better-sqlite3` adapter | Session-based, no JWT bloat, works offline |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste components |
+| Validation | Zod | Same schemas for client, server, and DB |
+| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
 
-**Non-negotiable:** We do not use Prisma. The binary engine and connection pooling add complexity that SQLite doesn't need. Drizzle's SQL-like API is explicit and debuggable.
+**Non-negotiable:** We do not use Prisma with SQLite. Prisma's query engine adds a Rust binary, connection pooling that conflicts with `better-sqlite3`'s synchronous model, and migration files that are hard to review.
 
 ---
 
