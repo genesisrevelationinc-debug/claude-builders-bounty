@@ -25,11 +25,12 @@ You're in the right place.
 ## Active Bounties
 
 | # | Task | Amount | Status |
-|---|------|--------|--------|
-| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+| [#6](../../issues/6) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | Claimed by shanaboo |
+
+---
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
@@ -48,8 +49,6 @@ You're in the right place.
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude Claude API — automated weekly dev summary | $200 | 🟢 Open |
-
 ---
+
+*Started by the Claude builder community · March 2026 · MIT License*
