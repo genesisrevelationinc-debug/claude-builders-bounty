@@ -1,6 +1,6 @@
-# Pre-Tool-Use Hook: Block Destructive Bash Commands
+# Block Destructive Commands Hook
 
-A Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash commands before they are executed.
+This hook prevents Claude Code from executing potentially destructive bash commands.
 
 ## Installation
 
