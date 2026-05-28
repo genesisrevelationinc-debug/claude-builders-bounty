@@ -2,71 +2,58 @@
 
 # Generate a structured CHANGELOG.md from git history
 
-# Configuration
-CHANGELOG_FILE="CHANGELOG.md"
-TEMP_FILE="/tmp/changelog_commits.txt"
+# Get the latest tag
+latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
 
-# Get the last tag
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
-
-# Get commits since last tag or all commits if no tags exist
-if [ -z "$LAST_TAG" ]; then
-    echo "No tags found. Using all commits."
-    git log --oneline > "$TEMP_FILE"
-else
-    echo "Commits since tag: $LAST_TAG"
-    git log $LAST_TAG..HEAD --oneline > "$TEMP_FILE"
+# If no tags found, use the initial commit
+if [ -z "$latest_tag" ]; then
+  latest_tag=$(git rev-list --max-parents=0 HEAD)
 fi
 
-# Initialize arrays for categorization
-declare -a ADDED=()
-declare -a FIXED=()
-declare -a CHANGED=()
-declare -a REMOVED=()
+# Get commit messages since the latest tag
+commits=$(git log --pretty=format:"%s" "$latest_tag"..HEAD)
 
-# Categorize commits based on keywords
-while IFS= read -r line; do
-    if [[ $line =~ [Aa]dd|[Nn]ew|[Ff]eature ]]; then
-        ADDED+=("$line")
-    elif [[ $line =~ [Ff]ix|[Bb]ug|[Rr]esolve ]]; then
-        FIXED+=("$line")
-    elif [[ $line =~ [Rr]emove|[Dd]elete|[Rr]m ]]; then
-        REMOVED+=("$line")
-    else
-        CHANGED+=("$line")
-    fi
-done < "$TEMP_FILE"
+# Initialize changelog sections
+added=""
+fixed=""
+changed=""
+removed=""
+
+# Categorize commits (simplified logic based on prefixes)
+while IFS= read -r commit; do
+  case "$commit" in
+    Add*|add*|ADD*) added+="- $commit\n" ;;
+    Fix*|fix*|FIX*) fixed+="- $commit\n" ;;
+    Change*|change*|CHANGE*) changed+="- $commit\n" ;;
+    Remove*|remove*|REMOVE*) removed+="- $commit\n" ;;
+    *) added+="- $commit\n" ;; # Default to Added
+  esac
+done <<< "$commits"
+
+# Get current date
+date=$(date +"%Y-%m-%d")
 
 # Generate the changelog content
-{
-    echo "# Changelog"
-    echo ""
-    echo "All notable changes to this project will be documented in this file."
-    echo ""
-    
-    if [ ${#ADDED[@]} -gt 0 ]; then
-        echo "## Added"
-        for item in "${ADDED[@]}"; do echo "- $item"; done
-        echo ""
-    fi
-    
-    if [ ${#FIXED[@]} -gt 0 ]; then
-        echo "## Fixed"
-        for item in "${FIXED[@]}"; do echo "- $item"; done
-        echo ""
-    fi
-    
-    if [ ${#CHANGED[@]} -gt 0 ]; then
-        echo "## Changed"
-        for item in "${CHANGED[@]}"; do echo "- $item"; done
-        echo ""
-    fi
-    
-    if [ ${#REMOVED[@]} -gt 0 ]; then
-        echo "## Removed"
-        for item in "${REMOVED[@]}"; do echo "- $item"; done
-        echo ""
-    fi
-} > "$CHANGELOG_FILE"
+changelog_content="# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+${added}
+### Fixed
+${fixed}
+### Changed
+${changed}
+### Removed
+${removed}
+"
+
+# Write to CHANGELOG.md
+echo -e "$changelog_content" > CHANGELOG.md
 
 echo "CHANGELOG.md has been generated successfully."
