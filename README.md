@@ -50,4 +50,20 @@ You're in the right place.
 
 ---
 
+# Changelog Generator
+
+A bash script to automatically generate a structured `CHANGELOG.md` from a project's git history.
+
+## Features
+
+- Works via `bash changelog.sh`
+- Fetches commits since the last git tag
+- Auto-categorizes into: `Added` / `Fixed` / `Changed` / `Removed`
+- Outputs a properly formatted `CHANGELOG.md`
+
+## Setup Instructions
+
+### 1. Make the script executable
+
+
 *Started by the Claude builder community · March 2026 · MIT License*
