@@ -1,17 +1,14 @@
-# CLAUDE.md — Project Conventions
+# Project Style Guide: Next.js + SQLite SaaS
 
-> This document defines the conventions, patterns, and agreements for this codebase.
-> Claude Code should understand the project context without asking clarifying questions.
+This document establishes our engineering conventions for a Next.js 15 + SQLite SaaS.
+It's opinionated by design — every rule solves a specific problem we've seen in practice.
 
 ## Stack & Versions
 
-- **Framework**: Next.js 15 (App Router)
-- **Database**: SQLite (via `better-sqlite3` or Turso)
-- **ORM**: Drizzle ORM
-- **Styling**: Tailwind CSS
-- **Deployment**: Vercel
-- **Package Manager**: pnpm
-- **Testing**: Vitest + React Testing Library
+- **Next.js 15** (App Router)
+- **SQLite** (better-sqlite3 or Turso)
+- **Tailwind CSS** for styling
+- **TypeScript** for type safety
 
 ## Folder Structure
 
