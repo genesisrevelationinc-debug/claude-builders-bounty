@@ -2,96 +2,115 @@
 
 # changelog.sh - Generate a structured CHANGELOG.md from git history
 #
-# This script automatically generates a structured CHANGELOG.md file
-# by analyzing the git commit history since the last tag.
+# This script fetches commits since the last git tag and auto-categorizes them
+# into Added, Fixed, Changed, and Removed sections.
 #
 # Usage:
-#   bash changelog.sh
+#   ./changelog.sh
 #
 # Requirements:
-#   - git
+#   - Git
 
 set -e  # Exit on any error
 
-# Configuration
-CHANGELOG_FILE="CHANGELOG.md"
-TEMP_LOG_FILE=$(mktemp)
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# Clean up temporary file on exit
-trap 'rm -f "$TEMP_LOG_FILE"' EXIT
-
-# Get the latest tag, or use initial commit if no tags exist
-if latest_tag=$(git describe --tags --abbrev=0 2>/dev/null); then
-    echo "Generating changelog since last tag: $latest_tag"
-    git log --no-merges --pretty=format:"- %s (%h)" "$latest_tag..HEAD" > "$TEMP_LOG_FILE"
-else
-    echo "No tags found. Generating changelog for all commits."
-    git log --no-merges --pretty=format:"- %s (%h)" > "$TEMP_LOG_FILE"
-fi
-
-# Initialize category arrays
-declare -a added_arr=()
-declare -a fixed_arr=()
-declare -a changed_arr=()
-declare -a removed_arr=()
-
-# Categorize commits based on keywords in the commit message
-while IFS= read -r line; do
-    # Convert to lowercase for case-insensitive matching
-    lower_line=$(echo "$line" | tr '[:upper:]' '[:lower:]')
-    
-    if [[ $lower_line == *"add"* ]] || [[ $lower_line == *"feat"* ]] || [[ $lower_line == *"new"* ]]; then
-        added_arr+=("$line")
-    elif [[ $lower_line == *"fix"* ]] || [[ $lower_line == *"bug"* ]] || [[ $lower_line == *"repair"* ]]; then
-        fixed_arr+=("$line")
-    elif [[ $lower_line == *"change"* ]] || [[ $lower_line == *"update"* ]] || [[ $lower_line == *"modify"* ]] || [[ $lower_line == *"refactor"* ]]; then
-        changed_arr+=("$line")
-    elif [[ $lower_line == *"remove"* ]] || [[ $lower_line == *"delete"* ]] || [[ $lower_line == *"rm"* ]]; then
-        removed_arr+=("$line")
-    else
-        # Default to Added if no keywords match
-        added_arr+=("$line")
-    fi
-done < "$TEMP_LOG_FILE"
-
-# Get current date for the new version entry
-current_date=$(date +"%Y-%m-%d")
-
-# Function to create a new Unreleased section
-create_unreleased_section() {
-    cat << EOF
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-### Added
-$(printf '%s\n' "${added_arr[@]}")
-
-### Fixed
-$(printf '%s\n' "${fixed_arr[@]}")
-
-### Changed
-$(printf '%s\n' "${changed_arr[@]}")
-
-### Removed
-$(printf '%s\n' "${removed_arr[@]}")
-
-EOF
+# Function to print colored output
+print_color() {
+    color=$1
+    message=$2
+    echo -e "${color}${message}${NC}"
 }
 
-# Generate the new changelog content
-create_unreleased_section > "$CHANGELOG_FILE"
-
-# Append previous changelog content if it exists (excluding the header and Unreleased section)
-if [ -f "$CHANGELOG_FILE".bak ]; then
-    # Remove the header and Unreleased section from the backup
-    sed '1,/^## \[Unreleased\]/d' "$CHANGELOG_FILE".bak >> "$CHANGELOG_FILE"
-    rm -f "$CHANGELOG_FILE".bak
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    print_color $RED "Error: Not in a git repository"
+    exit 1
 fi
 
-echo "Changelog generated successfully in $CHANGELOG_FILE"
+# Get the latest tag or use initial commit if no tags exist
+LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)
+
+if [ -z "$LATEST_TAG" ]; then
+    print_color $RED "Error: No commits found"
+    exit 1
+fi
+
+print_color $BLUE "Generating changelog since tag: $LATEST_TAG"
+
+# Get commits since the last tag (excluding merge commits)
+COMMITS=$(git log --no-merges --pretty=format:"%s" $LATEST_TAG..HEAD 2>/dev/null || true)
+
+# If no commits since last tag, exit gracefully
+if [ -z "$COMMITS" ]; then
+    print_color $YELLOW "No commits since last tag. Changelog unchanged."
+    exit 0
+fi
+
+# Initialize arrays for each category
+declare -a ADDED COMMITS
+declare -a FIXED COMMITS
+declare -a CHANGED COMMITS
+declare -a REMOVED COMMITS
+
+# Categorize commits based on keywords in the subject line
+while IFS= read -r commit; do
+    case "$commit" in
+        *[Aa]dd*|*[Ff]eature*|*[Nn]ew*)
+            ADDED+=("$commit")
+            ;;
+        *[Ff]ix*|*[Bb]ug*|*[Rr]esolve*)
+            FIXED+=("$commit")
+            ;;
+        *[Cc]hange*|*[Uu]pdate*|*[Mm]odify*)
+            CHANGED+=("$commit")
+            ;;
+        *[Rr]emove*|*[Dd]elete*|*[Rr]m*)
+            REMOVED+=("$commit")
+            ;;
+        *)
+            # Default to Added if no keywords match
+            ADDED+=("$commit")
+            ;;
+    esac
+done <<< "$COMMITS"
+
+# Generate the changelog content
+{
+    echo "# Changelog"
+    echo ""
+    echo "All notable changes to this project will be documented in this file."
+    echo ""
+    echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),"
+    echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)."
+    echo ""
+    echo "## [Unreleased]"
+    echo ""
+    
+    # Function to print section
+    print_section() {
+        local section_name=$1
+        local commits_array=("${!2}")
+        if [ ${#commits_array[@]} -gt 0 ]; then
+            echo "### $section_name"
+            for commit in "${commits_array[@]}"; do
+                echo "- $commit"
+            done
+            echo ""
+        fi
+    }
+    
+    print_section "Added" ADDED[@]
+    print_section "Fixed" FIXED[@]
+    print_section "Changed" CHANGED[@]
+    print_section "Removed" REMOVED[@]
+    
+    echo "[//]: # (Generated by changelog.sh script)"
+} > CHANGELOG.md
+
+print_color $GREEN "Changelog successfully generated in CHANGELOG.md"
