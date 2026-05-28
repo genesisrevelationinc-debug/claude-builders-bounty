@@ -1,6 +1,6 @@
 # Destructive Command Blocker Hook
 
-This Claude Code hook prevents execution of potentially destructive bash commands.
+This hook prevents Claude from executing potentially destructive bash commands.
 
 ## Installation
 
