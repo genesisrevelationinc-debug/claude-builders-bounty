@@ -1,13 +1,11 @@
-# CLAUDE.md - Project Style Guide
+# CLAUDE.md - Next.js + SQLite SaaS Project Guide
 
 ## Stack & Versions
-
-- **Next.js**: 15.0 with App Router
-- **Database**: SQLite (better-sqlite3 via Kysely or Turso)
-- **ORM**: Kysely (TypeScript SQL query builder)
+- **Next.js**: 15+ (App Router)
+- **Database**: SQLite (better-sqlite3 or Turso)
 - **Styling**: Tailwind CSS
+- **ORM**: Drizzle (preferred) or Prisma
 - **Deployment**: Vercel
-- **Node.js**: 20.x LTS
 
-## Folder Structure
+## Project Structure
 
