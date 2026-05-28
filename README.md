@@ -32,7 +32,7 @@ You're in the right place.
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
-## Active Bounties
+---
 
 ## Rules
 
@@ -49,5 +49,15 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# CHANGELOG Generator
+
+This tool automatically generates a structured CHANGELOG.md from git commit history.
+
+## Quick Start
+
+1. Make the script executable: `chmod +x changelog.sh`
+2. Run the script: `./changelog.sh`
+3. Check the generated `CHANGELOG.md` file
 
 *Started by the Claude builder community · March 2026 · MIT License*
