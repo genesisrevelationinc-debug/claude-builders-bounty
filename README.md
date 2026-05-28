@@ -1,39 +1,4 @@
-# n8n-claude-weekly-summary:README
-
-## Setup Instructions
-
-1. Import this workflow into your n8n instance
-2. Set up a "Claude API" credentials with your API key
-3. Configure the "Schedule" node to point to your webhook/HTTP endpoint
-4. Configure the "Cron" node to run on Fridays at 5pm
-5. Configure the "Email" or "HTTP" nodes for delivery
-
-## Usage
-
-1. Create a new `.env` file and place your Claude API key in it
-2. Set `N8N_CONFIG_` as the prefix for the env variables
-3. Set `GITHUB_REPO` to the target repository
-4. Set `CLAUDE_MODEL` to `claude-sonnet-4-20250514` or `claude-opus-20240514`
-5. Set `WEBHOOK_URL` or `EMAIL_RECIPIENT` based on your delivery method
-
-## Workflow
-
-This workflow will:
-1. Trigger every Friday at 5pm
-2. Collect data from GitHub API
-3. Generate a narrative summary using Claude API
-4. Send the summary via email or messaging
-
-## Configurable Variables
-
-- GITHUB_REPOSITORY: The GitHub repository to track (e.g. `organization/repository`)
-- DESTINATION_CHANNEL: The channel to send the summary to (e.g. `#general`)
-- LANGUAGE: The language to use for the summary (EN/FR)
-
-## How to run
-
-1. Create a new `.env` file:
-   
+# Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
 
