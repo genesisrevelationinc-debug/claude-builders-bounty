@@ -50,14 +50,11 @@ You're in the right place.
 
 ---
 
-# Claude Builders Bounty Security Hook
+## Hooks
 
-## Destructive Command Blocker Hook
+### Pre-Tool-Use: Block Destructive Bash Commands
 
-This hook blocks potentially destructive commands that Claude Code might attempt to execute.
+Protect your system from accidental data loss. Install in one command:
 
-### Installation
-
-1. Create the hook directory and copy the hook:
 
 *Started by the Claude builder community · March 2026 · MIT License*
