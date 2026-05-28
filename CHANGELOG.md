@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2026-03-15
 
 ### Added
+
 - Initial project setup
-- README with bounty board information
-- LICENSE file with MIT license
+- README with bounty instructions
+- This CHANGELOG file
+
+[Unreleased]: https://github.com/claude-builders-bounty/claude-builders-bounty/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/claude-builders-bounty/claude-builders-bounty/releases/tag/v0.1.0
