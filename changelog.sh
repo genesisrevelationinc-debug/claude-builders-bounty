@@ -1,60 +1,42 @@
 #!/bin/bash
 
-# Get the latest tag
-latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
-
-if [ -z "$latest_tag" ]; then
-  echo "No tags found. Using 'HEAD' to get all commits."
-  latest_tag="HEAD"
+# Exit if no git repo found
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+  echo "Error: Not a git repository"
+  exit 1
 fi
 
-# Get commits since the last tag
-if [ "$latest_tag" = "HEAD" ]; then
-  commit_range="HEAD"
+# Get the last tag
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+
+# If no tags found, get all commits from the beginning
+if [ -z "$LAST_TAG" ]; then
+  COMMITS=$(git log --reverse --format="%s|%h")
 else
-  commit_range="$latest_tag..HEAD"
+  COMMITS=$(git log $LAST_TAG..HEAD --format="%s|%h")
 fi
 
-commits=$(git log --oneline $commit_range)
+# Create a temporary file for changelog
+CHANGELOG_TEMP=$(mktemp)
 
-# Initialize arrays for changelog categories
-added=()
-fixed=()
-changed=()
-removed=()
+# Write changelog header
+echo "# Changelog" > "$CHANGELOG_TEMP"
+echo "" >> "$CHANGELOG_TEMP"
 
-# Categorize commits based on commit message prefixes
-while read -r line; do
-  if [[ $line == *"add:"* ]] || [[ $line == *"feat:"* ]]; then
-    added+=("$line")
-  elif [[ $line == *"fix:"* ]]; then
-    fixed+=("$line")
-  elif [[ $line == *"refactor:"* ]] || [[ $line == *"update:"* ]]; then
-    changed+=("$line")
-  elif [[ $line == *"remove:"* ]] || [[ $line == *"delete:"* ]] || [[ $line == *"rm:"* ]]; then
-    removed+=("$line")
-  else
-    # If no specific type, add to "Changed" section
-    changed+=("$line")
+# Get commits and process them
+echo "$COMMITS" | while IFS='|' read -r COMMIT_MSG COMMIT_HASH; do
+  # Categorize based on commit message prefix
+  if [[ $COMMIT_MSG == "feat:"* ]] || [[ $COMMIT_MSG == "add:"* ]] || [[ $COMMIT_MSG == "new:"* ]]; then
+    echo "## Added" >> "$CHANGELOG_TEMP"
+    echo "- $COMMIT_MSG ($COMMIT_HASH)" >> "$CHANGELOG_TEMP"
+  elif [[ $COMMIT_MSG == "fix:"* ]] || [[ $COMMIT_MSG == "bug:"* ]]; then
+   echo "## Fixed" >> "$CHANGELOG_TEMP"
+  elif [[ $COMMIT_MSG == "change:"* ]] || [[ $COMMIT_MSG == "update:"* ]] || [[ $COMMIT_MSG == "refactor:"* ]]; then
+    echo "## Changed" >> "$CHANGELOG_TEMP"
+  elif [[ $COMMIT_MSG == "remove:"* ]] || [[ $COMMIT_MSG == "delete:"* ]]; then
+    echo "## Removed" >> "$CHANGELOG_TEMP"
   fi
-done <<< "$commits"
+done
 
-# Generate the changelog
-echo "# Changelog" > CHANGELOG.md
-echo "" >> CHANGELOG.md
-
-if [ ${#added[@]} -gt 0 ]; then
-  echo "## Added" >> CHANGELOG.md
-  for commit in "${added[@]}"; do
-    echo "- $commit" >> CHANGELOG.md
-  done
-  echo "" >> CHANGELOG.md
-fi
-
-if [ ${#fixed[@]} -gt 0 ]; then
-  echo "## Fixed" >> CHANGELOG.md
-  for commit in "${fixed[@]}"; do
-    echo "- $commit" >> CHANGELOG.md
-  done
-  echo "" >> CHANGELOG.md
-fi
+cat "$CHANGELOG_TEMP" > CHANGELOG.md
+rm "$CHANGELOG_TEMP"
