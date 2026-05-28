@@ -1,22 +1,14 @@
-# CLAUDE.md — Project Style Guide
+# Project Guide: Next.js SaaS with SQLite
 
-> **For Claude Code.** This document defines our project conventions for a Next.js 15 + SQLite SaaS application. Follow these rules strictly.
+> 🧠 *This document explains how we structure code, name things, and connect to the database in this project.*
 
----
+## Stack & Versions
 
-## 🧠 Stack & Versions
+- **Next.js 15** (App Router)
+- **React 19** (Server Components, `use()` hook)
+- **TypeScript 5.7+**
+- **SQLite** (local dev) / **Turso** (prod)
+- **Drizzle ORM** (migrations + querying)
 
-- **Next.js**: `15.0.0` (App Router only)
-- **React**: `19.x` with Server Components
-- **TypeScript**: `5.x`
-- **Database**: SQLite via `better-sqlite3` or `@libsql/client` (Turso)
-- **ORM**: Drizzle ORM
-- **Styling**: Tailwind CSS v3
-- **Deployment**: Vercel
-
-> ❗ No Create React App, no class components, no CSS-in-JS libraries other than Tailwind.
-
----
-
-## 📁 Folder Structure
+## Folder Structure
 
