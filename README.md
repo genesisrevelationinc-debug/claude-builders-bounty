@@ -6,21 +6,15 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
-## Destructive Command Blocker Hook
-
-This hook blocks destructive bash commands when used with Claude Code.
-
-### Installation
-
-
-
 ---
 
 ## How it works
 
-**To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
+building with Claude Code? Have tasks to delegate?
+Want to get paid for contributing to AI projects.
+You're in the right place.
+
+
 3. Share the link — contributors will find it
 
 **To claim a bounty**
