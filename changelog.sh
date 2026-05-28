@@ -1,102 +1,97 @@
 #!/bin/bash
 
-# Generate Changelog
-# This script generates a structured CHANGELOG.md from git history
+# changelog.sh - Generate a structured CHANGELOG.md from git history
+#
+# This script automatically generates a structured CHANGELOG.md file
+# by analyzing the git commit history since the last tag.
+#
+# Usage:
+#   bash changelog.sh
+#
+# Requirements:
+#   - git
 
 set -e  # Exit on any error
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Configuration
+CHANGELOG_FILE="CHANGELOG.md"
+TEMP_LOG_FILE=$(mktemp)
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[*]${NC} $1"
-}
+# Clean up temporary file on exit
+trap 'rm -f "$TEMP_LOG_FILE"' EXIT
 
-print_success() {
-    echo -e "${GREEN}[+]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[!]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[-]${NC} $1"
-}
-
-# Check if git repository exists
-if [ ! -d ".git" ]; then
-    print_error "This is not a git repository. Please run this script from the root of a git repository."
-    exit 1
-fi
-
-# Get the latest tag
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
-
-if [ -z "$LATEST_TAG" ]; then
-    print_warning "No tags found. Using initial commit as starting point."
-    COMMITS_SINCE=$(git log --oneline | tail -n 1 | cut -d' ' -f1)
-    COMMITS_RANGE="$COMMITS_SINCE..HEAD"
+# Get the latest tag, or use initial commit if no tags exist
+if latest_tag=$(git describe --tags --abbrev=0 2>/dev/null); then
+    echo "Generating changelog since last tag: $latest_tag"
+    git log --no-merges --pretty=format:"- %s (%h)" "$latest_tag..HEAD" > "$TEMP_LOG_FILE"
 else
-    print_status "Latest tag: $LATEST_TAG"
-    COMMITS_RANGE="$LATEST_TAG..HEAD"
+    echo "No tags found. Generating changelog for all commits."
+    git log --no-merges --pretty=format:"- %s (%h)" > "$TEMP_LOG_FILE"
 fi
 
-# Get commits since last tag
-COMMITS=$(git log --oneline $COMMITS_RANGE 2>/dev/null)
+# Initialize category arrays
+declare -a added_arr=()
+declare -a fixed_arr=()
+declare -a changed_arr=()
+declare -a removed_arr=()
 
-if [ -z "$COMMITS" ]; then
-    print_warning "No commits found since $LATEST_TAG"
-    exit 0
+# Categorize commits based on keywords in the commit message
+while IFS= read -r line; do
+    # Convert to lowercase for case-insensitive matching
+    lower_line=$(echo "$line" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ $lower_line == *"add"* ]] || [[ $lower_line == *"feat"* ]] || [[ $lower_line == *"new"* ]]; then
+        added_arr+=("$line")
+    elif [[ $lower_line == *"fix"* ]] || [[ $lower_line == *"bug"* ]] || [[ $lower_line == *"repair"* ]]; then
+        fixed_arr+=("$line")
+    elif [[ $lower_line == *"change"* ]] || [[ $lower_line == *"update"* ]] || [[ $lower_line == *"modify"* ]] || [[ $lower_line == *"refactor"* ]]; then
+        changed_arr+=("$line")
+    elif [[ $lower_line == *"remove"* ]] || [[ $lower_line == *"delete"* ]] || [[ $lower_line == *"rm"* ]]; then
+        removed_arr+=("$line")
+    else
+        # Default to Added if no keywords match
+        added_arr+=("$line")
+    fi
+done < "$TEMP_LOG_FILE"
+
+# Get current date for the new version entry
+current_date=$(date +"%Y-%m-%d")
+
+# Function to create a new Unreleased section
+create_unreleased_section() {
+    cat << EOF
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+$(printf '%s\n' "${added_arr[@]}")
+
+### Fixed
+$(printf '%s\n' "${fixed_arr[@]}")
+
+### Changed
+$(printf '%s\n' "${changed_arr[@]}")
+
+### Removed
+$(printf '%s\n' "${removed_arr[@]}")
+
+EOF
+}
+
+# Generate the new changelog content
+create_unreleased_section > "$CHANGELOG_FILE"
+
+# Append previous changelog content if it exists (excluding the header and Unreleased section)
+if [ -f "$CHANGELOG_FILE".bak ]; then
+    # Remove the header and Unreleased section from the backup
+    sed '1,/^## \[Unreleased\]/d' "$CHANGELOG_FILE".bak >> "$CHANGELOG_FILE"
+    rm -f "$CHANGELOG_FILE".bak
 fi
 
-# Initialize arrays for categories
-declare -a ADDED COMMITS
-declare -a FIXED COMMITS
-declare -a CHANGED COMMITS
-declare -a REMOVED COMMITS
-
-# Categorize commits
-while IFS= read -r commit; do
-    commit_msg=$(echo "$commit" | cut -d' ' -f2-)
-    
-    case "$commit_msg" in
-        *add*|*Add*|*new*|*New*|*feature*|*Feature*)
-            ADDED+=("$commit_msg")
-            ;;
-        *fix*|*Fix*|*bug*|*Bug*|*patch*|*Patch*)
-            FIXED+=("$commit_msg")
-            ;;
-        *change*|*Change*|*update*|*Update*|*modify*|*Modify*)
-            CHANGED+=("$commit_msg")
-            ;;
-        *remove*|*Remove*|*delete*|*Delete*|*deprecated*|*Deprecated*)
-            REMOVED+=("$commit_msg")
-            ;;
-        *)
-            CHANGED+=("$commit_msg")  # Default to Changed if no match
-            ;;
-    esac
-done <<< "$COMMITS"
-
-# Generate CHANGELOG.md
-{
-    echo "# Changelog"
-    echo ""
-    echo "All notable changes to this project will be documented in this file."
-    echo ""
-    echo "## [Unreleased]"
-    echo ""
-    
-    [ ${#ADDED[@]} -gt 0 ] && echo "### Added" && printf '%s\n' "${ADDED[@]/#/ - }" && echo ""
-    [ ${#FIXED[@]} -gt 0 ] && echo "### Fixed" && printf '%s\n' "${FIXED[@]/#/ - }" && echo ""
-    [ ${#CHANGED[@]} -gt 0 ] && echo "### Changed" && printf '%s\n' "${CHANGED[@]/#/ - }" && echo ""
-    [ ${#REMOVED[@]} -gt 0 ] && echo "### Removed" && printf '%s\n' "${REMOVED[@]/#/ - }" && echo ""
-} > CHANGELOG.md
-
-print_success "CHANGELOG.md generated successfully!"
+echo "Changelog generated successfully in $CHANGELOG_FILE"
