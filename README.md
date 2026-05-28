@@ -2,22 +2,23 @@
 
 > A community bounty board for Claude Code builders.
 
-# How it works
+Building with Claude Code? Have tasks to delegate?
+Want to get paid for contributing to AI projects?
+You're in the right place.
 
-# To post a bounty
+---
+
+## How it works
+
+**To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
-2. Share the link — contributors will find it
+2. Comment `/opire create $XXX` in the issue to set the reward
+3. Share the link — contributors will find it
 
-
-Rules
-- Every issue must have clear acceptance criteria before a bounty is activated
-# Payment is handled by [Opire](https
-)
-
-# Contact: claudebounty@gmail.com
-
-
-# Started by the Claude builder community · March 2026 · MIT License
+**To claim a bounty**
+1. Browse the open issues below
+2. Comment `/opire try` in the issue you want to work on
+3. Submit a PR — payment is automatic on merge ✅
 
 ---
 
@@ -48,5 +49,10 @@ Rules
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+## Claude Code Pre-tool-use Hook: Block Destructive Bash Commands
+
+### Installation
+
 
 *Started by the Claude builder community · March 2026 · MIT License*
