@@ -1,3 +1,8 @@
+## Setup
+
+1. Clone the repo
+2. Run `bash changelog.sh` to generate changelog
+
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
