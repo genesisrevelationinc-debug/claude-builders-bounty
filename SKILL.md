@@ -1,6 +1,6 @@
-# /generate-changelog
+# CHANGELOG Generator
 
-Generate a structured `CHANGELOG.md` from the project's git history.
+Automatically generate a structured CHANGELOG.md from your project's git history.
 
 ## Usage
 
