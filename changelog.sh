@@ -1,90 +1,87 @@
 #!/bin/bash
 
-# changelog.sh - Generate a structured CHANGELOG.md from git history
-#
-# This script will:
-# 1. Find commits since the last git tag
-# 2. Categorize changes into Added/Fixed/Changed/Removed
-# 3. Output a properly formatted CHANGELOG.md
-
-set -e
-
-# Function to display usage
+# Function to display script usage
 usage() {
-  echo "Usage: $0 [-h]"
-  echo "Generate a CHANGELOG.md from git history"
-  echo ""
-  echo "Options:"
-  echo "  -h, --help    Display this help message"
-  echo ""
-  echo "Examples:"
-  echo "  $0              # Generate changelog"
-  echo "  $0 --help       # Show help"
-  exit 1
+    echo "Usage: $0 [START_TAG] [END_TAG]"
+    echo "Generate a changelog from git history between two tags"
+    echo ""
+    echo "Arguments:"
+    echo "  START_TAG    The starting tag (optional, defaults to latest tag)"
+    echo "  END_TAG     The ending tag (optional, defaults to HEAD)"
+    echo ""
+    echo "If no arguments are provided, the script will generate a changelog from the last tag to the current HEAD."
+    exit 1
 }
 
-# Parse command line arguments
-while [[ "$#" -gt 0 ]]; do
-  case $1 in
-    -h|--help) usage ;;
-    *) echo "Unknown parameter: $1"; usage ;;
-  esac
-  shift
-done
-
-# Get the latest tag or default to initial commit
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
-if [ -z "$LATEST_TAG" ]; then
-  echo "No tags found. Using initial commit as starting point."
-  COMMITS=$(git log --pretty=format:"%H %s" --reverse)
+# Set the start and end tags
+# If no tags are provided, use the last tag as start and HEAD as end
+if [ -z "$START_TAG" ] && [ -z "$END_TAG" ]; then
+    START_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+    if [ -z "$START_TAG" ]; then
+        echo "No tags found in the repository"
+        exit 1
+    fi
+    END_TAG="HEAD"
 else
-  echo "Generating changelog for commits since tag: $LATEST_TAG"
-  COMMITS=$(git log --pretty=format:"%H %s" $LATEST_TAG..HEAD --reverse)
+    START_TAG=$1
+    END_TAG=${2:-HEAD}
 fi
 
-# Create temporary file for changelog content
-TEMP_FILE=$(mktemp)
-
-# Initialize sections
-echo "## [Unreleased]" > "$TEMP_FILE"
-echo "" >> "$TEMP_FILE"
-
-ADDED=""
-FIXED=""
-CHANGED=""
-REMOVED=""
-
-# Process commits and categorize
-while IFS= read -r line; do
-  if [ -n "$line" ]; then
-    COMMIT_MSG=$(echo "$line" | cut -d' ' -f2-)
-    if [[ $COMMIT_MSG == feat:* ]]; then
-      ADDED+="- ${COMMIT_MSG#feat: }"$'\n'
-    elif [[ $COMMIT_MSG == fix:* ]]; then
-      FIXED+="- ${COMMIT_MSG#fix: }"$'\n'
-    elif [[ $COMMIT_MSG == remove:* ]]; then
-      REMOVED+="- ${COMMIT_MSG#remove: }"$'\n'
+# Function to categorize commits
+categorize_commits() {
+    local start_tag="$1"
+    local end_tag="$2"
+    
+    # Get commits between the specified tags
+    if [ "$start_tag" = "$end_tag" ] && [ "$end_tag" = "HEAD" ]; then
+        commits=$(git log --oneline "$start_tag".."$end_tag" --no-merges)
     else
-      CHANGED+="- $COMMIT_MSG"$'\n'
+        # If there is only one tag, use it as a reference for git log
+        if [ "$start_tag" = "$(git describe --tags --abbrev=0 2>/dev/null)" ]; then
+            commits=$(git log --on-line --no-merges "$(git describe --tags --abbrev=0)"..HEAD)
+        else
+            # If there are no tags, get all commits
+            if [ -z "$(git tag -l)" ]; then
+                commits=$(git log --oneline --no-merges)
+            else
+                # If there are tags, get the commits from the last tag
+                last_tag=$(git describe --tags --abbrev=0)
+                commits=$(git log --oneline "$last_tag"..HEAD --no-merges)
+            fi
+        fi
     fi
-  fi
-done <<< "$COMMITS"
+    
+    # Categorize the commits
+    echo "## Unreleased" > CHANGELOG.md
+    echo "" >> CHANGELOG.md
+    
+    # Generate the changelog
+    echo "$commits" | while read -r commit; do
+        if [[ $commit == *"add"* ]] || [[ $commit == *"new"* ]] || [[ $commit == *"Add"* ]] || [[ $commit == *"ADD"* ]]; then
+            echo "### Added" >> CHANGELOG.md
+            echo "- $commit" >> CHANGELOG.md
+        elif [[ $commit == *"fix"* ]] || [[ $commit == *"Fix"* ]] || [[ $commit == *"FIX"* ]] || [[ $commit == *"bug"* ]] || [[ $commit == *"BUG"* ]]; then
+            echo "### Fixed" >> CHANGELOG.md
+            echo "- $commit" >> CHANGELOG.md
+        else
+            echo "### Other" >> CHANGELOG.md
+            echo "- $commit" >> CHANGELOG.md
+        fi
+    done
+    
+    echo "" >> CHANGELOG.md
+}
 
-# Write sections to changelog
-[ -n "$ADDED" ] && echo "### Added" >> "$TEMP_FILE" && echo "$ADDED" >> "$TEMP_FILE"
-[ -n "$FIXED" ] && echo "### Fixed" >> "$TEMP_FILE" && echo "$FIXED" >> "$TEMP_FILE"
-[ -n "$CHANGED" ] && echo "### Changed" >> "$TEMP_FILE" && echo "$CHANGED" >> "$TEMP_FILE"
-[ -n "$REMOVED" ] && echo "### Removed" >> "$TEMP_FILE" && echo "$REMOVED" >> "$TEMP_FILE"
+# Main
+main() {
+    # Get the start and end tags from the arguments
+    START_TAG=$1
+    END_TAG=${2:-HEAD}
+    
+    # Call the function to categorize the commits
+    categorize_commits "$START_TAG" "$END_TAG"
+    
+    echo "Changelog generated!"
+}
 
-# Generate final changelog
-echo "# Changelog" > CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
-echo "" >> CHANGELOG.md
-cat "$TEMP_FILE" >> CHANGELOG.md
-
-# Cleanup
-rm "$TEMP_FILE"
-
-echo "CHANGELOG.md has been generated successfully!"
+main "$@"
