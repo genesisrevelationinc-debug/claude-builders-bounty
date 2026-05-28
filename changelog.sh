@@ -1,51 +1,67 @@
 #!/bin/bash
 
-# Get the last tag
-last_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
+# changelog.sh - Generate a structured CHANGELOG.md from git history
+# Usage: bash changelog.sh
 
-# Get the commits since the last tag
-commits=$(git log --pretty=format:"%s" $last_tag..HEAD)
+# Get the latest git tag or default to initial commit
+latest_tag=$(git describe --tags --abbrev=0 2>/dev/null) || latest_tag=""
 
-# Initialize changelog categories
-added=""
-fixed=""
-changed=""
-removed=""
-
-# Categorize commits
-while IFS= read -r commit; do
-    if [[ $commit == *"add"* ]] || [[ $commit == *"Add"* ]] || [[ $commit == *"added"* ]] || [[ $commit == *"Added"* ]] || [[ $commit == *"feat"* ]] || [[ $commit == *"feature"* ]]; then
-        added="$added- $commit"$'\n'
-    elif [[ $commit == *"fix"* ]] || [[ $commit == *"Fix"* ]] || [[ $commit == *"fixed"* ]] || [[ $commit == *"Fixed"* ]]; then
-        fixed="$fixed- $commit"$'\n'
-    elif [[ $commit == *"change"* ]] || [[ $commit == *"Change"* ]] || [[ $commit == *"changed"* ]] || [[ $commit == *"Changed"* ]] || [[ $commit == *"update"* ]] || [[ $commit == *"Update"* ]]; then
-        changed="$changed- $commit"$'\n'
-    elif [[ $commit == *"remove"* ]] || [[ $commit == *"Remove"* ]] || [[ $commit == *"removed"* ]] || [[ $commit == *"Removed"* ]] || [[ $commit == *"delete"* ]] || [[ $commit == *"Delete"* ]]; then
-        removed="$removed- $commit"$'\n'
-    else
-        added="$added- $commit"$'\n'
-    fi
-done < <(echo "$commits")
-
-# Write the changelog
-if [ -n "$added" ]; then
-    echo "### Added" >> CHANGELOG.md
-    echo "$added" >> CHANGELOG.md
+# Determine the commit range
+if [ -z "$latest_tag" ]; then
+    commit_range=""
+    echo "No previous tags found. Generating changelog for all commits."
+else
+    commit_range="$latest_tag..HEAD"
+    echo "Generating changelog from commits since tag: $latest_tag"
 fi
 
-if [ -n "$fixed" ]; then
-    echo "### Fixed" >> CHANGELOG.md
-    echo "$fixed" >> CHANGELOG.md
+# Create temporary file for processing
+temp_file=$(mktemp)
+
+# Get commits in the specified range
+if [ -z "$commit_range" ]; then
+    git log --pretty=format:"%s" > "$temp_file"
+else
+    git log "$commit_range" --pretty=format:"%s" > "$temp_file"
 fi
 
-if [ -n "$changed" ]; then
-    echo "### Changed" >> CHANGELOG.md
-    echo "$changed" >> CHANGELOG.md
-fi
+# Initialize arrays for different categories
+declare -a added_arr=()
+declare -a fixed_arr=()
+declare -a changed_arr=()
+declare -a removed_arr=()
 
-if [ -n "$removed" ]; then
-    echo "### Removed" >> CHANGELOG.md
-    echo "$removed" >> CHANGELOG.md
-fi
+# Categorize commits based on their prefixes
+while IFS= read -r line; do
+    case "$line" in
+        Add:*|add:*|Added:*|added:*) 
+            added_arr+=("${line#*: }")
+            ;;
+        Fix:*|fix:*|Fixed:*|fixed:*) 
+            fixed_arr+=("${line#*: }")
+            ;;
+        Change:*|change:*|Changed:*|changed:*) 
+            changed_arr+=("${line#*: }")
+            ;;
+        Remove:*|remove:*|Removed:*|removed:*) 
+            removed_arr+=("${line#*: }")
+            ;;
+        *)
+            # Default to "Changed" if no prefix
+            changed_arr+=("$line")
+            ;;
+    esac
+done < "$temp_file"
 
-echo "Generated CHANGELOG.md"
+# Write to CHANGELOG.md
+echo "# Changelog" > CHANGELOG.md
+echo "" >> CHANGELOG.md
+[ ${#added_arr[@]} -gt 0 ] && { echo "## Added" >> CHANGELOG.md; printf '%s\n' "${added_arr[@]/#/ - }" >> CHANGELOG.md; echo "" >> CHANGELOG.md; }
+[ ${#fixed_arr[@]} -gt 0 ] && { echo "## Fixed" >> CHANGELOG.md; printf '%s\n' "${fixed_arr[@]/#/ - }" >> CHANGELOG.md; echo "" >> CHANGELOG.md; }
+[ ${#changed_arr[@]} -gt 0 ] && { echo "## Changed" >> CHANGELOG.md; printf '%s\n' "${changed_arr[@]/#/ - }" >> CHANGELOG.md; echo "" >> CHANGELOG.md; }
+[ ${#removed_arr[@]} -gt 0 ] && { echo "## Removed" >> CHANGELOG.md; printf '%s\n' "${removed_arr[@]/#/ - }" >> CHANGELOG.md; echo "" >> CHANGELOG.md; }
+
+# Cleanup
+rm "$temp_file"
+
+echo "CHANGELOG.md has been generated successfully."
