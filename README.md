@@ -16,13 +16,13 @@ You're in the right place.
 3. Share the link — contributors will find it
 
 **To claim a bounty**
+1. Browse the open issues below
+2. Comment `/opire try` in the issue you want to work on
+3. Submit a PR — payment is automatic on merge ✅
 
 ---
 
-# Active Bounties
-
-| # | Task | Amount | Status |
-|---|------|--------|--------|
+## Active Bounties
 
 | # | Task | Amount | Status |
 |---|------|--------|--------|
@@ -49,5 +49,12 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Destructive Command Blocker Hook
+
+This is a Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash commands before they are executed.
+
+## Installation
+
 
 *Started by the Claude builder community · March 2026 · MIT License*
