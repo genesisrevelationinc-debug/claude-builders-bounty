@@ -1,4 +1,4 @@
-
+# Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
 
@@ -49,5 +49,15 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Claude Builders Bounty Security Hook
+
+## Destructive Command Blocker Hook
+
+This hook blocks potentially destructive commands that Claude Code might attempt to execute.
+
+### Installation
+
+1. Create the hook directory and copy the hook:
 
 *Started by the Claude builder community · March 2026 · MIT License*
