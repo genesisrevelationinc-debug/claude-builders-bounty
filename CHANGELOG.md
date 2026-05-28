@@ -1,29 +1,26 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
 ## [Unreleased]
 
 ### Added
-- Initial project structure
-- Basic repository setup
-
-### Changed
-- N/A
+- Initial commit
 
 ### Fixed
-- N/A
+- Fix bug in user authentication
+
+### Changed
+- Improve performance of data processing
+- Refactor user input validation
 
 ### Removed
-- N/A
+- Deprecate legacy API endpoints
+- Remove unused dependencies
 
-## 0.1.0 - 2024-01-01
+## [v1.0.0] - 2026-03-15
 
 ### Added
-- Project initialized with core files
-
-### Changed
-- N/A
+- Implement user authentication
+- Add password reset functionality
 
 ### Fixed
-- N/A
+- Resolve issue with login form validation
