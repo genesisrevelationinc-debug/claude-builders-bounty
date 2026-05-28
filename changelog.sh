@@ -1,56 +1,59 @@
 #!/bin/bash
 
-# changelog.sh - Generate a structured CHANGELOG.md from git history
+# Generate a structured CHANGELOG.md from git history
 
 # Get the last tag
 LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
 
-# If no tag exists, use initial commit
+# If no tag exists, use all commits
 if [ -z "$LAST_TAG" ]; then
-  LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+    COMMITS_RANGE=""
+    echo "No tags found. Generating changelog for all commits."
+else
+    COMMITS_RANGE="$LAST_TAG..HEAD"
+    echo "Generating changelog from $LAST_TAG to HEAD"
 fi
 
-# Get commit messages since last tag
-COMMITS=$(git log $LAST_TAG..HEAD --no-merges --pretty=format:"%s" 2>/dev/null)
+# Create temporary file for commits
+TEMP_FILE=$(mktemp)
 
-# Create or clear CHANGELOG.md
-cat > CHANGELOG.md << 'EOF'
-# Changelog
+# Get commits and save to temp file
+git log --pretty=format:"%s" $COMMITS_RANGE > "$TEMP_FILE"
 
-All notable changes to this project will be documented in this file.
+# Create CHANGELOG.md
+echo "# Changelog" > CHANGELOG.md
+echo "" >> CHANGELOG.md
+echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
+echo "" >> CHANGELOG.md
+echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)," >> CHANGELOG.md
+echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)." >> CHANGELOG.md
+echo "" >> CHANGELOG.md
+echo "## [Unreleased]" >> CHANGELOG.md
+echo "" >> CHANGELOG.md
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+# Initialize sections
+added=""
+fixed=""
+changed=""
+removed=""
 
-## [Unreleased]
-
-### Added
-
-### Fixed
-
-### Changed
-
-### Removed
-
-EOF
-
-# Simple categorization based on commit message prefixes
+# Categorize commits
 while IFS= read -r commit; do
-  if [[ $commit == *"add:"* ]] || [[ $commit == *"feat:"* ]]; then
-    echo "- $commit" >> temp_added.md
-  elif [[ $commit == *"fix:"* ]]; then
-    echo "- $commit" >> temp_fixed.md
-  elif [[ $commit == *"change:"* ]] || [[ $commit == *"refactor:"* ]]; then
-    echo "- $commit" >> temp_changed.md
-  elif [[ $commit == *"remove:"* ]] || [[ $commit == *"delete:"* ]]; then
-    echo "- $commit" >> temp_removed.md
-  fi
-done <<< "$COMMITS"
+    case "$commit" in
+        Added*|Add*|New*) added+="- $commit"$'\n' ;;
+        Fixed*|Fix*|Bug*) fixed+="- $commit"$'\n' ;;
+        Changed*|Change*|Update*) changed+="- $commit"$'\n' ;;
+        Removed*|Remove*|Delete*) removed+="- $commit"$'\n' ;;
+    esac
+done < "$TEMP_FILE"
 
-# Append categorized changes to CHANGELOG.md
-[ -f temp_added.md ] && cat temp_added.md >> CHANGELOG.md && rm temp_added.md
-[ -f temp_fixed.md ] && cat temp_fixed.md >> CHANGELOG.md && rm temp_fixed.md
-[ -f temp_changed.md ] && cat temp_changed.md >> CHANGELOG.md && rm temp_changed.md
-[ -f temp_removed.md ] && cat temp_removed.md >> CHANGELOG.md && rm temp_removed.md
+# Write sections to CHANGELOG.md
+[ -n "$added" ] && echo "### Added" >> CHANGELOG.md && echo "$added" >> CHANGELOG.md
+[ -n "$fixed" ] && echo "### Fixed" >> CHANGELOG.md && echo "$fixed" >> CHANGELOG.md
+[ -n "$changed" ] && echo "### Changed" >> CHANGELOG.md && echo "$changed" >> CHANGELOG.md
+[ -n "$removed" ] && echo "### Removed" >> CHANGELOG.md && echo "$removed" >> CHANGELOG.md
 
-echo "Generated CHANGELOG.md with commits since $LAST_TAG"
+# Cleanup
+rm "$TEMP_FILE"
+
+echo "CHANGELOG.md generated successfully!"
