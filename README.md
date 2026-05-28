@@ -2,13 +2,9 @@
 
 > A community bounty board for Claude Code builders.
 
-## 📝 New: CHANGELOG Generator
-
-> **Works via `bash changelog.sh`**
-
-> A community bounty board for Claude Code builders.
-
 Building with Claude Code? Have tasks to delegate?
+Want to get paid for contributing to AI projects?
+You're in the right place.
 
 ---
 
@@ -16,16 +12,10 @@ Building with Claude Code? Have tasks to delegate?
 
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
-You're in the right place.
+2. Comment `/opire create $XXX` in the issue to set the reward
+3. Share the link — contributors will find it
 
----
-### Sample CHANGELOG Output
-
-#### 1.0.0 - 2024-03-14
-### Added
-- Auto-CHANGLOG generation from git history
-
-## How it works
+**To claim a bounty**
 1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
@@ -61,3 +51,18 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
+
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+
+## Changelog Generation
+
+This repository includes a skill to automatically generate a structured CHANGELOG.md from git history:
+
+1. Run `/generate-changelog` command in Claude Code
+2. Or execute `bash changelog.sh` in your terminal
+3. The script will analyze commits since the last tag and generate a categorized changelog
+
+---
