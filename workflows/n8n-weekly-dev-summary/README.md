@@ -1,42 +1,30 @@
 # n8n Weekly Dev Summary Workflow
 
-Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
+Automated weekly narrative summary of GitHub repo activity using n8n + Claude API.
 
 ## Setup (5 steps)
 
-1. **Import the workflow**: In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`
-
-2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API Key in *Settings → Credentials*
-
-3. **Configure variables**: Open the workflow and edit the `Set Config` node — set `repoOwner`, `repoName`, `language` (EN/FR), and `webhookUrl`
-
-4. **Activate the cron trigger**: The workflow runs every Friday at 5 PM UTC by default — adjust in the `Weekly Cron` node if needed
-
-5. **Activate the workflow**: Toggle the workflow to *Active* — it will run automatically and post summaries to your configured Discord/Slack webhook
-
-## What It Does
-
-- Fetches commits, closed issues, and merged PRs from the past 7 days
-- Sends structured data to Claude API (`claude-sonnet-4-20250514`)
-- Generates a narrative weekly summary
-- Delivers the summary via Discord/Slack webhook
+1. **Import workflow**: In n8n, click *Workflows* → *Import from File* → select `weekly-dev-summary.json`
+2. **Set credentials**: Add your *GitHub API*, *Anthropic Claude API*, and *Email/SMTP* (or *Webhook*) credentials in n8n
+3. **Configure variables**: Open the *Set Config* node and edit: `repoOwner`, `repoName`, `language` (`EN` or `FR`), and `destination` (email or webhook URL)
+4. **Activate**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
+5. **Test**: Click *Execute Workflow* to run manually and verify the output
 
 ## Required Credentials
 
-- **GitHub Personal Access Token** (classic or fine-grained with `repo` scope)
-- **Anthropic API Key** (from [console.anthropic.com](https://console.anthropic.com))
+- **GitHub API**: Personal access token with `repo` scope
+- **Anthropic Claude API**: API key from [Anthropic Console](https://console.anthropic.com)
+- **Email (SMTP)** OR **Webhook**: For delivery — configure one based on your `deliveryMethod` choice
 
 ## Configurable Variables
 
-| Variable | Description | Default |
+| Variable | Description | Example |
 |----------|-------------|---------|
-| `repoOwner` | GitHub repository owner | `claude-builders-bounty` |
-| `repoName` | GitHub repository name | `claude-builders-bounty` |
-| `language` | Summary language (`EN` or `FR`) | `EN` |
-| `webhookUrl` | Discord/Slack webhook URL | (required) |
+| `repoOwner` | GitHub organization or user | `claude-builders-bounty` |
+| `repoName` | Repository name | `claude-builders-bounty` |
+| `language` | Summary language | `EN` or `FR` |
+| `deliveryMethod` | `email` or `webhook` | `email` |
+| `destination` | Email address or webhook URL | `team@example.com` |
 
-## Screenshot
+## Workflow Overview
 
-![Successful n8n execution](screenshot.png)
-
-*Include a screenshot of your successful execution here after testing.*
