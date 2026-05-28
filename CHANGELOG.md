@@ -15,12 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-## [0.1.0] - 2026-03-01
+## [0.1.0] - 2026-03-15
 
 ### Added
 - Initial project setup
-- README with bounty information
-- This CHANGELOG file
-
-### Fixed
-- Link corrections in README
+- README with bounty board information
+- LICENSE file with MIT license
