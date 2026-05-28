@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-## [1.0.0] - 2026-03-01
+## [0.1.0] - 2026-03-XX
 
 ### Added
 - Initial project setup
@@ -23,4 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file
 
 ### Fixed
-- Fixed typos in README
+
+### Changed
+
+### Removed
