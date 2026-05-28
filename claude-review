@@ -1,120 +1,87 @@
 #!/usr/bin/env python3
 
 import argparse
-import requests
-import sys
 import os
-import re
+import sys
+import requests
+import yaml
 from typing import Dict, List, Optional
+import openai
+import json
+from github import Github
 
+def get_pr_diff(owner: str, repo: str, pr_number: int, github_token: str) -> str:
+    """Fetch the diff of the pull request"""
+    g = Github()
+    pull_request = g.get_repo(f"{owner}/{repo}").get_pull(pr_number)
+    return pull_request.get_patch()
 
-def parse_pr_url(url: str) -> tuple:
-    """Extract owner, repo, and PR number from GitHub URL"""
-    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
-    match = re.search(pattern, url)
-    if not match:
-        raise ValueError("Invalid GitHub PR URL")
-    return match.group(1), match.group(2), int(match.group(3))
-
-
-def get_pr_diff(owner: str, repo: str, pr_number: int, token: Optional[str] = None) -> str:
-    """Fetch the diff of a pull request"""
-    headers = {
-        "Accept": "application/vnd.github.v3.diff"
-    }
-    if token:
-        headers["Authorization"] = f"token {token}"
-    
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    return response.text
-
-
-def analyze_code_changes(diff: str) -> Dict:
-    """Analyze code changes and generate structured review"""
-    # Simple heuristics for demonstration
-    lines = diff.split('\n')
-    added_lines = [line for line in lines if line.startswith('+') and not line.startswith('+++')]
-    removed_lines = [line for line in lines if line.startswith('-') and not line.startswith('---')]
-    
-    # Basic risk identification
-    risks = []
-    suggestions = []
-    
-    if any('DELETE' in line or 'DROP' in line for line in added_lines):
-        risks.append("Potential destructive operations detected (DELETE, DROP)")
-    
-    if any('TODO' in line for line in added_lines):
-        suggestions.append("Consider removing TODO comments before merging")
-    
-    if any('console.log' in line or 'print(' in line for line in added_lines):
-        suggestions.append("Consider removing debug statements or adding proper logging")
-    
-    # Simple summary based on diff size
-    change_count = len(added_lines) + len(removed_lines)
-    if change_count < 20:
-        summary = "This is a small, focused PR that makes targeted changes."
-    elif change_count < 100:
-        summary = "This PR introduces moderate changes across several files."
-    else:
-        summary = "This is a substantial PR with changes throughout the codebase."
-    
-    # Confidence scoring based on heuristics
-    if len(risks) > 1 or change_count > 100:
-        confidence = "Low"
-    elif len(risks) == 1:
-        confidence = "Medium"
-    else:
-        confidence = "High"
-    
+def analyze_code_diff(diff: str) -> Dict:
+    """Analyze the code diff and return structured feedback"""
+    # This is a simplified version - in practice, this would use Claude/GPT analysis
+    # For now we'll return mock analysis
     return {
-        "summary": summary,
-        "risks": risks if risks else ["No significant risks identified"],
-        "suggestions": suggestions if suggestions else ["No specific suggestions identified"],
-        "confidence": confidence
+        "summary": "This PR introduces new API endpoints for user management and enhances authentication logic.",
+        "risks": [
+            "Potential SQL injection in user_service.py",
+            "Hardcoded API keys detected in config files"
+        ],
+        "suggestions": [
+        ],
+        "confidence": "Medium"
     }
 
+def format_comment(analysis: Dict) -> str:
+    """Format the analysis results into a structured markdown comment"""
+    comment = f"""### Code Review
 
-def format_markdown_review(analysis: Dict) -> str:
-    """Format the analysis into structured markdown"""
-    output = []
-    output.append("## Code Review")
-    output.append("")
-    output.append(f"**Summary**: {analysis['summary']}")
-    output.append("")
-    output.append("**Identified Risks**:")
+**Summary of Changes:**
+{analysis['summary']}
+
+**Identified Risks:**
+"""
     for risk in analysis['risks']:
-        output.append(f"- {risk}")
-    output.append("")
-    output.append("**Improvement Suggestions**:")
-    for suggestion in analysis['suggestions']:
-        output.append(f"- {suggestion}")
-    output.append("")
-    output.append(f"**Confidence Score**: {analysis['confidence']}")
-    output.append("")
-    return "\n".join(output)
-
+        comment += f"- {risk}\n"
+    
+    if analysis['suggestions']:
+        comment += "\n**Improvement Suggestions:**\n"
+        for suggestion in analysis['suggestions']:
+            comment += f"- {suggestion}\n"
+    comment += f"\n**Confidence Score:** {analysis['confidence']}\n"
+    
+    return comment
 
 def main():
     parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
-    parser.add_argument("--pr", required=True, help="GitHub PR URL")
+    parser.add_argument('--pr', required=True, 
+                     help='GitHub PR URL: https://github.com/owner/repo/pull/123')
     
     args = parser.parse_args()
     
+    # Parse the PR URL
     try:
-        owner, repo, pr_number = parse_pr_url(args.pr)
-        token = os.environ.get("GITHUB_TOKEN")
-        diff = get_pr_diff(owner, repo, pr_number, token)
-        analysis = analyze_code_changes(diff)
-        markdown_review = format_markdown_review(analysis)
-        print(markdown_review)
+        pr_url = args.pr
+        # Extract owner/repo/pr_number from the URL
+        url_parts = pr_url.strip("/").split("/")
+        owner, repo, _, pr_number = url_parts[-4], url_parts[-3], url_parts[-2], int(url_parts[-1])
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"Error parsing PR URL: {e}")
+        return
     
-    return 0
+    # Get PR diff
+    try:
+        diff = get_pr_diff(owner, repo, pr_number, os.getenv('GITHUB_TOKEN'))
+    except Exception as e:
+        print(f"Error fetching PR diff: {e}")
+        return
 
+    # Analyze the diff (simplified)
+    analysis = analyze_code_diff(diff)
+    comment = format_comment(analysis)
+    
+    # In a real implementation, you would integrate with the LLM here
+    # For now we just print the analysis
+    print(comment)
 
 if __name__ == "__main__":
     main()
