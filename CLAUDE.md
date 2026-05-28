@@ -1,23 +1,24 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this at the root of any greenfield Next.js 15 + SQLite project. No clarifying questions should be needed.
+> Opinionated rules for building production SaaS with Next.js 15 App Router and SQLite (better-sqlite3 or Turso).  
+> Copy this file to your repo root. Claude Code reads it automatically.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Runtime | Node.js 20+ | `next/after`, native `fetch` with `keepalive`, stable `crypto` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network latency, perfect for single-tenant SaaS |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, no codegen bloat, migrations in `.sql` |
-| Auth | Lucia + `oslo` | Session-based, no JWT complexity, works with SQLite out of the box |
-| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS, purgeable |
-| Forms | `react-hook-form` + `zod` | Client validation mirrors server schema, single source of truth |
-| Date/Time | `date-fns` | Tree-shakeable, no mutable global state like Moment |
+| Layer | Choice | Lock Version |
+|-------|--------|--------------|
+| Framework | Next.js 15 (App Router) | `next@^15.0.0` |
+| Runtime | Node.js 20+ | `.nvmrc` required |
+| Database | SQLite via `better-sqlite3` (local/dev) or `@libsql/client` (Turso/prod) | Pin exact |
+| ORM | Drizzle ORM | `drizzle-orm` + `drizzle-kit` |
+| Auth | Lucia (or custom session with `iron-session`) | Avoid OAuth-only providers |
+| Styling | Tailwind CSS + shadcn/ui | No other CSS-in-JS |
+| Validation | Zod | Every external boundary |
+| Testing | Vitest (unit) + Playwright (E2E) | No Jest |
 
-**Non-negotiable:** We do NOT use `turbopack` in production builds. It is fine for `dev` but `next build` uses Webpack until Turbopack is stable for production.
+**Rule:** Never add a dependency without updating this table and justifying in PR description.
 
 ---
 
