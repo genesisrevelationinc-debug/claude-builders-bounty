@@ -2,8 +2,6 @@
 
 > A community bounty board for Claude Code builders.
 
-## How it works
-
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
@@ -22,23 +20,19 @@ You're in the right place.
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
 
-**To claim a bounty**
-1. Browse the open issues below
-1. Comment `/opire try` in the issue you want to work on
-1. Submit a PR — payment is automatic on merge ✅
+---
 
 ## Active Bounties
+
 | # | Task | Amount | Status |
 |---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-
-| # | Task | Amount | Status |
-|---|------|--------|--------|
-| [#1](../../issues/1)  | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+
+---
 
 ## Rules
 
@@ -47,17 +41,6 @@ You're in the right place.
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Quality over speed — a solid PR beats a fast one
 
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
-
---- STARTED BY CLAUDE BUILDER COMMUNITY · MARCH 2026 · MIT LICENSE ---
-- Tasks must be related to Claude Code or AI tooling
-- Every issue must have clear acceptance criteria before a bounty is activated
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
-- Quality over speed — a solid PR beats a fast one
-
 ---
 
 ## Community
@@ -66,5 +49,20 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# 📜 CHANGELOG Generator
+
+Generate a structured `CHANGELOG.md` from your git history.
+
+## Setup
+
+1. Clone this repository
+2. Make the script executable: `chmod +x changelog.sh`
+3. Run the script: `./changelog.sh`
+
+
+## Usage
+
+To generate a changelog from the last tag to the current HEAD:
 
 *Started by the Claude builder community · March 2026 · MIT License*
