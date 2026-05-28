@@ -50,14 +50,19 @@ You're in the right place.
 
 ---
 
-# CHANGELOG Generator
 
-This tool automatically generates a structured CHANGELOG.md from git commit history.
+## Community
 
-## Quick Start
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
 
-1. Make the script executable: `chmod +x changelog.sh`
-2. Run the script: `./changelog.sh`
-3. Check the generated `CHANGELOG.md` file
+---
 
-*Started by the Claude builder community · March 2026 · MIT License*
+## Changelog Generator
+
+This repository includes a skill to automatically generate a structured CHANGELOG.md from git history.
+
+### Setup
+
+1. Make the script executable:
+   
