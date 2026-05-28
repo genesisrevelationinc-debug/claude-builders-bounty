@@ -15,12 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-## [0.1.0] - 2026-03-01
+## [1.0.0] - 2026-03-01
 
 ### Added
 - Initial project setup
-- Created README with bounty information
-- Set up basic repository structure
+- README with bounty instructions
+- This CHANGELOG file
 
-[Unreleased]: https://github.com/claude-builders-bounty/claude-builders-bounty/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/claude-builders-bounty/claude-builders-bounty/releases/tag/v0.1.0
+### Fixed
+- Fixed typos in README
