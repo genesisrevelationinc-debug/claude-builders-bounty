@@ -2,163 +2,132 @@
 set -euo pipefail
 
 # generate-changelog.sh
-# Automatically generates a structured CHANGELOG.md from git history
-# Usage: ./generate-changelog.sh [output_file]
+# Generates a structured CHANGELOG.md from git history since the last tag.
 
-OUTPUT_FILE="${1:-CHANGELOG.md}"
-TEMP_DIR=$(mktemp -d)
-trap 'rm -rf "$TEMP_DIR"' EXIT
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHANGELOG_FILE="${SCRIPT_DIR}/CHANGELOG.md"
 
-# Get the last git tag, or use empty tree if no tags exist
-get_last_tag() {
+# Get the latest git tag
+get_latest_tag() {
     git describe --tags --abbrev=0 2>/dev/null || echo ""
 }
 
-# Get commits since last tag (or all commits if no tag)
-get_commits() {
-    local since_ref="$1"
-    if [ -z "$since_ref" ]; then
-        git log --pretty=format:"%H|%s|%b" --
+# Get commits since a given tag (or all commits if no tag)
+get_commits_since_tag() {
+    local tag="$1"
+    if [ -n "$tag" ]; then
+        git log "${tag}..HEAD" --pretty=format:"%s" 2>/dev/null || true
     else
-        git log --pretty=format:"%H|%s|%b" "${since_ref}..HEAD" --
+        git log --pretty=format:"%s" 2>/dev/null || true
     fi
 }
 
-# Categorize a commit based on conventional commit patterns
+# Categorize a commit message into one of: Added, Fixed, Changed, Removed
 categorize_commit() {
-    local message="$1"
+    local msg="$1"
     local lower_msg
-    lower_msg=$(echo "$message" | tr '[:upper:]' '[:lower:]')
-    
-    # Check for conventional commit prefixes
-    if echo "$lower_msg" | grep -qE '^(feat|add|introduce|implement|create|new)'; then
-        echo "added"
-    elif echo "$lower_msg" | grep -qE '^(fix|bugfix|hotfix|repair|correct|resolve|patch)'; then
-        echo "fixed"
-    elif echo "$lower_msg" | grep -qE '^(change|update|modify|refactor|improve|enhance|upgrade|bump)'; then
-        echo "changed"
-    elif echo "$lower_msg" | grep -qE '^(remove|delete|drop|deprecate|clean|cleanup)'; then
-        echo "removed"
+    lower_msg=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
+
+    # Check for conventional commit prefixes first
+    if [[ "$lower_msg" =~ ^feat(\(.+\))?: ]]; then
+        echo "Added"
+    elif [[ "$lower_msg" =~ ^fix(\(.+\))?: ]]; then
+        echo "Fixed"
+    elif [[ "$lower_msg" =~ ^(chore|refactor|perf|style|docs|test)(\(.+\))?: ]]; then
+        echo "Changed"
+    elif [[ "$lower_msg" =~ ^remove(\(.+\))?: ]] || [[ "$lower_msg" =~ ^delete(\(.+\))?: ]] || [[ "$lower_msg" =~ ^drop(\(.+\))?: ]]; then
+        echo "Removed"
     else
-        # Default categorization based on keywords
-        if echo "$lower_msg" | grep -qE '\b(add|added|adding|introduce|implement|create)\b'; then
-            echo "added"
-        elif echo "$lower_msg" | grep -qE '\b(fix|fixed|fixing|resolve|resolved|repair|correct|bug)\b'; then
-            echo "fixed"
-        elif echo "$lower_msg" | grep -qE '\b(remove|removed|removing|delete|deleted|drop|dropped|deprecate)\b'; then
-            echo "removed"
+        # Fallback: keyword-based categorization
+        if [[ "$lower_msg" =~ ^(add|create|introduce|implement|new|feature) ]]; then
+            echo "Added"
+        elif [[ "$lower_msg" =~ ^(fix|bugfix|hotfix|resolve|patch|correct) ]]; then
+            echo "Fixed"
+        elif [[ "$lower_msg" =~ ^(remove|delete|drop|revert|clean) ]]; then
+            echo "Removed"
         else
-            echo "changed"
+            echo "Changed"
         fi
     fi
 }
 
-# Extract issue/PR references from commit message
-extract_references() {
-    local message="$1"
-    # Match #NNN, GH-NNN, or full URLs
-    echo "$message" | grep -oE '((#|GH-)[0-9]+|https?://[^ ]+/issues?[/-][0-9]+)' | sort -u | tr '\n' ' ' | sed 's/ $//'
-}
-
+# Generate the CHANGELOG.md content
 generate_changelog() {
-    local last_tag
-    last_tag=$(get_last_tag)
-    
-    local version=""
-    if [ -n "$last_tag" ]; then
-        version="$last_tag"
-    else
-        version="Unreleased"
-    fi
-    
-    local date_str
-    date_str=$(date +%Y-%m-%d)
-    
-    # Initialize category files
-    local added_file="$TEMP_DIR/added.txt"
-    local fixed_file="$TEMP_DIR/fixed.txt"
-    local changed_file="$TEMP_DIR/changed.txt"
-    local removed_file="$TEMP_DIR/removed.txt"
-    
-    touch "$added_file" "$fixed_file" "$changed_file" "$removed_file"
-    
-    # Process commits
+    local latest_tag
+    latest_tag=$(get_latest_tag)
+
     local commits
-    commits=$(get_commits "$last_tag")
-    
+    commits=$(get_commits_since_tag "$latest_tag")
+
     if [ -z "$commits" ]; then
-        echo "No commits found since $last_tag" >&2
-        return 1
+        echo "No commits found since the last tag."
+        exit 0
     fi
-    
-    # Parse commits (format: hash|subject|body)
-    echo "$commits" | while IFS='|' read -r hash subject body; do
-        [ -z "$subject" ] && continue
-        
+
+    local added=()
+    local fixed=()
+    local changed=()
+    local removed=()
+
+    while IFS= read -r commit; do
+        [ -z "$commit" ] && continue
         local category
-        category=$(categorize_commit "$subject")
-        
-        local refs
-        refs=$(extract_references "$subject $body")
-        
-        local entry="- $subject"
-        if [ -n "$refs" ]; then
-            entry="$entry ($refs)"
-        fi
-        
+        category=$(categorize_commit "$commit")
         case "$category" in
-            added) echo "$entry" >> "$added_file" ;;
-            fixed) echo "$entry" >> "$fixed_file" ;;
-            changed) echo "$entry" >> "$changed_file" ;;
-            removed) echo "$entry" >> "$removed_file" ;;
+            Added)   added+=("$commit") ;;
+            Fixed)   fixed+=("$commit") ;;
+            Changed) changed+=("$commit") ;;
+            Removed) removed+=("$commit") ;;
         esac
-    done
-    
-    # Generate CHANGELOG.md
+    done <<< "$commits"
+
     {
         echo "# Changelog"
         echo ""
-        echo "All notable changes to this project will be documented in this file."
+        echo "## $(date +%Y-%m-%d)"
         echo ""
-        echo "## [$version] - $date_str"
-        echo ""
-        
-        if [ -s "$added_file" ]; then
-            echo "### Added"
-            sort -u "$added_file"
-            echo ""
-        fi
-        
-        if [ -s "$changed_file" ]; then
-            echo "### Changed"
-            sort -u "$changed_file"
-            echo ""
-        fi
-        
-        if [ -s "$fixed_file" ]; then
-            echo "### Fixed"
-            sort -u "$fixed_file"
-            echo ""
-        fi
-        
-        if [ -s "$removed_file" ]; then
-            echo "### Removed"
-            sort -u "$removed_file"
-            echo ""
-        fi
-        
-        echo "---"
-        echo ""
-        echo "Generated automatically from git history on $date_str"
-    } > "$OUTPUT_FILE"
-    
-    echo "Generated $OUTPUT_FILE with version $version"
+
+        print_section() {
+            local title="$1"
+            shift
+            local items=("$@")
+            if [ ${#items[@]} -gt 0 ]; then
+                echo "### $title"
+                echo ""
+                for item in "${items[@]}"; do
+                    echo "- $item"
+                done
+                echo ""
+            fi
+        }
+
+        print_section "Added"   "${added[@]}"
+        print_section "Fixed"   "${fixed[@]}"
+        print_section "Changed" "${changed[@]}"
+        print_section "Removed" "${removed[@]}"
+    } > "$CHANGELOG_FILE"
+
+    echo "CHANGELOG.md generated at $CHANGELOG_FILE"
 }
 
-# Main execution
+# Main
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    echo "Error: Not a git repository" >&2
+    echo "Error: Not a git repository." >&2
     exit 1
 fi
 
 generate_changelog
+# /generate-changelog
+
+Generate a structured `CHANGELOG.md` from the project's git history.
+
+## Description
+
+This skill fetches commits since the last git tag, auto-categorizes them into
+`Added`, `Fixed`, `Changed`, and `Removed`, and outputs a properly formatted
+`CHANGELOG.md`.
+
+## Usage
+
+Run the script from the repository root:
+
