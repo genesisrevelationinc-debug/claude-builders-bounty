@@ -1,59 +1,59 @@
 #!/bin/bash
 
+# Exit on any error
+set -e
+
+# Get the directory of the script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Get the latest tag
-latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
+LATEST_TAG=$(git describe --tags `git tag --sort=taggerdate | tail -1`)
 
-# If no tag is found, use the first commit
-if [ -z "$latest_tag" ]; then
-  latest_tag=$(git rev-list --max-parents=0 HEAD)
+# If there are no tags, use empty string
+if [ -z "$LATEST_TAG" ]; then
+    LATEST_TAG=""
 fi
 
-# Get commit hash of latest tag
-latest_tag_commit=$(git rev-parse "$latest_tag" 2>/dev/null)
+# Generate the changelog
+echo "Generating changelog since last tag: $LATEST_TAG"
+echo "# Changelog" > CHANGELOG.md
+echo "" >> CHANGELOG.md
 
-# If no tag exists, start from the first commit
-if [ -z "$latest_tag_commit" ]; then
-  latest_tag_commit=$(git rev-list --max-parents=0 HEAD)
+if [ -n "$LATEST_TAG" ]; then
+    # Get commits since last tag
+    COMMITS=$(git log --pretty=format:"%h %s" $LATEST_TAG..HEAD)
+else
+    # Get all commits
+    COMMITS=$(git log --pretty=format:"%h %s")
 fi
 
-if [ -z "$latest_tag_commit" ]; then
-  echo "Error: Could not find a valid commit to start from."
-  exit 1
-fi
-
-# Get commits
-commits=$(git log --pretty=format:"%s" $latest_tag_commit..HEAD)
-
-# Initialize changelog content
-changelog_content="# Changelog\n\n## $(git describe --tags --abbrev=0 2>/dev/null || echo "Unreleased")\n\n"
+# Write the commits to the changelog
+echo "$COMMITS" >> CHANGELOG.md
 
 # Categorize commits
-added=$(echo "$commits" | grep -E "^(add|feat|feature)" -i)
-fixed=$(echo "$commits" | grep -E "^(fix|fixed)" -i)
-changed=$(echo "$commits" | grep -E "^(change|modify|update)" -i)
-removed=$(echo "$commits" | grep -Ei "^(remove|delete|rm)")
+echo "## [Unreleased]" > tmp_changelog.md
+echo "" >> tmp_changelog.md
 
-# Build the changelog entry
-if [ -n "$added" ]; then
-  changelog_content+=$(echo "$added" | sed 's/^/- Added: /')
-fi
+while read -r line; do
+    if [[ $line == *"fix:"* ]]; then
+        echo "### Fixed" >> tmp_changelog.md
+        echo "$line" >> tmp_changelog.md
+    elif [[ $line == *"feat:"* ]] || [[ $line == *"add:"* ]]; then
+        echo "### Added" >> tmp_changelog.md
+        echo "$line" >> tmp_changelog.md
+    elif [[ $line == *"change:"* ]] || [[ $line == *"refactor:"* ]]; then
+        echo "### Changed" >> tmp_changelog.md
+        echo "$line" >> tmp_changelog.md
+    elif [[ $line == *"remove:"* ]] || [[ $line == *"delete:"* ]]; then
+        echo "### Removed" >> tmp_changelog.md
+        echo "$line" >> tmp_changelog.md
+    else
+        echo "### Other" >> tmp_changelog.md
+        echo "$line" >> tmp_changelog.md
+    fi
+done < <(git log --pretty=format:"%s" $LATEST_TAG..HEAD)
 
-if [ -n "$fixed" ]; then
-  echo "$fixed" | while read -r line; do
-    changelog_content+="\n- Fixed: $line\n"
-  done
-fi
+cat tmp_changelog.md >> CHANGELOG.md
+rm tmp_changelog.md
 
-if [ -n "$changed" ]; then
-  echo "$changed" | while read -r line; do
-    changelog_content+="\n- Changed: $line\n"
-  done
-fi
-
-if [ -n "$removed" ]; then
-  echo "$removed" | while read -r line; do
-    changits+=$(echo "$line" | sed 's/^/- Removed: /')
-  done
-fi
-
-echo -e "$changelog_content"
+echo "Changelog generated successfully!"
