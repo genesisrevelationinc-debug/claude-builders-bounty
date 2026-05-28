@@ -1,16 +1,17 @@
-# Project Guide: Next.js 15 + SQLite SaaS
+# CLAUDE.md — Next.js + SQLite SaaS Template
 
-> **Current as of:** March 2026  
-> **Stack:** Next.js 15 App Router, TypeScript, Tailwind, better-sqlite3
-
-This is our living style guide for a lean SaaS stack. It's opinionated — we choose one way to do things, and we do them well.
+> This document defines the development standards and conventions for this Next.js + SQLite SaaS project. Claude Code should follow these rules strictly.
 
 ## Stack & Versions
 
 - **Next.js 15** (App Router)
-- **TypeScript** (strict mode)
-- **Tailwind CSS** v3.4
-- **SQLite** (via better-sqlite3)
+- **React 19** (Server Components, Actions, Compiler)
+- **TypeScript 5.5+**
+- **SQLite** (via `better-sqlite3` in development, `@libsql/client` for production/Turso)
+- **Drizzle ORM** (schema-based migrations)
+- **Tailwind CSS 3.4+**
+- **Zod** for validation
+- **next-safe-action** for server actions
 
 ## Folder Structure
 
