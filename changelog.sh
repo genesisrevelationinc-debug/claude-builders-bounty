@@ -1,67 +1,59 @@
 #!/bin/bash
 
-# changelog.sh - Generate a structured CHANGELOG.md from git history
-# Usage: bash changelog.sh
+# Get the latest tag
+latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
 
-# Get the latest git tag or default to initial commit
-latest_tag=$(git describe --tags --abbrev=0 2>/dev/null) || latest_tag=""
-
-# Determine the commit range
+# If no tag is found, use the first commit
 if [ -z "$latest_tag" ]; then
-    commit_range=""
-    echo "No previous tags found. Generating changelog for all commits."
-else
-    commit_range="$latest_tag..HEAD"
-    echo "Generating changelog from commits since tag: $latest_tag"
+  latest_tag=$(git rev-list --max-parents=0 HEAD)
 fi
 
-# Create temporary file for processing
-temp_file=$(mktemp)
+# Get commit hash of latest tag
+latest_tag_commit=$(git rev-parse "$latest_tag" 2>/dev/null)
 
-# Get commits in the specified range
-if [ -z "$commit_range" ]; then
-    git log --pretty=format:"%s" > "$temp_file"
-else
-    git log "$commit_range" --pretty=format:"%s" > "$temp_file"
+# If no tag exists, start from the first commit
+if [ -z "$latest_tag_commit" ]; then
+  latest_tag_commit=$(git rev-list --max-parents=0 HEAD)
 fi
 
-# Initialize arrays for different categories
-declare -a added_arr=()
-declare -a fixed_arr=()
-declare -a changed_arr=()
-declare -a removed_arr=()
+if [ -z "$latest_tag_commit" ]; then
+  echo "Error: Could not find a valid commit to start from."
+  exit 1
+fi
 
-# Categorize commits based on their prefixes
-while IFS= read -r line; do
-    case "$line" in
-        Add:*|add:*|Added:*|added:*) 
-            added_arr+=("${line#*: }")
-            ;;
-        Fix:*|fix:*|Fixed:*|fixed:*) 
-            fixed_arr+=("${line#*: }")
-            ;;
-        Change:*|change:*|Changed:*|changed:*) 
-            changed_arr+=("${line#*: }")
-            ;;
-        Remove:*|remove:*|Removed:*|removed:*) 
-            removed_arr+=("${line#*: }")
-            ;;
-        *)
-            # Default to "Changed" if no prefix
-            changed_arr+=("$line")
-            ;;
-    esac
-done < "$temp_file"
+# Get commits
+commits=$(git log --pretty=format:"%s" $latest_tag_commit..HEAD)
 
-# Write to CHANGELOG.md
-echo "# Changelog" > CHANGELOG.md
-echo "" >> CHANGELOG.md
-[ ${#added_arr[@]} -gt 0 ] && { echo "## Added" >> CHANGELOG.md; printf '%s\n' "${added_arr[@]/#/ - }" >> CHANGELOG.md; echo "" >> CHANGELOG.md; }
-[ ${#fixed_arr[@]} -gt 0 ] && { echo "## Fixed" >> CHANGELOG.md; printf '%s\n' "${fixed_arr[@]/#/ - }" >> CHANGELOG.md; echo "" >> CHANGELOG.md; }
-[ ${#changed_arr[@]} -gt 0 ] && { echo "## Changed" >> CHANGELOG.md; printf '%s\n' "${changed_arr[@]/#/ - }" >> CHANGELOG.md; echo "" >> CHANGELOG.md; }
-[ ${#removed_arr[@]} -gt 0 ] && { echo "## Removed" >> CHANGELOG.md; printf '%s\n' "${removed_arr[@]/#/ - }" >> CHANGELOG.md; echo "" >> CHANGELOG.md; }
+# Initialize changelog content
+changelog_content="# Changelog\n\n## $(git describe --tags --abbrev=0 2>/dev/null || echo "Unreleased")\n\n"
 
-# Cleanup
-rm "$temp_file"
+# Categorize commits
+added=$(echo "$commits" | grep -E "^(add|feat|feature)" -i)
+fixed=$(echo "$commits" | grep -E "^(fix|fixed)" -i)
+changed=$(echo "$commits" | grep -E "^(change|modify|update)" -i)
+removed=$(echo "$commits" | grep -Ei "^(remove|delete|rm)")
 
-echo "CHANGELOG.md has been generated successfully."
+# Build the changelog entry
+if [ -n "$added" ]; then
+  changelog_content+=$(echo "$added" | sed 's/^/- Added: /')
+fi
+
+if [ -n "$fixed" ]; then
+  echo "$fixed" | while read -r line; do
+    changelog_content+="\n- Fixed: $line\n"
+  done
+fi
+
+if [ -n "$changed" ]; then
+  echo "$changed" | while read -r line; do
+    changelog_content+="\n- Changed: $line\n"
+  done
+fi
+
+if [ -n "$removed" ]; then
+  echo "$removed" | while read -r line; do
+    changits+=$(echo "$line" | sed 's/^/- Removed: /')
+  done
+fi
+
+echo -e "$changelog_content"
