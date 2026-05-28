@@ -1,11 +1,3 @@
-# Claude PR Reviewer
-
-This is a CLI tool that uses Claude to review PRs and generate structured feedback.
-
-## Setup
-
-1. Install the required dependencies:
-
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -57,5 +49,18 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Claude Code PR Reviewer
+
+This tool analyzes GitHub PRs and provides structured feedback.
+
+## Features
+
+- CLI tool to analyze PRs and generate structured review comments
+- Provides summary of changes, identified risks, and improvement suggestions
+- Confidence scoring for the review
+
+## Installation
+
 
 *Started by the Claude builder community · March 2026 · MIT License*
