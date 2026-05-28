@@ -3,8 +3,6 @@
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
-
-Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
@@ -53,21 +51,3 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
-
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
-*Started by the Claude builder community · March 2026 · MIT License*
-
----
-
-## Changelog Generator
-
-This repository includes a changelog generator tool that can be used to automatically create structured changelog entries from git history.
-
-### Setup
-
-1. Make the script executable: `chmod +x changelog.sh`
-2. Run the script: `./changelog.sh`
-3. Check the generated `CHANGELOG.md` file
