@@ -16,11 +16,12 @@ You're in the right place.
 3. Share the link — contributors will find it
 
 **To claim a bounty**
-1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
-3. Submit a PR — payment is automatic on merge ✅
+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+| [#6](../../issues/6) | AGENT: Code reviewer with structured Markdown output | $150 | 🟢 Open |
 
----
+| # Bounty Submission Guidelines |  |
 
 ## Active Bounties
 
