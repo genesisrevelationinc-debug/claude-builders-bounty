@@ -50,10 +50,9 @@ You're in the right place.
 
 ---
 
-# Claude Code Security Hook
+# Block Destructive Commands Hook
 
-## Description
-A Claude Code `pre-tool-use` hook that blocks dangerous bash commands before they are executed.
+This hook prevents Claude Code from executing dangerous bash commands that could cause data loss or system damage.
 
 ## Installation
 
