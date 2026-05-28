@@ -2,9 +2,21 @@
 
 > A community bounty board for Claude Code builders.
 
-Building with Claude Code? Have tasks to delegate?
-Want to get paid for contributing to AI projects?
-You're in the right place.
+## Claude Code PR Review Agent
+
+This agent analyzes PR diffs and provides structured code reviews.
+
+### Features
+- CLI usage: `claude-review --pr <PR_URL>`
+- GitHub Action support
+- Structured Markdown output with:
+  - Summary of changes
+  - Identified risks
+  - Improvement suggestions
+  - Confidence score
+
+### Setup
+
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
