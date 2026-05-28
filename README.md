@@ -1,8 +1,4 @@
-# Claude Code Pre-tool-use Security Hook
-
-# Installation
-
-
+# Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
 
@@ -24,6 +20,7 @@ You're in the right place.
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
 
+</file>
 ---
 
 ## Active Bounties
