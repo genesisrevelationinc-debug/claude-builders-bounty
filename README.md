@@ -1,3 +1,6 @@
+## Files
+
+
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -49,20 +52,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# 📜 CHANGELOG Generator
-
-Generate a structured `CHANGELOG.md` from your git history.
-
-## Setup
-
-1. Clone this repository
-2. Make the script executable: `chmod +x changelog.sh`
-3. Run the script: `./changelog.sh`
-
-
-## Usage
-
-To generate a changelog from the last tag to the current HEAD:
 
 *Started by the Claude builder community · March 2026 · MIT License*
