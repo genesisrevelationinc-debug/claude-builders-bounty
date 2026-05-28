@@ -1,70 +1,71 @@
 #!/bin/bash
 
-# pre-tool-use hook to block destructive bash commands
-# Save as: ~/.claude/hooks/pre_tool_use
+# Pre-tool-use hook to block destructive bash commands
+# Place in ~/.claude/hooks/pre-tool-use-block-destructive-commands.sh
 
-set -e
+set -euo pipefail
 
-# Configuration
-HOOKS_DIR="$HOME/.claude/hooks"
-BLOCKED_LOG="$HOOKS_DIR/blocked.log"
-PROJECT_PATH=$(pwd)
+# Log file location
+LOG_FILE="$HOME/.claude/hooks/blocked.log"
 
 # Ensure log directory exists
-mkdir -p "$HOOKS_DIR"
+mkdir -p "$(dirname "$LOG_FILE")"
 
-# Log file for blocked commands
-BLOCKED_LOG_FILE="$BLOCKED_LOG"
+# Function to log blocked commands
+log_blocked() {
+    local timestamp=$(date -Iseconds)
+    local project_path=$(pwd)
+    echo "[$timestamp] Blocked command: $1 (Project: $project_path)" >> "$LOG_FILE"
+}
 
-# Create log file if it doesn't exist
-if [ ! -f "$BLOCKED_LOG_FILE" ]; then
-    touch "$BLOCKED_LOG_FILE"
+# Check if this is a bash command execution
+if [ "${1:-}" != "bash" ] && [ "${1:-}" != "sh" ] && [ "${1:-}" != "/bin/bash" ] && [ "${1:-}" != "/bin/sh" ]; then
+    # Not a bash command, exit early
+    exit 0
 fi
 
-# Destructive patterns to check
-is_destructive() {
-    local cmd="$1"
-    
-    # Check for destructive patterns
-    if [[ "$cmd" == *"rm -rf"* ]]; then
-        return 0
-    elif [[ "$cmd" == *"DROP TABLE"* ]]; then
-        return 0
-    elif [[ "$cmd" == *"TRUNCATE"* ]]; then
-        return 0
-    elif [[ "$cmd" == *"git push --force"* ]]; then
-        return 0
-    elif [[ "$cmd" == *"DELETE FROM"* ]]; then
-        # Special handling for DELETE FROM - only block if no WHERE clause
-        if [[ ! "$cmd" == *WHERE* ]] && [[ ! "$cmd" == *where* ]]; then
-            return 0
-        fi
+# Shift to get the actual command
+shift
+
+# Join remaining arguments into a single command string
+command_string=""
+for arg in "$@"; do
+    # Escape spaces in arguments
+    if [[ "$arg" == *" "* ]]; then
+        command_string+=" \"$arg\""
+    else
+        command_string+=" $arg"
     fi
-    
-    return 1
-}
+done
+command_string="${command_string# }"  # Remove leading space
 
-block_destructive_command() {
-    local cmd="$1"
-    local project_path="$2"
-    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S%z")
-    
-    # Log the blocked command
-    echo "$timestamp|$cmd|$project_path" >> "$BLOCKED_LOG_FILE"
-    
-    # Output message to Claude
-    echo "I cannot execute this command as it appears to be destructive: $cmd"
-    
-    exit 1
-}
+# Check for destructive patterns
+blocked=false
 
-# Main execution
-if is_destructive "$1"; then
-    block_destructive_command "$1" "$PROJECT_PATH"
+if [[ "$command_string" == *"rm -rf"* ]]; then
+    blocked=true
+    reason="rm -rf command blocked for safety"
+elif [[ "$command_string" == *"DROP TABLE"* ]]; then
+    blocked=true
+    reason="DROP TABLE command blocked for safety"
+elif [[ "$command_string" == *"git push --force"* ]]; then
+    blocked=true
+    reason="git push --force command blocked for safety"
+elif [[ "$command_string" == *"TRUNCATE "* ]]; then
+    blocked=true
+    reason="TRUNCATE command blocked for safety"
+elif [[ "$command_string" == *"DELETE FROM "* ]] && [[ "$command_string" != *" WHERE "* ]]; then
+    blocked=true
+    reason="DELETE FROM without WHERE clause blocked for safety"
 fi
 
-# If we get here, the command is allowed
-exec <&3 3<&0
-exec 3<&-
+# If blocked, log and exit with error
+if [ "$blocked" = true ]; then
+    log_blocked "$command_string"
+    echo "BLOCKED: $reason"
+    echo "This command was blocked by the pre-tool-use safety hook."
+    echo "See ~/.claude/hooks/blocked.log for details."
+    exit 1
+fi
 
 exit 0
