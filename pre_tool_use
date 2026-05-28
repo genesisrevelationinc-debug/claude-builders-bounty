@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Claude Code pre-tool-use hook to block destructive bash commands
+# 
+# This script intercepts tool calls and blocks dangerous patterns:
+# - rm -rf
+# - DROP TABLE
+# - git push --force
+# - TRUNCATE
+# - DELETE FROM (without WHERE clause)
+#
+# Logs blocked attempts to ~/.claude/hooks/blocked.log
+
+set -euo pipefail
+
+# Only process bash commands
+if [[ "${TOOL_NAME:-}" != "bash" ]]; then
+    exit 0
+fi
+
+# Get the command being executed
+command="${TOOL_INPUT:-}"
+
+# Get project path (current directory)
+project_path="$(pwd)"
+
+# Function to log blocked commands
+log_blocked() {
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local log_file="$HOME/.claude/hooks/blocked.log"
+    
+    # Create log file if it doesn't exist
+    mkdir -p "$(dirname "$log_file")"
+    touch "$log_file"
+    
+    echo "[$timestamp] Blocked: $command in $project_path" >> "$log_file"
+}
+
+# Function to check for destructive patterns
+is_destructive() {
+    # Convert to lowercase for case-insensitive matching
+    local cmd_lower
+    cmd_lower=$(echo "$command" | tr '[:upper:]' '[:lower:]')
+    
+    # Check for rm -rf pattern
+    if echo "$cmd_lower" | grep -qE '\brm\s+-*[a-z]*f'; then
+        return 0
+    fi
+    
+    # Check for DROP TABLE pattern
+    if echo "$cmd_lower" | grep -qi 'drop\s\+table'; then
+        return 0
+    fi
+    
+    # Check for git push --force pattern
+    if echo "$cmd_lower" | grep -qE 'git\s+push\s+.*--force'; then
+        return 0
+    fi
+    
+    # Check for TRUNCATE pattern
+    if echo "$cmd_lower" | grep -qi 'truncate'; then
+        return 0
+    fi
+    
+    # Check for DELETE FROM without WHERE clause
+    if echo "$cmd_lower" | grep -qi 'delete\s\+from' && ! echo "$cmd_lower" | grep -qi 'where'; then
+        return 0
+    fi
+    
+    return 1
+}
+
+# Block destructive commands
+if is_destructive; then
+    log_blocked
+    echo "BLOCKED: This command appears to be destructive and has been blocked for safety."
+    echo "Command: $command"
+    echo "If this is a false positive, please run the command manually."
+    exit 1
+fi
+
+# Allow safe commands to proceed
+exit 0
