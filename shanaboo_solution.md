@@ -1,187 +1,185 @@
 ```diff
 --- /dev/null
 +++ b/n8n-claude-weekly-summary.json
-@@ -0,0 +1,1000 @@
+@@ -0,0 +1,1059 @@
 +{
-+  "name": "Weekly Development Summary",
++  "name": "Weekly Dev Summary with Claude",
 +  "nodes": [
 +    {
 +      "parameters": {},
-+      "id": "GitHub API",
-+      "name": "GitHub API",
-+      "type": "n8n-nodes-base.github",
++      "id": "1",
++      "name": "Start",
++      "type": "n8n-nodes-base.manualTrigger",
 +      "typeVersion": 1,
 +      "position": [
-+        100,
-+        100
-+      ],
-+      "webhookId": "wkf_1234567890"
++        250,
++        360
++      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "repository",
-+        "owner": "claude-builders-bounty",
-+        "repository": "claude-builders-bounty",
-+        "timeZone": "America/New_York",
-+        "cron": "0 0 17 * * 5"
++        "rule": {
++          "interval": [
++            {
++              "field_name": "cronExpression",
++              "cron_expression": "0 17 * * 5"
++            }
++          ]
++        }
 +      },
-+      "id": "Schedule Trigger",
-+      "name": "Schedule Trigger",
++      "id": "2",
++      "name": "Cron",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
-+        200,
-+        100
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "search",
-+        "operation": "search",
-+        "query": "repo:{{ repository }} is:pr is:merged",
-+        "sort": "updated",
-+        "order": "desc"
-+      },
-+      "id": "GitHub Search",
-+      "name": "GitHub Search",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        300,
-+        200
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "model": "claude-sonnet-4-20250514",
-+        "options": {
-+          "maxTokens": 4000,
-+          "temperature": 0.7
-+        }
-+      },
-+      "id": "Claude API",
-+      "name": "Claude API",
-+      "type": "n8n-nodes-base.anthropic",
-+      "typeVersion": 1,
-+      "position": [
-+        400,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+      },
-+      "id": "Function",
-+      "name": "Process Data",
-+      "type": "n8n-nodes-base.functionItem",
-+      "typeVersion": 1,
-+      "position": [
-+        500,
-+        400
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "repository",
-+        "operation": "get",
-+        "owner": "={{ $json['input'].github['owner'] }}",
-+        "name": "={{ $json['input'].github['repo'] }}",
-+        "additionalFields": {
-+          "branchName": "main"
-+        }
-+      },
-+      "id": "Get Repository Data",
-+      "name": "Get Repository Data",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        600,
++        250,
 +        500
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "repository",
-+        "operation": "getCommits",
-+        "owner": "={{ $json['input'].github['owner'] }}",
-+        "repo": "={{ $json['input'].github['repo'] }}",
-+        "branchName": "main"
++        "method": "GET",
++        "url": "=https://api.github.com/repos/{{$parameter[\"repoOwner\"]}}/{{$parameter[\"repoName\"]}}/commits",
++        "options": {
++          "qs": {
++            "since": "={{$parameter[\"calculateSince\"]}}",
++            "until": "={{new Date().toISOString()}}"
++          }
++        },
++        "headerParametersUi": {
++          "parameter": [
++            {
++              "name": "Authorization",
++              "value": "=Bearer {{$parameter[\"githubToken\"]}}"
++            },
++            {
++              "name": "Accept",
++              "value": "application/vnd.github.v3+json"
++            }
++          ]
++        }
 +      },
-+      "id": "Get Commits",
++      "id": "3",
 +      "name": "Get Commits",
-+      "type": "n8n-nodes-base.github",
++      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 1,
 +      "position": [
-+        700,
-+        600
++        550,
++        360
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "repository",
-+        "operation": "getIssues",
-+        "owner": "={{ $json['input'].github['owner'] }}",
-+        "repo": "={{ $json['input'].github['repo'] }}",
-+        "filters": {
-+          "state": "closed"
++        "method": "GET",
++        "url": "=https://api.github.com/repos/{{$parameter[\"repoOwner\"]}}/{{$parameter[\"repoName\"]}}/issues",
++        "options": {
++          "qs": {
++            "state": "closed",
++            "since": "={{$parameter[\"calculateSince\"]}}"
++          }
++        },
++        "headerParametersUi": {
++          "parameter": [
++            {
++              "name": "Authorization",
++              "value": "=Bearer {{$parameter[\"githubToken\"]}}"
++            },
++            {
++              "name": "Accept",
++              "value": "application/vnd.github.v3+json"
++            }
++          ]
 +        }
 +      },
-+      "id": "Get Issues",
-+      "name": "Get Issues",
-+      "type": "n8n-nodes-base.github",
++      "id": "4",
++      "name": "Get Closed Issues",
++      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 1,
 +      "position": [
-+        800,
-+        700
++        550,
++        520
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "pullRequest",
-+        "operation": "getAll",
-+        "owner": "={{ $json['input'].github['owner'] }}",
-+        "repo": "={{ $json['input'].github['repo'] }}",
-+        "filters": {
-+          "state": "closed",
-+          "base": "main"
++        "method": "GET",
++        "url": "=https://api.github.com/repos/{{$parameter[\"repoOwner\"]}}/{{$parameter[\"repoName\"]}}/pulls",
++        "options": {
++          "qs": {
++            "state": "closed",
++            "sort": "updated",
++            "direction": "desc"
++          }
++        },
++        "headerParametersUi": {
++          "parameter": [
++            {
++              "name": "Authorization",
++              "value": "=Bearer {{$parameter[\"githubToken\"]}}"
++            },
++            {
++              "name": "Accept",
++              "value": "application/vnd.github.v3+json"
++            }
++          ]
 +        }
 +      },
-+      "id": "Get Pull Requests",
++      "id": "5",
 +      "name": "Get Pull Requests",
-+      "type": "n8n-nodes-base.github",
++      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 1,
 +      "position": [
-+        900,
-+        800
++        550,
++        680
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "repository",
-+        "operation": "getCommits",
-+        "owner": "={{ $json['input'].github['owner'] }}",
-+        "repo": "={{ $json['input'].github['repo'] }}",
-+        "branchName": "main"
-+      },
-+      "id": "Get Commits",
-+      "name": "Get Commits",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        1000,
-+        900
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "repository",
-+        "operation": "getIssues",
-+        "owner": "={{ $json['input'].github['owner'] }}",
-+        "repo": "={{ $json['input'].github['repo'] }}",
-+        "filters": {
-+          "state": "closed"
++        "model": "claude-sonnet-4-20250514",
++        "prompt": "=Please generate a weekly development summary for the repository {{$parameter[\"repoName\"]}}.\n\nHere is the activity for the past week:\n\nCommits:\n{{$parameter[\"formatCommits\"]}}\n\nClosed Issues:\n{{$parameter[\"formatIssues\"]}}\n\nMerged Pull Requests:\n{{$parameter[\"formatPRs\"]}}\n\nPlease provide a narrative summary of the key developments, major changes, and overall progress in a {{$parameter[\"language\"]}} language. Focus on the most significant changes and their impact.",
++        "options": {
++          "max_tokens_to_sample": 2000,
++          "temperature": 0.5
 +        }
 +      },
-+      "id": "Get Issues",
-+      "name": "Get Issues",
-+      "type": "n8n-nodes-base.github
++      "id": "6",
++      "name": "Claude API",
++      "type": "n8n-nodes-base.claudeApi",
++      "typeVersion": 1,
++      "position": [
++        850,
++        360
++      ]
++    },
++    {
++      "parameters": {
++        "fromEmail": "={{$parameter[\"fromEmail\"]}}",
++        "toEmail": "={{$parameter[\"toEmail\"]}}",
++        "subject": "=Weekly Development Summary for {{$parameter[\"repoName\"]}} - {{new Date().toISOString().slice(0, 10)}}",
++        "text": "={{$parameter[\"summary\"]}}"
++      },
++      "id": "7",
++      "name": "Send Email",
++      "type": "n8n-nodes-base.emailSend",
++      "typeVersion": 1,
++      "position": [
++        1150,
++        360
++      ]
++    },
++    {
++      "parameters": {
++        "keepOnlySet": true,
++        "values": {
++          "string": [
++            {
++              "name": "repoOwner",
++              "value": "claude-builders-bounty"
++            },
++            {
++              "name": "repoName",
++              "value": "claude-builders-bounty"
++            },
++            {
++              "name": "githubToken",
++
