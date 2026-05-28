@@ -2,105 +2,101 @@
 
 # Generate a structured CHANGELOG.md from git history
 
-set -e
+# Function to display usage
+usage() {
+    echo "Usage: bash changelog.sh [OPTIONS]"
+    echo "Options:"
+    echo "  -h, --help     Display this help message"
+    echo "  -o, --output   Output file (default: CHANGELOG.md)"
+    echo "  -t, --tag      Starting tag (default: latest tag)"
+}
 
-# Colors for output
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Default values
+OUTPUT_FILE="CHANGELOG.md"
+START_TAG=""
 
-# Get the latest tag or first commit if no tags exist
-if git describe --tags --abbrev=0 >/dev/null 2>&1; then
-    LAST_TAG=$(git describe --tags --abbrev=0)
-    echo -e "${BLUE}Generating changelog since tag: $LAST_TAG${NC}"
-    COMMITS_RANGE="$LAST_TAG..HEAD"
-else
-    FIRST_COMMIT=$(git rev-list --max-parents=0 HEAD)
-    echo -e "${BLUE}No tags found. Generating changelog since first commit: $FIRST_COMMIT${NC}"
-    COMMITS_RANGE="$FIRST_COMMIT..HEAD"
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -o|--output)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        -t|--tag)
+            START_TAG="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+# Find the latest tag if not provided
+if [[ -z "$START_TAG" ]]; then
+    START_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
 fi
 
-# Create temporary file for commit messages
-TEMP_FILE=$(mktemp)
-trap 'rm -f "$TEMP_FILE"' EXIT
+# If no tag found, use initial commit
+if [[ -z "$START_TAG" ]]; then
+    START_TAG=$(git rev-list --max-parents=0 HEAD)
+fi
 
-# Get commits in the specified range
-git log --pretty=format:"%s" "$COMMITS_RANGE" > "$TEMP_FILE"
+# Get commits since the starting tag
+COMMITS=$(git log "$START_TAG"..HEAD --oneline --no-merges)
 
 # Initialize arrays for each category
-declare -a ADDED_ARRAY
-declare -a FIXED_ARRAY
-declare -a CHANGED_ARRAY
-declare -a REMOVED_ARRAY
+declare -a ADDED=()
+declare -a FIXED=()
+declare -a CHANGED=()
+declare -a REMOVED=()
 
-# Categorize commits based on prefixes
-while IFS= read -r line; do
-    if [[ $line == feat:* ]] || [[ $line == add:* ]]; then
-        ADDED_ARRAY+=("${line#*: }")
-    elif [[ $line == fix:* ]]; then
-        FIXED_ARRAY+=("${line#*: }")
-    elif [[ $line == change:* ]] || [[ $line == update:* ]]; then
-        CHANGED_ARRAY+=("${line#*: }")
-    elif [[ $line == remove:* ]] || [[ $line == delete:* ]]; then
-        REMOVED_ARRAY+=("${line#*: }")
+# Categorize commits
+while IFS= read -r commit; do
+    commit_lower=$(echo "$commit" | tr '[:upper:]' '[:lower:]')
+    if [[ $commit_lower == *"add"* ]] || [[ $commit_lower == *"new"* ]] || [[ $commit_lower == *"create"* ]]; then
+        ADDED+=("- $commit")
+    elif [[ $commit_lower == *"fix"* ]] || [[ $commit_lower == *"bug"* ]] || [[ $commit_lower == *"resolve"* ]]; then
+        FIXED+=("- $commit")
+    elif [[ $commit_lower == *"change"* ]] || [[ $commit_lower == *"update"* ]] || [[ $commit_lower == *"modify"* ]]; then
+        CHANGED+=("- $commit")
+    elif [[ $commit_lower == *"remove"* ]] || [[ $commit_lower == *"delete"* ]] || [[ $commit_lower == *"cleanup"* ]]; then
+        REMOVED+=("- $commit")
     fi
-done < "$TEMP_FILE"
+done <<< "$COMMITS"
 
-# Generate new changelog content
-NEW_CHANGELOG=$(mktemp)
-
-# Get current date and version
-DATE=$(date +%Y-%m-%d)
-VERSION="[$(git describe --tags --abbrev=0 --always)]"
-
+# Write changelog to file
 {
     echo "# Changelog"
     echo ""
-    echo "## $VERSION - $DATE"
+    echo "## [Unreleased]"
     echo ""
-    
-    if [ ${#ADDED_ARRAY[@]} -gt 0 ]; then
+    if [ ${#ADDED[@]} -gt 0 ]; then
         echo "### Added"
-        for item in "${ADDED_ARRAY[@]}"; do
-            echo "- $item"
-        done
+        printf '%s\n' "${ADDED[@]}"
         echo ""
     fi
-    
-    if [ ${#FIXED_ARRAY[@]} -gt 0 ]; then
+    if [ ${#FIXED[@]} -gt 0 ]; then
         echo "### Fixed"
-        for item in "${FIXED_ARRAY[@]}"; do
-            echo "- $item"
-        done
+        printf '%s\n' "${FIXED[@]}"
         echo ""
     fi
-    
-    if [ ${#CHANGED_ARRAY[@]} -gt 0 ]; then
+    if [ ${#CHANGED[@]} -gt 0 ]; then
         echo "### Changed"
-        for item in "${CHANGED_ARRAY[@]}"; do
-            echo "- $item"
-        done
+        printf '%s\n' "${CHANGED[@]}"
         echo ""
     fi
-    
-    if [ ${#REMOVED_ARRAY[@]} -gt 0 ]; then
+    if [ ${#REMOVED[@]} -gt 0 ]; then
         echo "### Removed"
-        for item in "${REMOVED_ARRAY[@]}"; do
-            echo "- $item"
-        done
+        printf '%s\n' "${REMOVED[@]}"
         echo ""
     fi
-} > "$NEW_CHANGELOG"
+} > "$OUTPUT_FILE"
 
-# Prepend new content to existing changelog or create new one
-if [ -f "CHANGELOG.md" ]; then
-    # Save the existing content without the first line (header)
-    tail -n +2 "CHANGELOG.md" > "CHANGELOG.md.tmp"
-    # Add new content and then the rest
-    cat "$NEW_CHANGELOG" "CHANGELOG.md.tmp" > "CHANGELOG.md"
-    rm "CHANGELOG.md.tmp"
-else
-    cat "$NEW_CHANGELOG" > "CHANGELOG.md"
-fi
-
-echo -e "${GREEN}Changelog generated successfully!${NC}"
+echo "Changelog generated: $OUTPUT_FILE"
