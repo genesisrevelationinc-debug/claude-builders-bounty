@@ -1,12 +1,13 @@
-# Project Guide for Next.js + SQLite SaaS
+# CLAUDE.md - Project Style Guide
 
 ## Stack & Versions
 
-- **Next.js**: `15.0.0`
-- **Database**: SQLite (better-sqlite3 + @libsql/client)
-- **ORM**: drizzle-kit + drizzle-orm
+- **Next.js**: 15.0 with App Router
+- **Database**: SQLite (better-sqlite3 via Kysely or Turso)
+- **ORM**: Kysely (TypeScript SQL query builder)
 - **Styling**: Tailwind CSS
-- **Authentication**: NextAuth.js
+- **Deployment**: Vercel
+- **Node.js**: 20.x LTS
 
 ## Folder Structure
 
