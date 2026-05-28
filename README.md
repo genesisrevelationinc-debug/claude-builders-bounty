@@ -2,6 +2,25 @@
 
 > A community bounty board for Claude Code builders.
 
+## Quick Setup
+
+1. Clone this repository
+2. Run `chmod +x changelog.sh` to make the script executable
+3. Run `/generate-changelog` or `bash changelog.sh` to generate your changelog
+
+## About
+
+# Claude Builders Bounty 🤖
+
+> A community bounty board for Claude Code builders.
+
+## How it works
+
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
+2. Comment `/opire create $XXX` in the issue to set the reward
+3. Share the link — contributors will find it
+
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
@@ -51,18 +70,3 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
-
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
-
-## Changelog Generation
-
-This repository includes a skill to automatically generate a structured CHANGELOG.md from git history:
-
-1. Run `/generate-changelog` command in Claude Code
-2. Or execute `bash changelog.sh` in your terminal
-3. The script will analyze commits since the last tag and generate a categorized changelog
-
----
