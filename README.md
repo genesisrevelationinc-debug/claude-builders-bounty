@@ -1,4 +1,8 @@
-# Claude Builders Bounty 🤖
+# Claude Code Pre-tool-use Security Hook
+
+# Installation
+
+
 
 > A community bounty board for Claude Code builders.
 
@@ -10,11 +14,9 @@ You're in the right place.
 
 ## How it works
 
-building with Claude Code? Have tasks to delegate?
-Want to get paid for contributing to AI projects.
-You're in the right place.
-
-
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
+2. Comment `/opire create $XXX` in the issue to set the reward
 3. Share the link — contributors will find it
 
 **To claim a bounty**
