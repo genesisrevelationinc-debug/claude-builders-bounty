@@ -1,108 +1,65 @@
 #!/usr/bin/env python3
-"""
-Claude Code pre-tool-use hook to block destructive bash commands.
-
-This hook intercepts dangerous commands like rm -rf, DROP TABLE, etc.
-before they are executed and logs the attempts.
-"""
-
-import json
 import sys
 import os
 import re
-from datetime import datetime
-from pathlib import Path
+import json
+import datetime
+import subprocess
 
+def get_claude_code_dir():
+    """Get Claude Code project directory from environment or default to current directory."""
+    return os.environ.get('CLAUDE_CODE_DIR', os.getcwd())
 
 def log_blocked_command(command, project_path):
-    """Log blocked command attempts to a log file."""
-    log_file = Path.home() / '.claude' / 'hooks' / 'blocked.log'
-    log_file.parent.mkdir(parents=True, exist_ok=True)
+    """Log blocked command to file"""
+    log_file = os.path.expanduser('~/.claude/hooks/blocked.log')
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
     
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_entry = {
-        "timestamp": timestamp,
-        "command": command,
-        "project_path": str(project_path)
+        'timestamp': timestamp,
+        'command': command,
+        'project_path': project_path
     }
     
     with open(log_file, 'a') as f:
-        f.write(json.dumps(log_entry) + '\n')
+        f.write(f"[{timestamp}] Blocked command: {command} in {project_path}\n")
 
+def block_destructive_commands():
+    """Main function to check and block destructive commands"""
+    # Read the tool use request from stdin
+    input_data = json.load(sys.stdin)
+    tool_name = input_data.get('tool_name', '')
+    tool_input = input_data.get('input', {})
+    
+    # Check if it's a bash command
+    if tool_name == 'bash' or tool_name == 'shell':
+        command = tool_input.get('command', '')
+        if is_destructive_command(command):
+            project_path = get_claude_code_dir()
+            log_blocked_command(command, project_path)
+            print(f"❌ BLOCKED: {command}", file=sys.stderr)
+            print("This command has been blocked for security reasons.", file=sys.stderr)
+            sys.exit(1)
+        else:
+            # Command is safe, allow it
+            print(json.dumps(input_data))
+            return
+    
+    # Default: pass through the input data
+    print(json.dumps(input_data))
 
-def is_dangerous_command(command, args):
-    """
-    Check if the command and arguments match dangerous patterns.
+def is_destructive_command(command):
+    """Check if command contains destructive patterns"""
+    destructive_patterns = [
+        r'rm\s+-rf',
+        r'DROP\s+TABLE',
+        r'TRUNCATE',
+        r'DELETE\s+FROM(?!\s+WHERE)',
+        r'git\s+push\s+--force'
+    ]
     
-    Returns:
-        tuple: (is_dangerous: bool, reason: str)
-    """
-    cmd = command.strip().lower()
-    args_str = ' '.join(args).strip().lower() if args else ''
-    full_command = f"{cmd} {args_str}".strip()
-    
-    # Check for rm -rf
-    if cmd == 'rm' and '-rf' in args_str:
-        return True, "rm -rf command blocked for safety"
-    
-    # Check for DROP TABLE
-    if cmd in ('sql', 'psql', 'mysql') or 'sql' in cmd:
-        if 'drop table' in args_str:
-            return True, "DROP TABLE command blocked for safety"
-    
-    # Check for git push --force
-    if cmd == 'git' and 'push' in args_str and '--force' in args_str:
-        return True, "git push --force command blocked for safety"
-    
-    # Check for TRUNCATE
-    if cmd in ('sql', 'psql', 'mysql') or 'sql' in cmd:
-        if 'truncate' in args_str:
-            return True, "TRUNCATE command blocked for safety"
-    
-    # Check for DELETE FROM without WHERE clause
-    if cmd in ('sql', 'psql', 'mysql') or 'sql' in cmd:
-        # Match DELETE FROM followed by a table name but not followed by WHERE
-        delete_match = re.search(r'delete\s+from\s+\w+', args_str)
-        where_match = re.search(r'where\s+.+', args_str)
-        
-        if delete_match and not where_match:
-            return True, "DELETE FROM without WHERE clause blocked for safety"
-    
-    return False, ""
-
-
-def main():
-    """Main hook function that Claude Code will call."""
-    # Read the JSON input from stdin
-    try:
-        input_data = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        # If not valid JSON, allow the command to proceed
-        return
-    
-    command = input_data.get('command', '')
-    args = input_data.get('args', [])
-    project_path = input_data.get('project_path', '')
-    
-    # Check if command is dangerous
-    is_dangerous, reason = is_dangerous_command(command, args)
-    
-    if is_dangerous:
-        # Log the blocked attempt
-        log_blocked_command(f"{command} {' '.join(args)}", project_path)
-        
-        # Output error message for Claude
-        error_msg = {
-            "error": {
-                "type": "dangerous_command_blocked",
-                "message": f"Blocked dangerous command: {reason}"
-            }
-        }
-        print(json.dumps(error_msg))
-        sys.exit(1)
-    
-    # If not dangerous, exit normally to allow command execution
-
-
-if __name__ == '__main__':
-    main()
+    for pattern in destructive_patterns:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True
+    return False
