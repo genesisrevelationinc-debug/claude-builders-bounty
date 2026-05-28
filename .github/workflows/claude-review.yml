@@ -1,4 +1,4 @@
-name: Claude Code PR Review
+name: Claude Code Review
 
 on:
   pull_request:
@@ -19,21 +19,17 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install httpx
+          pip install requests
 
-      - name: Run Claude Code Review
+      - name: Run Claude Review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Fetch the PR diff
-          curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/${{ github.event.pull_request.number }}" \
-            -H "Accept: application/vnd.github.v3.diff" > pr.diff
+          # Save the script
+          curl -s https://raw.githubusercontent.com/claude-builders-bounty/claude-builders-bounty/main/claude-review -o claude-review
+          chmod +x claude-review
           
-          # Run analysis (simplified for example)
-          python << 'EOF'
-import sys
-with open('pr.diff', 'r') as f:
-    diff = f.read()
-print(f"## Code Review\\n\\nAnalyzed {len(diff)} characters of changes.")
-EOF
+          # Run review on the PR
+          python claude-review --pr "https://github.com/$GITHUB_REPOSITORY/pull/$PR_NUMBER" >> $GITHUB_STEP_SUMMARY
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
