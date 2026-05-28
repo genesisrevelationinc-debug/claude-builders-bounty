@@ -1,4 +1,18 @@
-# Claude Code PR Reviewer 🤖
+AGENT: PR Reviewer
+==============
+
+An AI agent that reviews GitHub PRs and provides structured feedback.
+
+## Features
+
+- Analyzes PR diffs and provides structured review comments
+- Generates a summary of changes, risks, and improvement suggestions
+- Provides a confidence score for the review
+
+## Installation
+
+
+# Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
 
@@ -36,11 +50,10 @@ You're in the right place.
 
 ## Rules
 
-| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | ✅ Claimed |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+- Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
 
 ---
 
