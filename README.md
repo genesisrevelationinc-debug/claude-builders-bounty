@@ -1,46 +1,39 @@
-# Claude Builders Bounty 🤖
+# n8n-claude-weekly-summary:README
 
-## Automated Weekly Dev Summary Workflow
+## Setup Instructions
 
-This repository contains an n8n workflow that automatically generates weekly development summaries using Claude API.
+1. Import this workflow into your n8n instance
+2. Set up a "Claude API" credentials with your API key
+3. Configure the "Schedule" node to point to your webhook/HTTP endpoint
+4. Configure the "Cron" node to run on Fridays at 5pm
+5. Configure the "Email" or "HTTP" nodes for delivery
 
-### Setup Instructions
+## Usage
 
-1. **Import the Workflow**: Import the JSON workflow file into your n8n instance
-   - Open n8n and go to the Workflows page
-   - Click "Import" and select the workflow JSON file
-   - Configure the GitHub credentials node credentials
+1. Create a new `.env` file and place your Claude API key in it
+2. Set `N8N_CONFIG_` as the prefix for the env variables
+3. Set `GITHUB_REPO` to the target repository
+4. Set `CLAUDE_MODEL` to `claude-sonnet-4-20250514` or `claude-opus-20240514`
+5. Set `WEBHOOK_URL` or `EMAIL_RECIPIENT` based on your delivery method
 
-2. **Configure GitHub Token**: 
-   - Create a GitHub personal access token with repo permissions
-   - In the workflow, configure the GitHub credential with your token
-   - Set the repository owner and name in the GitHub node
+## Workflow
 
-3. **Configure Claude API Key**: 
-   - Add your Anthropic API key to the Claude node
-   - Set the model to claude-sonnet-4-20250514
+This workflow will:
+1. Trigger every Friday at 5pm
+2. Collect data from GitHub API
+3. Generate a narrative summary using Claude API
+4. Send the summary via email or messaging
 
-4. **Set Delivery Method**:
-   - For email: Configure the "Send Email" node with your SMTP settings
-   - For Discord: Configure the "Discord" node with your webhook URL
-   - For Slack: Configure the "Slack" node with your webhook URL
+## Configurable Variables
 
-5. **Set Configuration Variables**:
-   - Set the cron expression for weekly execution (e.g., "0 0 17 * * 5" for Friday 5PM)
-   - Set the target repository owner and name
-   - Choose your summary language (EN/FR)
-   - Configure the workflow active repository
+- GITHUB_REPOSITORY: The GitHub repository to track (e.g. `organization/repository`)
+- DESTINATION_CHANNEL: The channel to send the summary to (e.g. `#general`)
+- LANGUAGE: The language to use for the summary (EN/FR)
 
-### Workflow Nodes:
+## How to run
 
-- **Cron**: Triggers the workflow on a schedule
-- **GitHub**: Fetches repository activity (commits, issues, PRs)
-- **Claude API**: Generates narrative summary from GitHub activity
-- **Email/Discord/Slack**: Delivers the summary
-
-### Files
-
-[File structure]
+1. Create a new `.env` file:
+   
 
 > A community bounty board for Claude Code builders.
 
