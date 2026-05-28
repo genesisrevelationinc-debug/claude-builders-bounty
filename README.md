@@ -1,3 +1,16 @@
+ # PR Review Agent
+ 
+ This is a Claude Code agent that reviews PRs and generates structured feedback.
+ 
+ ## Features
+ - Fetches PR diff from GitHub
+ - Analyzes code changes
+ - Generates structured Markdown review comments
+ 
+ ## Setup
+ 1. Clone this repository
+ 2. Install the required dependencies:
+    
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
