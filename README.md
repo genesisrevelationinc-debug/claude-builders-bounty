@@ -1,6 +1,3 @@
-# Claude Builders Bounty 🤖
-
-> A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
@@ -50,25 +47,4 @@ You're in the right place.
 
 ---
 
-# Automated Weekly Dev Summary with n8n + Claude
-
-## Setup Instructions
-
-1. **Import the Workflow**: Import the `n8n-gh-sum.json` file into your n8n instance.
-2. **Configure the Workflow**: Set up your GitHub repository and credentials node.
-3. **Set up Claude AI**: Add your API key in the Claude node.
-4. **Set up Email/Slack/Discord**: Configure the final output node (email, webhook, etc.).
-5. **Test the Workflow**: Run manually to verify the workflow functions.
-
-## Configuration
-The workflow uses the following environment variables:
-- `githubRepo` (e.g., `github/claude-builders-bounty`)
-- `toEmail` (e.g., `your-email@example.com`)
-- `summaryLanguage` (default: `EN`)
-- `summaryDestination` (e.g., `your-email@domain.com` or `#general` for Slack)
-
-## Files
-
-- `n8n-gh-sum.json`: The n8n workflow
-- `README.md`: This file
 *Started by the Claude builder community · March 2026 · MIT License*
