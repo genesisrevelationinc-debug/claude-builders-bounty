@@ -8,13 +8,13 @@ You're in the right place.
 
 ---
 
+
 ## How it works
 
-**To post a bounty**
+**To post a bounty**:
 1. Open a GitHub issue with a clear description and acceptance criteria
 2. Comment `/opire create $XXX` in the issue to set the reward
 3. Share the link — contributors will find it
-
 **To claim a bounty**
 1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
@@ -36,25 +36,17 @@ You're in the right place.
 
 ## Rules
 
-- Tasks must be related to Claude Code or AI tooling
-- Every issue must have clear acceptance criteria before a bounty is activated
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
+WORKFLOW: n8n + Claude API — automated weekly dev summary
+
+## Rules
+  Every issue must have clear acceptance criteria before a bounty is activated
+
 - Quality over speed — a solid PR beats a fast one
-
----
-
 ## Community
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# Block Destructive Commands Hook
-
-This Claude Code hook blocks dangerous bash commands before they are executed.
-
-## Installation
-
 
 *Started by the Claude builder community · March 2026 · MIT License*
