@@ -1,26 +1,30 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
-
-## [Unreleased]
+## v1.0.0 (2026-03-15)
 
 ### Added
-- Add initial CHANGELOG.md generation script
+- Initial release of the changelog generator
+- Support for generating changelog from git history
+- Auto-categorization of changes (Added, Fixed, Changed, Removed)
+- Command line interface with `/generate-changelog` command
 
-## [1.0.0] - 2023-01-15
-
-### Added
-- Add repository-wide changelog functionality
-- Add support for automatic versioning
+### Changed
+- Improved parsing of commit messages for better categorization
+- Updated README with clearer setup instructions
 
 ### Fixed
-- Fix incorrect date in header
-- Fix formatting issues
+- Issue with duplicate entries in generated changelog
+- Problem with handling special characters in commit messages
 
 ### Removed
-- Remove deprecated code paths
+- Deprecated legacy changelog generation methods
+- Unused dependency on external changelog tools
 
-## [0.1.0] - 2023-01-01
+## v0.2.0 (2026-03-10)
 
-### Notes
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0/).
+### Added
+- Support for custom tag ranges
+- Option to specify output file
+
+### Fixed
+- Minor bug fixes in commit parsing
