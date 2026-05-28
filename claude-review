@@ -1,151 +1,119 @@
 #!/usr/bin/env python3
-"""
-Claude Code PR Reviewer - A CLI tool that analyzes PR diffs and generates structured review comments.
-
-Usage:
-  claude-review --pr https://github.com/owner/repo/pull/123
-"""
 
 import argparse
-import json
-import os
-import re
 import requests
 import sys
-from typing import Dict, List, Tuple
+import os
+import re
+from typing import Dict, List, Optional
 
 
-def parse_github_url(url: str) -> Tuple[str, str, int]:
-    """Parse GitHub PR URL into owner, repo, and PR number."""
+def parse_pr_url(url: str) -> tuple:
+    """Extract owner, repo, and PR number from GitHub URL"""
     pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
     match = re.search(pattern, url)
     if not match:
         raise ValueError("Invalid GitHub PR URL")
-    owner, repo, pr_number = match.groups()
-    return owner, repo, int(pr_number)
+    return match.group(1), match.group(2), int(match.group(3))
 
 
-def get_pr_diff(owner: str, repo: str, pr_number: int, token: str = None) -> str:
-    """Fetch the diff of a GitHub PR."""
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+def get_pr_diff(owner: str, repo: str, pr_number: int, token: Optional[str] = None) -> str:
+    """Fetch the diff of a pull request"""
     headers = {
         "Accept": "application/vnd.github.v3.diff"
     }
     if token:
         headers["Authorization"] = f"token {token}"
     
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.text
 
 
-def analyze_diff(diff: str) -> Dict:
-    """Analyze the diff and return structured review data."""
-    # This is a simplified analysis - in a real implementation,
-    # this would be more sophisticated using Claude Code or similar AI
-    
+def analyze_code_changes(diff: str) -> Dict:
+    """Analyze code changes and generate structured review"""
+    # Simple heuristics for demonstration
     lines = diff.split('\n')
     added_lines = [line for line in lines if line.startswith('+') and not line.startswith('+++')]
     removed_lines = [line for line in lines if line.startswith('-') and not line.startswith('---')]
     
-    # Simple heuristics for demonstration
-    changes = []
+    # Basic risk identification
     risks = []
     suggestions = []
     
-    # Summary based on file changes
-    files_changed = set()
-    for line in lines:
-        if line.startswith('--- a/'):
-            files_changed.add(line[6:])
+    if any('DELETE' in line or 'DROP' in line for line in added_lines):
+        risks.append("Potential destructive operations detected (DELETE, DROP)")
     
-    summary = f"This PR modifies {len(files_changed)} file(s) with {len(added_lines)} additions and {len(removed_lines)} deletions."
+    if any('TODO' in line for line in added_lines):
+        suggestions.append("Consider removing TODO comments before merging")
     
-    # Identify risks based on keywords
-    risky_keywords = ['delete', 'remove', 'drop', 'destroy', 'unsafe', 'hack', 'todo', 'fixme']
-    for line in added_lines:
-        for keyword in risky_keywords:
-            if keyword in line.lower():
-                risks.append(f"Potentially risky change: '{line.strip()}' contains '{keyword}'")
+    if any('console.log' in line or 'print(' in line for line in added_lines):
+        suggestions.append("Consider removing debug statements or adding proper logging")
     
-    # Improvement suggestions based on patterns
-    if len(added_lines) > 100:
-        suggestions.append("Consider breaking this PR into smaller, focused changes for easier review.")
+    # Simple summary based on diff size
+    change_count = len(added_lines) + len(removed_lines)
+    if change_count < 20:
+        summary = "This is a small, focused PR that makes targeted changes."
+    elif change_count < 100:
+        summary = "This PR introduces moderate changes across several files."
+    else:
+        summary = "This is a substantial PR with changes throughout the codebase."
     
-    if not risks:
-        risks.append("No obvious risks identified in the changes.")
-    
-    if not suggestions:
-        suggestions.append("Code appears well-structured. Consider adding more comments for complex logic.")
-    
-    # Confidence based on analysis depth
-    confidence = "Medium" if len(risks) > 1 else "High"
+    # Confidence scoring based on heuristics
+    if len(risks) > 1 or change_count > 100:
+        confidence = "Low"
+    elif len(risks) == 1:
+        confidence = "Medium"
+    else:
+        confidence = "High"
     
     return {
         "summary": summary,
-        "risks": risks,
-        "suggestions": suggestions,
+        "risks": risks if risks else ["No significant risks identified"],
+        "suggestions": suggestions if suggestions else ["No specific suggestions identified"],
         "confidence": confidence
     }
 
 
 def format_markdown_review(analysis: Dict) -> str:
-    """Format the analysis into a structured Markdown comment."""
-    md = "## Code Review\n\n"
-    md += f"### Summary\n{analysis['summary']}\n\n"
-    md += "### Identified Risks\n"
+    """Format the analysis into structured markdown"""
+    output = []
+    output.append("## Code Review")
+    output.append("")
+    output.append(f"**Summary**: {analysis['summary']}")
+    output.append("")
+    output.append("**Identified Risks**:")
     for risk in analysis['risks']:
-        md += f"- {risk}\n"
-    md += "\n### Improvement Suggestions\n"
+        output.append(f"- {risk}")
+    output.append("")
+    output.append("**Improvement Suggestions**:")
     for suggestion in analysis['suggestions']:
-        md += f"- {suggestion}\n"
-    md += f"\n### Confidence\n**{analysis['confidence']}**\n"
-    return md
-
-
-def post_comment(owner: str, repo: str, pr_number: int, comment: str, token: str) -> None:
-    """Post a comment to the GitHub PR."""
-    url = f"https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments"
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json"
-    }
-    data = {
-        "body": comment
-    }
-    response = requests.post(url, headers=headers, json=data)
-    response.raise_for_status()
+        output.append(f"- {suggestion}")
+    output.append("")
+    output.append(f"**Confidence Score**: {analysis['confidence']}")
+    output.append("")
+    return "\n".join(output)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
     parser.add_argument("--pr", required=True, help="GitHub PR URL")
-    parser.add_argument("--post-comment", action="store_true", help="Post review as comment to PR")
     
     args = parser.parse_args()
     
     try:
-        owner, repo, pr_number = parse_github_url(args.pr)
+        owner, repo, pr_number = parse_pr_url(args.pr)
         token = os.environ.get("GITHUB_TOKEN")
-        
-        # Get PR diff
         diff = get_pr_diff(owner, repo, pr_number, token)
-        
-        # Analyze the diff
-        analysis = analyze_diff(diff)
-        
-        # Format and print the review
-        review = format_markdown_review(analysis)
-        print(review)
-        
-        # Post as comment if requested
-        if args.post_comment and token:
-            post_comment(owner, repo, pr_number, review, token)
-            print("\nReview posted as comment to PR.")
-            
+        analysis = analyze_code_changes(diff)
+        markdown_review = format_markdown_review(analysis)
+        print(markdown_review)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+    
+    return 0
 
 
 if __name__ == "__main__":
