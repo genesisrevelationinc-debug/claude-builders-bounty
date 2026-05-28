@@ -1,10 +1,4 @@
-# Claude Code Destructive Command Blocker
-
-This hook prevents dangerous bash commands from being executed in Claude Code.
-
-## Installation
-
-
+# Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
 
@@ -56,4 +50,10 @@ You're in the right place.
 
 ---
 
+# Claude Code Pre-tool-use Hook - Block Destructive Bash Commands
+
+## Installation
+
+1. Create the hooks directory and make it executable:
+   
 *Started by the Claude builder community · March 2026 · MIT License*
