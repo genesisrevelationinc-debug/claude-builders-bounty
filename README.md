@@ -1,45 +1,25 @@
 # Claude Builders Bounty 🤖
 
-> A community bounty board for Claude Code builders. 
+> A community bounty board for Claude Code builders.
 
+Building with Claude Code? Have tasks to delegate?
+Want to get paid for contributing to AI projects?
+You're in the right place.
 
-## Available Tasks
+---
 
-| Task | Description |
-|------|-------------|
-| [PR Review Agent](#) | An AI agent that reviews PRs and provides structured feedback |
+## How it works
 
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
+2. Comment `/opire create $XXX` in the issue to set the reward
+3. Share the link — contributors will find it
 
-## Active Contributors
+**To claim a bounty**
+1. Browse the open issues below
+2. Comment `/opire try` in the issue you want to work on
+3. Submit a PR — payment is automatic on merge ✅
 
-| Name | Status |
-|------|--------|
-| [Your Name](https://github.com/your-username) | 🟢 Active |
-
-## Getting Started
-
-1. Fork the repository
-2. Create a new branch (`git checkout -b feature/your-feature`)
-3. Make your changes
-4. Commit and push to your fork
-5. Open a pull request
-
-## Support
-
-We use GitHub issues for tracking requests and bugs. Please open an issue
-if you encounter any problems with the tasks or need assistance.
-
-## License
-
-MIT License. See `LICENSE` for details.
-
-## Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-## Code of Conduct
-
-See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for details.
 ---
 
 ## Active Bounties
