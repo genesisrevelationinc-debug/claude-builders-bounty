@@ -1,7 +1,7 @@
 ```diff
 --- /dev/null
 +++ b/weekly-dev-summary.json
-@@ -0,0 +1,1079 @@
+@@ -0,0 +1,1159 @@
 +{
 +  "name": "Weekly Dev Summary",
 +  "nodes": [
@@ -9,119 +9,168 @@
 +      "parameters": {
 +        "rule": {
 +          "interval": "weeks",
-+          "triggerAt": "5:00 PM",
-+          "triggerAtDay": "Friday"
++          "minutes": 15,
++          "hour": 17,
++          "day": 5
 +        }
 +      },
-+      "id": "Schedule Trigger",
-+      "name": "Schedule Trigger",
++      "id": "Schedule1",
++      "name": "Weekly Trigger",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
 +        250,
-+        350
++        300
 +      ]
 +    },
 +    {
 +      "parameters": {
++        "resource": "commit",
++        "owner": "={{ $parameter[\"githubOwner\"] }}",
++        "repository": "={{ $parameter[\"githubRepo\"] }}",
 +        "operation": "getAll",
-+        "owner": "={{ $json[\"repoOwner\"] }}",
-+        "repository": "={{ $json[\"repoName\"] }}",
-+        "filters": {
-+          "state": "all",
-+          "base": "main"
-+        },
-+        "options": {
-+          "sort": "updated",
-+          "direction": "desc"
++        "since": "={{ $now.toISO().substring(0, 10) }}",
++        "until": "={{ $now.toISO().substring(0, 10) }}",
++        "additionalFields": {
++          "since": "={{ $now.minus({ weeks: 1 }).toISO().substring(0, 10) }}",
++          "until": "={{ $now.toISO().substring(0, 10) }}"
 +        }
 +      },
-+      "id": "GitHub Pull Requests",
-+      "name": "GitHub Pull Requests",
-+      "type": "n8n-nodes-base.githubPullRequest",
++      "id": "Github1",
++      "name": "Get Commits",
++      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        550,
++        450,
 +        250
-+      ],
-+      "credentials": {
-+        "githubApi": "GitHub API"
-+      }
++      ]
 +    },
 +    {
 +      "parameters": {
++        "resource": "issue",
++        "owner": "={{ $parameter[\"githubOwner\"] }}",
++        "repository": "={{ $parameter[\"githubRepo\"] }}",
 +        "operation": "getAll",
-+        "owner": "={{ $json[\"repoOwner\"] }}",
-+        "repository": "={{ $json[\"repoName\"] }}",
-+        "filters": {
-+          "state": "closed"
++        "state": "closed",
++        "additionalFields": {
++          "since": "={{ $now.minus({ weeks: 1 }).toISO().substring(0, 10) }}"
 +        }
 +      },
-+      "id": "GitHub Issues",
-+      "name": "GitHub Issues",
-+      "type": "n8n-nodes-base.githubIssue",
++      "id": "Github2",
++      "name": "Get Closed Issues",
++      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        550,
-+        450
-+      ],
-+      "credentials": {
-+        "githubApi": "GitHub API"
-+      }
++        450,
++        400
++      ]
 +    },
 +    {
 +      "parameters": {
++        "resource": "pullRequest",
++        "owner": "={{ $parameter[\"githubOwner\"] }}",
++        "repository": "={{ $parameter[\"githubRepo\"] }}",
 +        "operation": "getAll",
-+        "owner": "={{ $json[\"repoOwner\"] }}",
-+        "repository": "={{ $json[\"repoName\"] }}",
-+        "filters": {
-+          "since": "={{ $now.toISOString().substring(0, 10) }}T00:00:00Z"
++        "state": "closed",
++        "additionalFields": {
++          "sort": "updated",
++          "direction": "desc",
++          "base": "main"
 +        }
 +      },
-+      "id": "GitHub Commits",
-+      "name": "GitHub Commits",
-+      "type": "n8n-nodes-base.githubCommit",
++      "id": "Github3",
++      "name": "Get Merged PRs",
++      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        550,
-+        50
-+      ],
-+      "credentials": {
-+        "githubApi": "GitHub API"
-+      }
++        450,
++        550
++      ]
 +    },
 +    {
 +      "parameters": {
 +        "model": "claude-sonnet-4-20250514",
-+        "prompt": "={{ $json[\"prompt\"] }}",
-+        "maxTokens": 1000,
-+        "temperature": 0.7
++        "prompt": "={{ `Summarize the following GitHub activity for the week in ${$parameter[\"language\"] === \"FR\" ? \"French\" : \"English\"}.\n\nCommits:\n${JSON.stringify($item(0).json.commits)}\n\nClosed Issues:\n${JSON.stringify($item(0).json.issues)}\n\nMerged PRs:\n${JSON.stringify($item(0).json.prs)}` }}",
++        "max_tokens": 1000,
++        "temperature": 0.5
 +      },
-+      "id": "Claude API",
-+      "name": "Claude API",
++      "id": "Claude1",
++      "name": "Generate Summary",
 +      "type": "n8n-nodes-base.anthropic",
 +      "typeVersion": 1,
 +      "position": [
-+        1050,
-+        350
-+      ],
-+      "credentials": {
-+        "anthropicApi": "Anthropic API"
-+      }
-+    },
-+    {
-+      "parameters": {
-+        "functionCode": "const now = new Date();\nconst oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\n\nconst formatDate = (date) => {\n  return date.toISOString().split('T')[0];\n};\n\nreturn [\n  {\n    json: {\n      repoOwner: 'claude-builders-bounty',\n      repoName: 'claude-builders-bounty',\n      since: formatDate(oneWeekAgo),\n      until: formatDate(now),\n      language: 'EN'\n    }\n  }\n];"
-+      },
-+      "id": "Set Variables",
-+      "name": "Set Variables",
-+      "type": "n8n-nodes-base.function",
-+      "typeVersion": 1,
-+      "position": [
-+        400,
-+        350
++        850,
++        400
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "functionCode": "const items = [];\n\nfor (const item of $input.all()) {\n  const commits = item.json.commits || [];\n  const issues = item.json.issues || [];\n  const pullRequests = item.json.pullRequests || [];\n  \n  const language = item.json.language || 'EN';\n  \n  let prompt = '';\n  \n  if (language === 'FR') {\n    prompt = `Veuillez générer un résumé narratif des activités du dépôt GitHub pour la semaine dernière. Incluez les informations suivantes dans le résumé :\n\n1. Commits :\n${commits.map(commit => `- ${commit.commit.message}`).join('\\n')}\n\n2. Problèmes fermés :\n${issues.map(issue => `- ${issue.title}`).join('\\n')}\n\n3. Pull Requests fusionnées :\n${pullRequests.map(pr => `- ${pr.title}`).join('\\n')}\n\nVeuillez structurer le résumé de manière cohérente et narrative. Commencez par un bref aperçu, puis détaillez chaque catégorie. Utilisez un ton professionnel.`;\n  } else {\n    prompt = `Please generate a narrative summary of the GitHub repository activity for the past week. Include the following information in the summary:\n\n1. Commits:\n${commits.map(commit => `- ${commit.commit.message}`).join('\\n')}\n\n2. Closed Issues:\n${issues.map(issue => `- ${issue.title}`).join('\\n')}\n\n3. Merged Pull Requests:\n${pullRequests.map(pr => `- ${pr.title}`).join('\\n')}\n\nPlease structure the summary in a coherent and narrative way. Start with a brief overview, then detail each category. Use a professional tone.`;\n  }\n
++        "sendTo": "={{ $parameter[\"email\"] }}",
++        "subject": "=Weekly Development Summary for {{ $parameter[\"githubOwner\"] }}/{{ $parameter[\"githubRepo\"] }}",
++        "text": "=Here is the development summary for the week:\n\n{{ $json[\"text\"] }}"
++      },
++      "id": "Email1",
++      "name": "Send Email",
++      "type": "n8n-nodes-base.emailSend",
++      "typeVersion": 1,
++      "position": [
++        1050,
++        400
++      ]
++    },
++    {
++      "parameters": {
++        "mode": "combine",
++        "combineBy": "combineAll",
++        "options": {}
++      },
++      "id": "Combine1",
++      "name": "Combine Data",
++      "type": "n8n-nodes-base.combine",
++      "typeVersion": 1,
++      "position": [
++        650,
++        400
++      ]
++    },
++    {
++      "parameters": {
++        "keepOnlySet": true,
++        "values": {
++          "string": [
++            {
++              "name": "commits",
++              "value": "={{ $item(0).json }}"
++            }
++          ]
++        },
++        "options": {}
++      },
++      "id": "Set1",
++      "name": "Set Commits",
++      "type": "n8n-nodes-base.set",
++      "typeVersion": 1,
++      "position": [
++        550,
++        250
++      ]
++    },
++    {
++      "parameters": {
++        "keepOnlySet": true,
++        "values": {
++          "string": [
++            {
++              "name": "issues",
++              "value": "={{ $item(0).json }}"
++            }
++          ]
++        },
++        "options": {}
++      },
++      "id": "Set2",
++      "name": "Set Issues",
++      "type": "n8n-nodes-base.set",
++      "typeVersion": 1,
++      "position": [
++        55
