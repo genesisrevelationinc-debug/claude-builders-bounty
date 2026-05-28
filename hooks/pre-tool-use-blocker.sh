@@ -1,59 +1,105 @@
 #!/bin/bash
 
-# Destructive command blocker hook for Claude Code
-# Blocks destructive bash commands and logs attempts
+# Claude Code Hook: Pre-tool-use blocker for destructive commands
+# 
+# This hook blocks dangerous bash commands before they are executed.
+# It checks the command content against known dangerous patterns.
+#
+# Installation:
+#   mkdir -p ~/.claude/hooks
+#   cp pre-tool-use-blocker.sh ~/.claude/hooks/pre-tool-use-blocker.sh
+#   chmod +x ~/.claude/hooks/pre-tool-use-blocker.sh
 
-# Configuration
+set -euo pipefail
+
+# Log file location
 LOG_FILE="$HOME/.claude/hooks/blocked.log"
-HOOKS_PATH="$HOME/.claude/hooks"
 
-# Create log file if it doesn't exist
-if [ ! -f "$LOG_FILE" ]; then
-    touch "$LOG_FILE"
-fi
+# Create log directory if it doesn't exist
+mkdir -p "$(dirname "$LOG_FILE")"
 
 # Function to log blocked commands
 log_blocked() {
-    local timestamp=$(date -Iseconds)
-    local command="$1"
-    local project_path="$2"
-    echo "$timestamp - Command: $command - Project: $project_path" >> "$LOG_FILE"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local project_path
+    project_path=$(pwd)
+    echo "[$timestamp] Blocked command: $1 (Project: $project_path)" >> "$LOG_FILE"
 }
 
-# Block list of dangerous commands
+# Function to check for dangerous patterns
 is_dangerous() {
-    case "$1" in
-        *"rm -rf"*)
-            return 0
-            ;;
-        *"DROP TABLE"*)
-            return 0
-            ;;
-        *"git push --force"*)
-            return 0
-            ;;
-        *"TRUNCATE"*)
-            return 0
-            ;;
-        *"DELETE FROM"*"WHERE"*"*)
-            return 1
-            ;;
-        *"DELETE FROM"*)
-            # Check if it's a destructive DELETE without WHERE clause
-            return 0
-            ;;
-    esac
+    local command_content="$1"
+    
+    # Check for rm -rf pattern
+    if echo "$command_content" | grep -qE '\brm\s+-[^-]*r[^-]*f\b|\brm\s+-[^-]*f[^-]*r\b'; then
+        return 0
+    fi
+    
+    # Check for DROP TABLE pattern (case insensitive)
+    if echo "$command_content" | grep -qiE '\bDROP\s+TABLE\b'; then
+        return 0
+    fi
+    
+    # Check for git push --force pattern
+    if echo "$command_content" | grep -qE '\bgit\s+push\s+--force\b|\bgit\s+push\s+-f\b'; then
+        return 0
+    fi
+    
+    # Check for TRUNCATE pattern (case insensitive)
+    if echo "$command_content" | grep -qiE '\bTRUNCATE\b'; then
+        return 0
+    fi
+    
+    # Check for DELETE FROM without WHERE pattern (case insensitive)
+    if echo "$command_content" | grep -qiE '\bDELETE\s+FROM\b' && ! echo "$command_content" | grep -qiE '\bWHERE\b'; then
+        return 0
+    fi
+    
     return 1
 }
 
-# Main function to check and block commands
-check_and_block() {
-    local command="$1"
-    local project_path="$2"
+# Main execution
+main() {
+    # Read the command from stdin
+    local command_content
+    read -r command_content
     
-    if is_dangerous "$command"; then
-        echo "Blocked potentially destructive command: $command" >&2
-        log_blocked "$command" "$project_path"
+    # Check if the command is dangerous
+    if is_dangerous "$command_content"; then
+        # Log the blocked command
+        log_blocked "$command_content"
+        
+        # Output error message to stderr
+        cat >&2 << EOF
+========================================
+ ⚠️  DANGEROUS COMMAND BLOCKED ⚠️
+========================================
+
+The following command was blocked for your safety:
+
+$command_content
+
+This hook prevents destructive operations like:
+- rm -rf commands
+- DROP TABLE statements
+- git push --force commands
+- TRUNCATE statements
+- DELETE FROM without WHERE clauses
+
+Blocked at: $(date '+%Y-%m-%d %H:%M:%S')
+Project: $(pwd)
+
+If you need to execute this command, temporarily disable the hook.
+EOF
+        
+        # Exit with error code to prevent command execution
         exit 1
     fi
+    
+    # If not dangerous, output the command unchanged
+    echo "$command_content"
 }
+
+# Run main function
+main
