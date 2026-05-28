@@ -1,30 +1,3 @@
-<h1 align="center">Claude PR Review Agent</h1>
-
-<p align="center">
-  <strong>Automated PR review agent that analyzes diffs and provides structured feedback</strong>
-  <br><br>
-  <a href="https://github.com/claude-builders-bounty/claude-pr-review-agent/actions/workflows/review.yml">
-    <img src="https://github.com/claude-builders-bounty/claude-pr-review-agent/actions/workflows/review.yml/badge.svg" alt="GitHub Actions">
-  </a>
-</p>
-
-<br>
-
-## Overview
-
-This agent automatically reviews GitHub PRs and provides structured feedback.
-
-## Features
-
-- Analyzes code changes in pull requests
-- Generates human-readable summaries of changes
-- Identifies potential risks and improvement suggestions
-- Provides a confidence score for the review
-- Available as both CLI tool and GitHub Action
-
-## Installation
-
-
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -78,3 +51,13 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
+Started by the Claude builder community · March 2026 · MIT License
+{% if page == "pr_review" %}
+
+## PR Review Agent
+
+This agent reviews GitHub pull requests and provides structured feedback.
+
+### Setup
+
+
