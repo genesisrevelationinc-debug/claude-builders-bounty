@@ -1,6 +1,4 @@
-# This workflow will run the Claude Code PR reviewer on pull requests
-
-name: Claude Code Review
+name: Claude Code PR Review
 
 on:
   pull_request:
@@ -27,9 +25,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Save the claude-review script to a file
-          curl -s https://raw.githubusercontent.com/claudio-b/claude-review/main/claude-review -o claude-review
-          chmod +x claude-review
-          python claude-review --pr "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/$PR_NUMBER"
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          # Fetch the PR diff
+          curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/${{ github.event.pull_request.number }}" \
+            -H "Accept: application/vnd.github.v3.diff" > pr.diff
+          
+          # Run analysis (simplified for example)
+          python << 'EOF'
+import sys
+with open('pr.diff', 'r') as f:
+    diff = f.read()
+print(f"## Code Review\\n\\nAnalyzed {len(diff)} characters of changes.")
+EOF
