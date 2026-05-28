@@ -1,35 +1,42 @@
-name: Claude Code Review
+name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
 
 jobs:
   review:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install requests
+          pip install -e .
+
+      - name: Get PR diff
+        id: get-diff
+        run: |
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "${{ github.event.pull_request.diff_url }}" > pr.diff
+          echo "diff_file=pr.diff" >> $GITHUB_OUTPUT
 
       - name: Run Claude Review
         env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Save the script
-          curl -s https://raw.githubusercontent.com/claude-builders-bounty/claude-builders-bounty/main/claude-review -o claude-review
-          chmod +x claude-review
-          
-          # Run review on the PR
-          python claude-review --pr "https://github.com/$GITHUB_REPOSITORY/pull/$PR_NUMBER" >> $GITHUB_STEP_SUMMARY
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          claude-review --diff pr.diff \
+            --pr-url "${{ github.event.pull_request.html_url }}" \
+            --post-comment \
+            --github-token "$GITHUB_TOKEN"
