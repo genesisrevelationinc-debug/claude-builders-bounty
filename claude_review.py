@@ -1,108 +1,125 @@
-#!/usr/bin/env python3
-"""
-Claude Review - A GitHub PR review agent
-
-This script analyzes GitHub PRs and generates structured feedback.
-"""
-
 import argparse
-import requests
 import json
 import os
-from typing import Dict, Any, Optional
+import requests
+import sys
+from typing import Dict, List
 from dataclasses import dataclass
-from pathlib import Path
 
 @dataclass
-class PRInfo:
-    owner: str
-    repo: str
-    pr_number: int
-    github_token: str
-    
-    def fetch_diff(self) -> str:
-        """Fetch the PR diff from GitHub API"""
-        headers = {
-            'Authorization': f'token {self.github_token}',
-            'Accept': 'application/vnd.github.v3+json'
-        }
-        
-        url = f'https://api.github.com/repos/{self.owner}/{self.repo}/pulls/{self.pr_number}'
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        
-        pr_data = response.json()
-        return pr_data.get('diff_url', '')
-    
-    def post_review_comment(self, comment: str) -> None:
-        """Post a review comment to the PR"""
-        # This would be implemented to post to the actual PR
-        pass
+class PRReview:
+    summary: str
+    risks: List[str]
+    suggestions: List[str]
+    confidence: str
 
+def get_pr_diff(owner: str, repo: none
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    headers = {"Authorization": f"token {github_token}"} if github_token else {}
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()["diff"]
 
-def get_pr_info_from_url(pr_url: str, github_token: str) -> PRInfo:
-    """Extract PR info from URL"""
-    # https://github.com/owner/repo/pull/123
-    parts = pr_url.rstrip('/').split('/')
-    owner = parts[3]
-    repo = parts[4]
-    pr_number = int(parts[7])
-    return PRInfo(owner, repo, pr_number, github_token)
-
-
-def analyze_code_changes(diff_text: str) -> Dict[str, Any]:
-    """Analyze code changes and return structured review"""
-    # In a full implementation, this is where you'd integrate with an AI model
-    # For this example, we'll return a mock analysis
-    return {
-        'summary': 'This PR refactors the authentication module and updates the database schema for user profiles.',
-        'risks': [
-            'Refactored authentication logic may introduce security vulnerabilities if not carefully reviewed',
-            'Database schema changes require migration testing'
+def analyze_diff(diff_content: str) -> PRReview:
+    # This is a placeholder for the actual analysis logic
+    # In a real implementation, this would use Claude Code to analyze the diff
+    # and generate the structured review
+    return PRReview(
+        summary="This PR modifies the codebase to improve functionality and fix identified issues.",
+        risks=[
+            "Potential performance implications in high-load scenarios",
+            "Possible breaking changes for existing users of the deprecated API"
         ],
-        'suggestions': [
-            'Add unit tests for new authentication flows',
-            'Consider adding input validation for user profile updates'
+        suggestions=[
+            "Consider adding more specific error handling for API calls",
         ],
-        'confidence': 'Medium'
-    }
+        confidence="Medium"
+    )
 
+def main():
+    parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
+    parser.add_argument("--pr", help="PR URL to review")
+    args = parser.parse_args()
+    
+    if not args.pr:
+        print("Please provide a PR URL with --pr")
+        return
+        
+    # Extract owner, repo, pr_number from URL
+    # This is a simplified version - in practice, you'd parse the GitHub URL properly
+    # For example: https://github.com/owner/repo/pull/123
+    parts = args.pr.rstrip('/').split('/')
+    owner = parts[-4]
+    repo_name = parts[-3]
+    pr_number = parts[-1]
+    
+    # In a real implementation, you would use a GitHub token for authentication
+    github_token = os.environ.get("GITHUB_TOKEN", "")
+    
+    try:
+        diff = get_pr_diff(owner, repo_name, pr_number, github_token)
+        review = analyze_diff(diff)
+        print(f"## Summary of Changes\n{review.summary}\n")
+        print("### Identified Risks\n")
+        for risk in review.risks:
+            print(f"- {risk}")
+        print("\n### Improvement Suggestions\n")
+        for suggestion in review.suggestions:
+            print(f"- {suggestion}")
+        print(f"\n### Confidence: {review.confidence}\n")
+    except Exception as e:
+        print(f"Error fetching or analyzing PR: {e}")
 
-def format_markdown_review(analysis: Dict[str, Any]) -> str:
-    """Format the PR analysis into markdown"""
-    md = [
-        f"## Summary of Changes\n{analysis['summary']}\n",
-        "## Identified Risks",
-        *(f"- {risk}" for risk in analysis['risks']),
-        "",
-        "## Improvement Suggestions",
-        *(f"- {suggestion}" for suggestion in analysis['suggestions']),
-        "",
-        f"## Analysis Confidence: {analysis['confidence']}"
+if __name__ == "__main__":
+    main()
+
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    headers = {"Authorization": f"token {github_token}"} if github_token else {}
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()["diff"]
+
+def analyze_diff(diff_content):
+    # Placeholder for Claude Code analysis
+    summary = "This PR modifies the codebase to improve functionality and fix identified issues."
+    risks = [
+        "Potential performance implications in high-load scenarios",
+        "Possible breaking changes for existing users of the deprecated API"
     ]
-    return '\n'.join(md)
+    suggestions = [
+        "Consider adding more specific error
+    ]
+    confidence = "Medium"
+    return PRReview(summary, risks, suggestions, confidence)
 
+if __name__ == "__main__":
+    # ... existing code ...
+
+def get_pr_diff(owner, repo, pr_number, token):
+    # Placeholder for fetching PR diff
+    # This would use the GitHub API in a real implementation
+    pass
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pr', required=True, help='PR URL to review')
-    parser.add_argument('--token', help='GitHub token for API access')
-    
+    parser.add_argument("--pr", help="PR URL to review")
     args = parser.parse_args()
     
-    github_token = args.token or os.environ.get('GITHUB_TOKEN')
-    if not github_token:
-        raise ValueError('GitHub token required for API access')
+    if not args.pr:
+        print("Please provide a PR URL with --pr")
+        return
     
-    pr_info = get_pr_info_from_url(args.pr, github_token)
-    diff = pr_info.fetch_diff()
+    print("## Summary of Changes")
+    print("This PR modifies the codebase to improve functionality and fix identified issues.")
+    print("\n### Identified Risks")
+    print("- Potential performance implications in high-load scenarios")
+    print("- Possible breaking changes for existing users of the deprecated API")
+    print("\n### Improvement Suggestions")
+    print("- Consider adding more specific error handling for API calls")
+    print("\n### Confidence: Medium")
     
-    analysis = analyze_code_changes(diff)
-    review_comment = format_markdown_review(analysis)
-    
-    # In a real implementation, post the review_comment to the PR
-    print(review_comment)
+    # In a real implementation, this would be replaced with actual Claude Code analysis
+    return
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
