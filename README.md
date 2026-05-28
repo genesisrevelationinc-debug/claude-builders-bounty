@@ -3,25 +3,13 @@
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
-Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
-
-## Quick Start
-
-### Generate a CHANGELOG
-
-1. Clone this repo
-2. Run `bash changelog.sh`
-3. Check the generated `CHANGELOG.md`
-
----
-
-*For more details, see [SKILL.md](SKILL.md).*
 
 ---
 
 ## How it works
+
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
 2. Comment `/opire create $XXX` in the issue to set the reward
