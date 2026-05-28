@@ -1,175 +1,192 @@
 ```diff
 --- /dev/null
-+++ b/weekly-dev-summary.json
-@@ -0,0 +1,1059 @@
++++ b/n8n-claude-weekly-summary.json
+@@ -0,0 +1,1002 @@
 +{
-+  "name": "Weekly Dev Summary",
++  "meta": {
++    "instanceId": "1411b378-19d2-4235-8941-66adb72008a6"
++  },
 +  "nodes": [
 +    {
 +      "parameters": {
 +        "rule": {
-+          "interval": "weeks",
-+          "triggerAtDayOfWeek": "5",
-+          "triggerAtHour": 17,
-+          "triggerAtMinute": 0
++          "interval": 5,
++          "type": "cron"
 +        }
 +      },
-+      "id": "Schedule1",
-+      "name": "Schedule",
++      "id": "Schedule",
++      "name": "Weekly Summary",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
-+        250,
-+        300
++        200,
++        800
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "search",
-+        "operation": "issuesAndPullRequests",
-+        "q": "=repo:{{ $json.repository }} is:pr is:merged closed:>={{ $json.since }}",
++        "httpMethod": "GET",
++        "url": "https://api.github.com/repos/{{$parameter[\"repo\"]}}/commits",
 +        "options": {
-+          "per_page": 100
++          "queryParameters": {
++            "since": "={{$now}}"
++          }
 +        }
 +      },
-+      "id": "Github1",
-+      "name": "Get Merged PRs",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        550,
-+        250
-+      ],
-+      "credentials": {
-+        "githubApi": {
-+          "id": "GitHub",
-+          "name": "GitHub"
-+        }
-+      }
-+    },
-+    {
-+      "parameters": {
-+        "resource": "search",
-+        "operation": "issuesAndPullRequests",
-+        "q": "=repo:{{ $json.repository }} is:issue is:closed closed:>={{ $json.since }}",
-+        "options": {
-+          "per_page": 100
-+        }
-+      },
-+      "id": "Github2",
-+      "name": "Get Closed Issues",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        550,
-+        400
-+      ],
-+      "credentials": {
-+        "githubApi": {
-+          "id": "GitHub",
-+          "name": "GitHub"
-+        }
-+      }
-+    },
-+    {
-+      "parameters": {
-+        "resource": "repository",
-+        "operation": "getCommits",
-+        "owner": "={{ $json.owner }}",
-+        "repository": "={{ $json.repo }}",
-+        "options": {
-+          "since": "={{ $json.since }}"
-+        }
-+      },
-+      "id": "Github3",
-+      "name": "Get Commits",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        550,
-+        100
-+      ],
-+      "credentials": {
-+        "githubApi": {
-+          "id": "GitHub",
-+          "name": "GitHub"
-+        }
-+      }
-+    },
-+    {
-+      "parameters": {
-+        "keepOnlySet": true,
-+        "values": {
-+          "string": [
-+            {
-+              "name": "repository",
-+              "value": "={{ $parameter1.repository }}"
-+            },
-+            {
-+              "name": "since",
-+              "value": "={{ $parameter1.since }}"
-+            },
-+            {
-+              "name": "owner",
-+              "value": "={{ $parameter1.owner }}"
-+            },
-+            {
-+              "name": "repo",
-+              "value": "={{ $parameter1.repo }}"
-+            },
-+            {
-+              "name": "language",
-+              "value": "={{ $parameter1.language }}"
-+            }
-+          ]
-+        }
-+      },
-+      "id": "Set1",
-+      "name": "Set Configuration",
-+      "type": "n8n-nodes-base.set",
++      "id": "Get Commits",
++      "name": "GitHub Commits",
++      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 1,
 +      "position": [
 +        400,
-+        300
++        600
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "mode": "combine",
-+        "combine": {
-+          "mergeBy": "combineAll",
-+          "join": "outer"
++        "httpMethod": "GET",
++        "url": "https://api.github.com/repos/{{$parameter[\"repo\"]}}/issues",
++        "options": {
++          "queryParameters": {
++            "state": "closed",
++            "since": "={{$now}}"
++          }
 +        }
 +      },
-+      "id": "ItemLists1",
-+      "name": "Combine Data",
-+      "type": "n8n-nodes-base.itemLists",
-+      "typeVersion": 2.1,
++      "id": "Get Closed Issues",
++      "name": "GitHub Issues",
++      "type": "n8n-nodes-base.httpRequest",
++      "type,,
 +      "position": [
-+        850,
-+        300
++        400,
++        800
++      ]
++    },
++    {
++      "parameters": {
++        "httpMethod": "GET",
++        "url": "https://api.github.com/repos/{{$parameter[\"repo\"]}}/pulls",
++        "options": {
++          "queryParameters": {
++            "state": "all",
++            "sort": "updated",
++            "direction": "desc"
++          }
++        }
++      },
++      "id": "Get PRs",
++      "name": "GitHub Pull Requests",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 1,
++      "position": [
++        400,
++        1000
 +      ]
 +    },
 +    {
 +      "parameters": {
 +        "model": "claude-sonnet-4-20250514",
-+        "messages": {
-+          "values": [
-+            {
-+              "content": "=You are a technical writer creating a weekly development summary for a software project. The summary should be concise, informative, and well-structured. Focus on the most important changes and avoid unnecessary details.\n\nPlease write the summary in {{ $json.language == 'FR' ? 'French' : 'English' }}.\n\nHere is the data for this week:\n\nCommits:\n{{ $json.commits.map(c => `- ${c.commit.message.split('\\n')[0]} (${c.author.login})`).join('\\n') }}\n\nMerged PRs:\n{{ $json.prs.map(pr => `- ${pr.title} (#${pr.number}) by ${pr.user.login}`).join('\\n') }}\n\nClosed Issues:\n{{ $json.issues.map(issue => `- ${issue.title} (#${issue.number})`).join('\\n') }}\n\nPlease structure the summary as follows:\n1. A brief introduction (2-3 sentences)\n2. Key Commits (highlight most significant)\n3. Merged Pull Requests\n4. Closed Issues\n5. A brief conclusion (1-2 sentences)\n\nTotal length should be around 300-400 words.",
-+              "role": "user"
-+            }
-+          ]
-+        },
-+        "options": {
-+          "maxTokens": 1000,
-+          "temperature": 0.7
++        "maxTokens": 1000,
++        "temperature": 0.7,
++        "prompt": "Generate a narrative summary of the following GitHub activity for the past week:\n\nCommits:\n{{ $json[\"commits\"] }}\n\nClosed Issues:\n{{ $json[\"issues\"] }}\n\nMerged PRs:\n{{ $json[\"prs\"] }}\n\nPlease provide a concise, well-structured summary of the key changes and activity in the repository for the week. Include:\n\n1. A brief overview of the week's activity\n2. Key features or fixes\n3. Notable commits or PRs\n4. Summary of closed issues\n\nWrite in {{ $parameter[\"language\"] }} language.\n",
++        "systemPrompt": "You are a technical project manager writing a weekly development summary."
++      },
++      "id": "Generate Summary",
++      "name": "Claude API",
++      "type": "n8n-nodes-base.claude",
++      "typeVersion": 1,
++      "position": [
++        600,
++        800
++      ]
++    },
++    {
++      "parameters": {
++        "updateMethod": "create",
++        "fields": {
++          "name": "summary_report",
++          "value": "={{ $json[\"text\"] }}",
++          "type": "text"
 +        }
 +      },
-+      "id": "AnthropicClaudeAPI1",
-+      "name": "Generate Summary",
-+      "type": "n8n-nodes-base.anthropic",
-+      "typeVersion": 1.1,
++      "id": "Save Summary",
++      "name": "Write Binary File",
++      "type": "n8n-nodes-base.writeBinaryFile",
++      "typeVersion": 1,
++      "position": [
++        800,
++        800
++      ]
++    },
++    {
++      "parameters": {
++        "sendTo": "={{ $parameter[\"destination\"] }}",
++        "sendData": "={{ $json[\"summary\"] }}",
++        "options": {
++          "subject": "Weekly Dev Summary - {{ $now }}",
++          "text": "={{ $json[\"summary\"] }}"
++        }
++      },
++      "id": "Send Summary",
++      "name": "Email",
++      "type": "n8n-nodes-base.emailSend",
++      "typeVersion": 1,
 +      "position": [
 +        1000,
-+        300
++        800
++      ]
++    }
++  ],
++  "connections": {
++    "Weekly Summary": {
++      "main": [
++        [
++          {
++            "node": "GitHub Commits",
++            "type": "main",
++            "key": "main"
++          }
++        ]
++      ]
++    },
++    "GitHub Commits": {
++      "main": [
++        [
++          {
++            "node": "GitHub Issues",
++            "type": "main",
++            "key": "main"
++          }
++        ]
++      ]
++    },
++    "GitHub Issues": {
++      "main": [
++        [
++          {
++            "node": "GitHub Pull Requests",
++            "type": "main",
++            "key": "main"
++          }
++        ]
++      ]
++    },
++    "GitHub Pull Requests": {
++      "main": [
++        [
++          {
++            "node": "Generate Summary",
++            "type": "main",
++            "key": "main"
++          }
++        ]
++      ]
++    },
++    "Claude API": {
++      "main": [
++        [
++          {
++            "node": "Save Summary",
++          "type": "main",
++          "key": "main"
++
