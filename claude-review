@@ -1,89 +1,130 @@
-#!/usr/bin/env node
+#!/usr/bin/env python3
+"""
+Claude Code PR Reviewer
 
-const { Octokit } = require('@octokit/rest');
-const fs = require('fs');
-const path =0,0 +154 @@
+A CLI tool that analyzes GitHub PR diffs and generates structured review comments.
+"""
 
-const main = async () => {
-  const args = process.argv.slice(2);
-  if (args.length === 0) {
-    console.error('Please provide a PR URL');
-    process.exit(1);
-  }
+import argparse
+import json
+import os
+import re
+import sys
+from typing import Dict, List, Optional
 
-  const prUrl = args[0];
-  if (!prUrl.startsWith('https://github.com/')) {
-    console.error('Please provide a valid GitHub PR URL');
-    process.exit(1);
-  }
+import httpx
 
-  // Parse the PR URL to get owner, repo, and PR number
-  const urlParts = new URL(prUrl).pathname.split('/');
-  const owner = urlParts[1];
-  const repo = urlParts[2];
-  const prNumber = urlParts[4];
 
-  // Initialize Octokit with GitHub token
-  const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+def parse_pr_url(url: str) -> tuple[str, str, str]:
+    """Parse GitHub PR URL into owner, repo, and PR number."""
+    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
+    match = re.search(pattern, url)
+    if not match:
+        raise ValueError("Invalid GitHub PR URL")
+    return match.group(1), match.group(2), match.group(3)
 
-  try {
-    // Get the PR data
-    const { data: pr } = await octokit.pulls.get({
-      owner,
-      repo,
-      pull_number: prNumber,
-    });
 
-    // Get PR files
-    const { data: files } = await octokit.pulls.listFiles({
-      owner,
-      repo,
-      pull_number: prNumber,
-    });
+def fetch_pr_diff(owner: str, repo: str, pr_number: str, token: Optional[str] = None) -> str:
+    """Fetch the diff of a GitHub PR."""
+    headers = {"Accept": "application/vnd.github.v3.diff"}
+    if token:
+        headers["Authorization"] = f"token {token}"
+        
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    response = httpx.get(url, headers=headers)
+    response.raise_for_status()
+    return response.text
 
-    // Get the diff
-    const patch = pr.patch_url;
 
-    // Analyze the PR (this is where Claude would be used in a real implementation)
-    // For now we'll simulate the analysis
-    const summary = "This PR introduces new authentication features and refactors the login component.";
-    const risks = [
-      "Potential security vulnerabilities in new auth implementation",
-      "Missing input validation on new fields",
-      "Inconsistent error handling across authentication methods"
-    ];
-    const suggestions = [
-      "Add input sanitization for user credentials",
-      "Implement proper error handling for all authentication methods",
-      "Consider adding rate limiting for login attempts"
-    ];
+def analyze_diff(diff: str) -> Dict:
+    """Analyze the diff and return structured review data."""
+    # This is a simplified analysis - in a real implementation, 
+    # you would integrate with Claude Code API or similar
     
-    // Generate the comment
-    const comment = `## Summary
-${summary}
+    lines = diff.split('\n')
+    added_lines = [line for line in lines if line.startswith('+') and not line.startswith('+++')]
+    removed_lines = [line for line in lines if line.startswith('-') and not line.startswith('---')]
+    
+    # Simple heuristics for demonstration
+    changes = []
+    risks = []
+    suggestions = []
+    
+    if added_lines:
+        changes.append(f"Added {len(added_lines)} lines of code")
+    if removed_lines:
+        changes.append(f"Removed {len(removed_lines)} lines of code")
+        
+    # Look for common risk patterns
+    if any('TODO' in line or 'FIXME' in line for line in added_lines):
+        risks.append("Found TODO/FIXME comments in new code")
+        
+    if any('console.log' in line or 'print(' in line for line in added_lines):
+        risks.append("Found debugging output in new code")
+        
+    if any('password' in line.lower() or 'secret' in line.lower() for line in added_lines):
+        risks.append("Potential hardcoded secrets detected")
+        
+    # Suggestions based on common patterns
+    if not any('test' in line.lower() for line in added_lines):
+        suggestions.append("Consider adding unit tests for new functionality")
+        
+    if any('http:' in line for line in added_lines):
+        suggestions.append("Consider using HTTPS instead of HTTP for external connections")
 
-## Identified Risks
-${risks.map(risk => `- ${risk}`).join('\n')}
+    # Determine confidence based on analysis depth
+    confidence = "Medium" if risks or suggestions else "Low"
+    
+    return {
+        "summary": " ".join(changes) if changes else "Modified existing code",
+        "risks": risks or ["No significant risks identified"],
+        "suggestions": suggestions or ["No specific suggestions"],
+        "confidence": confidence
+    }
 
-## Improvement Suggestions
-${suggestions.map(suggestion => `- ${suggestion}`).join('\n')}
 
-## Confidence: High
-`;
+def generate_markdown_review(analysis: Dict) -> str:
+    """Generate a structured Markdown review comment."""
+    return f"""## Code Review Summary
+{analysis['summary']}
 
-    // Post the comment
-    await octokit.issues.createComment({
-      owner,
-      repo,
-      issue_number: prNumber,
-      body: comment
-    });
+### Identified Risks
+{''.join(f'- {risk}\n' for risk in analysis['risks'])}
 
-    console.log('PR review comment posted successfully');
-  } catch (error) {
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
-  }
-};
+### Improvement Suggestions
+{''.join(f'- {suggestion}\n' for suggestion in analysis['suggestions'])}
 
-main();
+### Confidence
+{analysis['confidence']}
+"""
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
+    parser.add_argument("--pr", required=True, help="GitHub PR URL")
+    parser.add_argument("--token", help="GitHub token for API access")
+    
+    args = parser.parse_args()
+    
+    try:
+        # Parse PR URL
+        owner, repo, pr_number = parse_pr_url(args.pr)
+        
+        # Fetch PR diff
+        token = args.token or os.environ.get("GITHUB_TOKEN")
+        diff = fetch_pr_diff(owner, repo, pr_number, token)
+        
+        # Analyze the diff
+        analysis = analyze_diff(diff)
+        
+        # Generate and print Markdown review
+        review = generate_markdown_review(analysis)
+        print(review)
+        
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
