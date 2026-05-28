@@ -1,7 +1,10 @@
 # Claude Builders Bounty 🤖
 
-> Building with Claude Code? Have tasks to delegate? Want to get paid for contributing to AI projects?
-> You're in the right place.
+> A community bounty board for Claude Code builders.
+
+Building with Claude Code? Have tasks to delegate?
+Want to get paid for contributing to AI projects?
+You're in the right place.
 
 ---
 
@@ -9,14 +12,12 @@
 
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue
+2. Comment `/opire create $XXX` in the issue to set the reward
 3. Share the link — contributors will find it
 
 **To claim a bounty**
 1. Browse the open issues below
-
----
-
+2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
 
 ---
@@ -48,5 +49,15 @@
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Generate Changelog
+
+This script automatically generates a structured `CHANGELOG.md` from your project's git history.
+
+## Setup
+
+1. Save `changelog.sh` to your project root
+2. Make it executable: `chmod +x changelog.sh`
+3. Run it: `bash changelog.sh`
 
 *Started by the Claude builder community · March 2026 · MIT License*
