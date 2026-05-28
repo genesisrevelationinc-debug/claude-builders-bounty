@@ -8,18 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- New feature X
-- New feature Y
-
-### Fixed
-- Bug fix 1
-- Bug fix 2
 
 ### Changed
-- Update dependency A
-- Update dependency B
+
+### Fixed
 
 ### Removed
-- Deprecated feature Z
 
-[Unreleased]: https://github.com/claude-builders-bounty/claude-builders-bounty/compare/v1.0.0...HEAD
+## [1.0.0] - 2026-03-01
+
+### Added
+- Initial release of the Claude Builders Bounty repository
+- Bounty system for Claude Code builders
+- README with instructions for posting and claiming bounties
+
+### Changed
+
+### Fixed
+
+### Removed
