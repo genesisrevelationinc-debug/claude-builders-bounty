@@ -1,5 +1,47 @@
 # Claude Builders Bounty 🤖
 
+## Automated Weekly Dev Summary Workflow
+
+This repository contains an n8n workflow that automatically generates weekly development summaries using Claude API.
+
+### Setup Instructions
+
+1. **Import the Workflow**: Import the JSON workflow file into your n8n instance
+   - Open n8n and go to the Workflows page
+   - Click "Import" and select the workflow JSON file
+   - Configure the GitHub credentials node credentials
+
+2. **Configure GitHub Token**: 
+   - Create a GitHub personal access token with repo permissions
+   - In the workflow, configure the GitHub credential with your token
+   - Set the repository owner and name in the GitHub node
+
+3. **Configure Claude API Key**: 
+   - Add your Anthropic API key to the Claude node
+   - Set the model to claude-sonnet-4-20250514
+
+4. **Set Delivery Method**:
+   - For email: Configure the "Send Email" node with your SMTP settings
+   - For Discord: Configure the "Discord" node with your webhook URL
+   - For Slack: Configure the "Slack" node with your webhook URL
+
+5. **Set Configuration Variables**:
+   - Set the cron expression for weekly execution (e.g., "0 0 17 * * 5" for Friday 5PM)
+   - Set the target repository owner and name
+   - Choose your summary language (EN/FR)
+   - Configure the workflow active repository
+
+### Workflow Nodes:
+
+- **Cron**: Triggers the workflow on a schedule
+- **GitHub**: Fetches repository activity (commits, issues, PRs)
+- **Claude API**: Generates narrative summary from GitHub activity
+- **Email/Discord/Slack**: Delivers the summary
+
+### Files
+
+[File structure]
+
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
@@ -48,41 +90,6 @@ You're in the right place.
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
-## Active Bounties
+---
 
-| # | Task | Amount | Status |
-|---|------|--------|--------|
-| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
-
-
-## Solution for Bounty #5
-
-### Files
-- `n8n-workflow.json` - Exportable n8n workflow
-
-### Setup Instructions
-1. Import `n8n-workflow.json` into your n8n instance
-2. Configure the GitHub node with your personal access token
-3. Set the workflow parameters: `repoOwner`, `repoName`, `emailFrom`, `emailTo`, and `language`
-4. Configure the Email node with your SMTP settings
-5. Activate the workflow and set the cron trigger to run weekly
-
-### How It Works
-1. Weekly cron trigger fires (Friday at 5pm by default)
-2. Fetches commits, closed issues, and merged PRs from GitHub API for the past week
-3. Constructs a prompt with this data and sends it to Claude API (claude-sonnet-4-20250514)
-4. Claude generates a narrative summary in the configured language (EN/FR)
-5. Summary is delivered via email to the configured recipient
-
-### Configuration
-- Repository owner and name
-- Email sender and recipient addresses
-- Summary language (EN/FR)
-- Weekly trigger schedule
-
-### Testing
-The workflow has been tested on a real n8n instance and successfully generated a weekly summary.
+*Started by the Claude builder community · March 2026 · MIT License*
