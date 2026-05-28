@@ -1,150 +1,167 @@
+Based on the issue, I need to create a Claude Code sub-agent that reviews PRs and posts structured Markdown comments. Since the repo only contains README.md and LICENSE, I'll create the necessary files for the agent.
+
 ```diff
---- a/README.md
-+++ b/README.md
-@@ -1,117 +1,177 @@
- 
- # Claude Builders Bounty 🤖
- 
- > A community bounty board for Claude Code builders.
- 
- Building with Claude Code? Have tasks to delegate?
- Want to get paid for contributing to AI projects?
- You're in the right place.
- 
-+## How to Claim a Bounty
+--- /dev/null
++++ b/claude-review
+@@ -0,0 +1,186 @@
++#!/usr/bin/env bash
++# Claude Code PR Review Agent
++# Usage: claude-review --pr https://github.com/owner/repo/pull/123
++#        claude-review --diff <file.diff>
 +
-+1. Browse the open issues below
-+2. Comment `+
-+3. Submit a PR
++set -euo pipefail
 +
-+## Active Bounties
++# Colors for output
++RED='\033[0;31m'
++GREEN='\033[0;32m'
++YELLOW='\033[1;33m'
++BLUE='\033[0;34m'
++NC='\033[0m' # No Color
 +
-+| # | Task | Amount | Status |
-+|---|------|--------|--------|
-+| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-+| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
++print_usage() {
++    cat << EOF
++Usage: claude-review [OPTIONS]
 +
-+## Rules
++Options:
++  --pr <URL>        GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
++  --diff <FILE>     Path to a local diff file
++  --output <FILE>   Write review to file instead of stdout
++  --post-comment    Post the review as a PR comment (requires GITHUB_TOKEN)
++  --help            Show this help message
 +
-+- Tasks must be related to Claude Code or AI tooling
-+-
-+Every issue must have clear acceptance criteria before a bounty is activated
-+-
-+Payment is handled by [Opire](https://opire.dev) (Stripe)
-+-
-+Quality over speed — a solid PR beats a fast one
++Examples:
++  claude-review --pr https://github.com/owner/repo/pull/123
++  claude-review --diff changes.diff --output review.md
++  claude-review --pr https://github.com/owner/repo/pull/123 --post-comment
++EOF
++}
 +
-+## Community
++# Parse arguments
++PR_URL=""
++DIFF_FILE=""
++OUTPUT_FILE=""
++POST_COMMENT=false
 +
-+- 🐦 X: 
-+- 📧 Contact: claudebounty@gmail.com
++while [[ $# -gt 0 ]]; do
++    case $1 in
++        --pr)
++            PR_URL="$2"
++            shift 2
++            ;;
++        --diff)
++            DIFF_FILE="$2"
++            shift 2
++            ;;
++        --output)
++            OUTPUT_FILE="$2"
++            shift 2
++            ;;
++        --post-comment)
++            POST_COMMENT=true
++            shift
++            ;;
++        --help)
++            print_usage
++            exit 0
++            ;;
++        *)
++            echo -e "${RED}Error: Unknown option $1${NC}"
++            print_usage
++            exit 1
++            ;;
++    esac
++done
 +
-+## Active Bounties
++# Validate inputs
++if [[ -z "$PR_URL" && -z "$DIFF_FILE" ]]; then
++    echo -e "${RED}Error: Either --pr or --diff must be specified${NC}"
++    print_usage
++    exit 1
++fi
 +
-+| # | Task | Amount | Status |
-+|---|------|--------|--------|
-+| #1 | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-+| #2 | TEMPLATE: CLAUDE.md | $75 | 🠢 Open |
-+| #3 | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-+| #4 | AGENT: Claude Code sub-agent that reviews a PR and posts a structured comment | $150 | 🟢 Open |
-+| #5 | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
++if [[ -n "$PR_URL" && -n "$DIFF_FILE" ]]; then
++    echo -e "${RED}Error: Cannot specify both --pr and --diff${NC}"
++    print_usage
++    exit 1
++fi
 +
-+## Community
++# Fetch diff from PR URL
++if [[ -n "$PR_URL" ]]; then
++    echo -e "${BLUE}Fetching PR diff from: $PR_URL${NC}" >&2
++    
++    # Extract owner, repo, and PR number from URL
++    if [[ "$PR_URL" =~ github\.com/([^/]+)/([^/]+)/pull/([0-9]+) ]]; then
++        OWNER="${BASH_REMATCH[1]}"
++        REPO="${BASH_REMATCH[2]}"
++        PR_NUMBER="${BASH_REMATCH[3]}"
++    else
++        echo -e "${RED}Error: Invalid GitHub PR URL format${NC}"
++        echo "Expected: https://github.com/owner/repo/pull/123"
++        exit 1
++    fi
++    
++    # Fetch the diff using GitHub API
++    DIFF_CONTENT=$(curl -sL -H "Accept: application/vnd.github.v3.diff" \
++        "https://api.github.com/repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}" 2>/dev/null || true)
++    
++    if [[ -z "$DIFF_CONTENT" ]]; then
++        echo -e "${RED}Error: Failed to fetch PR diff. The PR may not exist or is private.${NC}"
++        echo "If the repo is private, set GITHUB_TOKEN environment variable."
++        exit 1
++    fi
++    
++    # Save to temp file
++    TEMP_DIFF=$(mktemp)
++    echo "$DIFF_CONTENT" > "$TEMP_DIFF"
++    DIFF_FILE="$TEMP_DIFF"
++    trap "rm -f $TEMP_DIFF" EXIT
++fi
 +
-+- Started by the Claude builder community · March 2026 · MIT License
++# Check if diff file exists
++if [[ ! -f "$DIFF_FILE" ]]; then
++    echo -e "${RED}Error: Diff file not found: $DIFF_FILE${NC}"
++    exit 1
++fi
 +
-+## Rules
++echo -e "${GREEN}Analyzing diff...${NC}" >&2
 +
-+- Tasks must be related to Claude Code or AI tooling
-+-
-+Every issue must have clear acceptance criteria before a bounty is activated
-+-
-+Payment is handled by [Opire](https://opire.dev) (Stripe)
-+-
-+Quality over speed — a solid PR beats a fast one
++# Generate the review using Claude
++REVIEW=$(claude --print -p "$(cat << PROMPT
++You are a senior code reviewer. Analyze the following git diff and produce a structured Markdown review.
 +
-+## Community
++## Review Format
 +
-+- 🐦 X: 
-+- 📧 Contact: cla0debo0ty@gmail.com
++### Summary
++[2-3 sentences summarizing what this PR changes and its overall impact]
 +
-+## Active Bounties
++### Identified Risks
++- [Risk 1: specific concern with file/line reference]
++- [Risk 2: specific concern with file/line reference]
 +
-+| # | Task | Amount | Status |
-+|---|------|--------|--------|
-+| #1 | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-+| #2 | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-+| #3 | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-+| #4 | AGENT: Claude Code sub-agent that reviews a PR and posts a structured comment | $150 | 🟢 Open |
-+| #5 | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
++### Improvement Suggestions
++- [Suggestion 1: actionable improvement]
++- [Suggestion 2: actionable improvement]
 +
-+## Rules
++### Confidence Score
++**Confidence: [Low/Medium/High]** — [Brief justification]
 +
-+Tasks must be related to Claude Code or AI tooling
-+-
-+Every issue must have clear acceptance criteria before a bounty is activated
-+-
-+Payment is handled by [Opire](https://opire.dev) (Stripe)
-+-
-+Quality over speed — a solid PR beats a fast one
++## Guidelines
++- Be specific — reference actual files and changes from the diff
++- Focus on logic errors, security issues, performance problems, and code quality
++- If the diff is small/simple, say so and adjust confidence accordingly
++- If there are no obvious issues, say so honestly
++- Do NOT comment on formatting unless it's a real problem
++- Keep the tone professional and constructive
 +
-+## Community
++Here is the diff to review:
 +
-+- Started by the Claude builder community · March 2026 · MIT License
++\`\`\`diff
++$(cat "$DIFF_FILE")
++\`\`\`
++PROMPT
++)")
 +
-+## Rules
-+
-+- Tasks must be related to Claude Code or AI tooling
-+-
-+Every issue must have clear acceptance to the issue
-+-
-+Payment is handled by [Opire](https://opire.dev) (Stripe)
-+-
-+Quality over speed — a solid PR beats a fast one
-+
-+## Community
-+
-+- 🐦 X: 
-+- 📧 Contact: claudebounty@gmail.com
-+
-+## Active Bounties
-+
-+| # | Task | Amount | Status |
-+|---|------|--------|--------|
-+| #1 | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-+| #2 | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-+| #3 | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-+| #4 | AGENT: Claude Code sub-agent that reviews a PR and posts a structured comment | $150 | 🟢 Open |
-+| #5 | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
-+
-+## Rules
-+
-+Tasks must be related to Claude Code or AI tooling
-+-
-+Every issue must have clear acceptance criteria before a bounty is activated
-+-
-+Payment is handled by [Opire](https://opire.dev) (Stripe)
-+-
-+Quality over speed — a solid PR beats a fast one
-+
-+## Community
-+
-+- 🐦 X: 
-+| # | Task | Amount | Status |
-+|---|------|--------|--------|
-+| #1 | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-+| #2 | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-+| #3 | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-+| #4 | AGENT: Claude Code sub-agent that reviews a PR and posts a structured comment | $150 | 🟢 Open |
-+| #5 | WORKWORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
-+
-+## Rules
-+
-+Tasks must be related to Claude Code or AI tooling
-+-
-+Every issue must have clear acceptance criteria before a bounty is activated
-+-
-+Payment is handled by [Opire
++# Output the review
++if [[ -n "$OUTPUT_FILE" ]]; then
++    echo "$REVIEW" > "$OUTPUT_FILE"
++    echo -e "${GREEN}Review saved to: $OUTPUT_FILE${
