@@ -1,6 +1,6 @@
-# CHANGELOG Generator
+# Generate Changelog
 
-Automatically generate a structured CHANGELOG.md from your project's git history.
+This skill automatically generates a structured CHANGELOG.md from your project's git history.
 
 ## Usage
 
