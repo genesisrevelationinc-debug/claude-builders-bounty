@@ -2,6 +2,8 @@
 
 > A community bounty board for Claude Code builders.
 
+## How it works
+
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
@@ -20,22 +22,37 @@ You're in the right place.
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
 
----
+**To claim a bounty**
+1. Browse the open issues below
+1. Comment `/opire try` in the issue you want to work on
+1. Submit a PR — payment is automatic on merge ✅
 
 ## Active Bounties
-
 | # | Task | Amount | Status |
 |---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
+
+| # | Task | Amount | Status |
+|---|------|--------|--------|
+| [#1](../../issues/1)  | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
----
-
 ## Rules
 
+- Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
+
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+
+--- STARTED BY CLAUDE BUILDER COMMUNITY · MARCH 2026 · MIT LICENSE ---
 - Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
@@ -49,15 +66,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# Generate Changelog
-
-This script automatically generates a structured `CHANGELOG.md` from your project's git history.
-
-## Setup
-
-1. Save `changelog.sh` to your project root
-2. Make it executable: `chmod +x changelog.sh`
-3. Run it: `bash changelog.sh`
 
 *Started by the Claude builder community · March 2026 · MIT License*
