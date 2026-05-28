@@ -1,85 +1,105 @@
-#!/bin/bash
+#!/usr/bin/env python3
+"""
+Claude Code pre-tool-use hook: Blocks destructive bash commands.
 
-# Pre-tool-use hook to block destructive bash commands
-# Installation: Save as ~/.claude/hooks/pre-tool-use and make executable
+Place this file at: ~/.claude/hooks/pre-tool-use
+Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
+"""
 
-set -euo pipefail
+import json
+import os
+import re
+import sys
+from datetime import datetime
 
-# Configuration
-HOOKS_DIR="$HOME/.claude/hooks"
-BLOCKED_LOG="$HOOKS_DIR/blocked.log"
+BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 
-# Ensure log directory exists
-mkdir -p "$HOOKS_DIR"
+# Patterns that should be blocked (case-insensitive)
+DANGEROUS_PATTERNS = [
+    # rm -rf (and variants like rm -rf /, rm -rf *)
+    r"\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+",
+    r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?",
+    # DROP TABLE
+    r"\bDROP\s+TABLE\b",
+    # git push --force (and -f)
+    r"\bgit\s+push\s+.*--force\b",
+    r"\bgit\s+push\s+.*\s-f(?:\s|$)",
+    # TRUNCATE
+    r"\bTRUNCATE\s+TABLE?\b",
+    # DELETE FROM without WHERE
+    r"\bDELETE\s+FROM\s+\S+(?!.*\bWHERE\b).*$",
+]
 
-# Function to log blocked commands
-log_blocked() {
-    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    local command="$1"
-    local project_path="${2:-$(pwd)}"
-    echo "[$timestamp] Blocked command: $command (Project: $project_path)" >> "$BLOCKED_LOG"
-}
 
-# Only process bash commands
-if [ "${TOOL_NAME:-}" != "bash" ]; then
-    exit 0
-fi
+def log_blocked_attempt(command: str, reason: str):
+    """Log a blocked command attempt to the log file."""
+    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
+    timestamp = datetime.now().isoformat()
+    project_path = os.getcwd()
+    
+    log_entry = (
+        f"[{timestamp}] BLOCKED: {reason}\n"
+        f"  Command: {command}\n"
+        f"  Project: {project_path}\n"
+        f"{'=' * 60}\n"
+    )
+    
+    with open(BLOCKED, "a") as f:
+        f.write(log_entry)
 
-# Get the command from Claude's input
-input_command="${TOOL_INPUT:-}"
 
-# Skip if no input
-if [ -z "$input_command" ]; then
-    exit 0
-fi
+def check_command(command: str) -> tuple[bool, str]:
+    """Check if a command is dangerous. Returns (is_blocked, reason)."""
+    command_upper = command.upper()
+    
+    for pattern in BLOCKED_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, f"Matches dangerous pattern: {pattern}"
+    
+    return False, ""
 
-# Normalize command (remove extra spaces, handle newlines)
-normalized_command=$(echo "$input_command" | tr '\n' ' ' | tr -s ' ' | xargs)
 
-# Define dangerous patterns (case insensitive)
-dangerous_patterns=(
-    "rm -rf"
-    "rm -fr"
-    "DROP TABLE"
-    "git push --force"
-    "TRUNCATE"
-    "DELETE FROM"
-)
+def main():
+    # Claude Code passes hook context as JSON on stdin
+    try:
+        hook_input = json.load(sys.stdin)
+    except json.JSONDecodeError:
+        # Not a valid hook invocation, pass through
+        sys.exit(0)
+    
+    # Extract the tool use details
+    tool_name = hook_input.get("tool_name", "")
+    command = hook_input.get("command", "")
+    
+    # Only check bash tool
+    if tool_name != "bash":
+        sys.exit(0)
+    
+    is_blocked, reason = check_command(command)
+    
+    if is_blocked:
+        log_blocked_attempt(command, reason)
+        print(f"🚫 BLOCKED: This command was prevented from running.\nReason: {reason}\nCommand: {command}", file=sys.stderr)
+        sys.exit(1)
+    
+    sys.exit(0)
 
-# Check for DELETE without WHERE clause (special handling)
-if [[ "$normalized_command" =~ DELETE[[:space:]]+FROM ]] && ! [[ "$normalized_command" =~ WHERE ]]; then
-    echo "❌ BLOCKED: Dangerous command detected"
-    echo "Command: $normalized_command"
-    echo "Reason: DELETE statements must include a WHERE clause for safety"
-    log_blocked "$normalized_command" "$(pwd)"
-    exit 1
-fi
 
-# Check for other dangerous patterns
-for pattern in "${dangerous_patterns[@]}"; do
-    if [[ "${normalized_command,,}" == *"${pattern,,}"* ]]; then
-        case "${pattern,,}" in
-            "rm -rf"|"rm -fr")
-                reason="Recursive deletion commands are blocked for safety"
-                ;;
-            "drop table")
-                reason="DROP TABLE statements are blocked for safety"
-                ;;
-            "git push --force")
-                reason="Force pushes are blocked to prevent history rewriting"
-                ;;
-            "truncate")
-                reason="TRUNCATE statements are blocked for safety"
-                ;;
-        esac
-        
-        echo "❌ BLOCKED: Dangerous command detected"
-        echo "Command: $normalized_command"
-        echo "Reason: $reason"
-        log_blocked "$normalized_command" "$(pwd)"
-        exit 1
-    fi
-done
+if __name__ == "__main__":
+    main()
+# Pre-Tool-Use Hook: Block Destructive Bash Commands
 
-# If we get here, the command is safe
-exit 0
+A Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash commands before they can execute.
+
+## What It Blocks
+
+| Pattern | Example |
+|---------|---------|
+| `rm -rf` | `rm -rf /`, `rm -rf *` |
+| `DROP TABLE` | `DROP TABLE users;` |
+| `git push --force` | `git push --force origin main` |
+| `TRUNCATE` | `TRUNCATE TABLE orders;` |
+| `DELETE FROM` (no WHERE) | `DELETE FROM users;` |
+
+## Installation
+
