@@ -1,1 +1,126 @@
-{"name":"Weekly Dev Summary","nodes":[{"parameters":{"rule":{"interval":"weeks","weekday":"5","hour":"17"}},"id":"1","name":"Cron","type":"n8n-nodes-base.cron","typeVersion":1,"position":[250,300]},{"parameters":{"operation":"getAll","owner":"{{ $parameter[\"repoOwner\"] }}","repositoryId":"{{ $parameter[\"repoName\"] }}","filters":{"since":"{{ $now.subtract(7, \"days\").toISOString() }}","until":"{{ $now.toISOString() }}"}}, "options":{}},"id":"2","name":"Get Commits","type":"n8n-nodes-base.github","typeVersion":1,"position":[450,300],"credentials":{"githubApi":"GitHub account"}},{"parameters":{"operation":"getAll","owner":"{{ $parameter[\"repoOwner\"] }}","repositoryId":"{{ $parameter[\"repoName\"] }}","filters":{"state":"closed","since":"{{ $now.subtract(7, \"days\").toISOString() }}"}}, "options":{}},"id":"3","name":"Get Closed Issues","type":"n8n-nodes-base.github","typeVersion":1,"position":[450,450],"credentials":{"githubApi":"GitHub account"}},{"parameters":{"operation":"getAll","owner":"{{ $parameter[\"repoOwner\"] }}","repositoryId":"{{ $parameter[\"repoName\"] }}","filters":{"state":"closed","since":"{{ $now.subtract(7, \"days\").toISOString() }}"}}, "options":{"pullRequestsOnly":true}},"id":"4","name":"Get Merged PRs","type":"n8n-nodes-base.github","typeVersion":1,"position":[450,600],"credentials":{"githubApi":"GitHub account"}},{"parameters":{"model":"claude-sonnet-4-20250514","prompt":"Generate a {{ $parameter[\"language\"] }} summary of the following GitHub activity:\n\nCommits:\n{% for commit in $json[\"commits\"] %}- {{ commit.commit.message }} (by {{ commit.commit.author.name }})\n{% endfor %}\n\nClosed Issues:\n{% for issue in $json[\"issues\"] %}- {{ issue.title }} (#{{ issue.number }})\n{% endfor %}\n\nMerged PRs:\n{% for pr in $json[\"pullRequests\"] %}- {{ pr.title }} (#{{ pr.number }}) by {{ pr.user.login }}\n{% endfor %}\n\nPlease provide a narrative summary highlighting key developments, fixes, and features.","system":"You are a helpful assistant that summarizes GitHub activity."},"options":{}},"id":"5","name":"Claude API","type":"@n8n/n8n-nodes-claude.claude","typeVersion":1,"position":[700,450],"credentials":{"claudeApi":"Claude API"}},{"parameters":{"fromEmail":"{{ $parameter[\"fromEmail\"] }}","toEmail":"{{ $parameter[\"toEmail\"] }}","subject":"Weekly Dev Summary for {{ $parameter[\"repoName\"] }}","text":"{{ $json[\"response\"] }}"}},"id":"6","name":"Send Email","type":"n8n-nodes-base.emailSend","typeVersion":1,"position":[900,450],"credentials":{"smtp":"SMTP"}},{"parameters":{"keepOnlySet":true,"values":[{"name":"repoOwner","type":"string","value":"claude-builders-bounty"},{"name":"repoName","type":"string","value":"claude-builders-bounty"},{"name":"language","type":"string","value":"EN"},{"name":"fromEmail","type":"string","value":"summary@example.com"},{"name":"toEmail","type":"string","value":"team@example.com"}]}},"id":"7","name":"Set Variables","type":"n8n-nodes-base.set","typeVersion":1,"position":[250,150]}],"connections":{"Cron":{"main":[["Set Variables"]]},"Set Variables":{"main":[["Get Commits","Get Closed Issues","Get Merged PRs"]]},"Get Commits":{"main":[["Claude API"]]},"Get Closed Issues":{"main":[["Claude API"]]},"Get Merged PRs":{"main":[["Claude API"]]},"Claude API":{"main":[["Send Email"]]}},"createdAt":"2023-04-15T00:00:00.000Z","updatedAt":"2023-04-15T00:00:00.000Z","settings":{"executionOrder":"v1","saveExecutionProgress":true,"saveManualExecutions":true,"saveDataErrorExecution":"all","saveDataSuccessExecution":"all","callerPolicy":"any","timezone":"America/New_York"},"staticData":{},"meta":{},"id":"weekly_dev_summary","versionId":"weekly_dev_summary_v1"}
+{
+  "versionId": "11.0.0",
+  "name": "Weekly Dev Summary Generator",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Start",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "parameters": {
+        "cron": "0 17 * * 5"
+      },
+      "webhookId": "XXXX"
+    },
+    {
+      "id": "2",
+      "name": "Get Repository Data",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "parameters": {
+        "owner": "claude-builders-bounty",
+      "repository": "claude-builders-bounty",
+      "operation": "getAll",
+      "fields": [
+        "commits",
+        "issues",
+        "pullRequests"
+      ]
+      },
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "id": "3",
+      "name": "Format Data for Claude",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "options": {
+          "field": "commits",
+          "value": "[]"
+        }
+      }
+    },
+    {
+      "id": "4",
+      "name": "Send to Claude",
+      "type": "n8n-nodes-base.anthropic",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "parameters": {
+        "model": "claude-sonnet-4-20250514",
+        "options": {
+          "max_tokens": 1024,
+          "temperature": 0.7
+        }
+      }
+    },
+    {
+      "id": "5",
+      "name": "Send Summary",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "to": "user@example.com",
+        "subject": "Weekly Dev Summary",
+        "message": "={{$input.json}}"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "1",
+      "target": "2",
+      "type": "main",
+      "typeInfo": "all"
+    },
+    {
+      "source": "2",
+      "target": "3",
+      "type": "main",
+      "typeInfo": "all"
+    },
+    {
+      "source": "3",
+      "target": "4",
+      "type": "main",
+      "typeInfo": "all"
+    },
+    {
+      "source": "4",
+      "target": "5",
+      "type": "main",
+      "typeInfo": "all"
+    }
+  ],
+  "settings": {
+    "timezone": "UTC",
+    "saveData": true,
+    "saveManualExecutions": true
+  },
+  "variables": {
+    "githubOwner": "claude-builders-bounty",
+    "githubRepo": "claude-builders-bounty",
+    "cron": "0 17 * * 5",
+    "emailTo": "team@example.com",
+    "language": "EN"
+  }
+}
