@@ -16,13 +16,13 @@ You're in the right place.
 3. Share the link — contributors will find it
 
 **To claim a bounty**
-1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
-3. Submit a PR — payment is automatic on merge ✅
 
 ---
 
-## Active Bounties
+# Active Bounties
+
+| # | Task | Amount | Status |
+|---|------|--------|--------|
 
 | # | Task | Amount | Status |
 |---|------|--------|--------|
@@ -49,12 +49,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-## Hooks
-
-### Pre-Tool-Use: Block Destructive Bash Commands
-
-Protect your system from accidental data loss. Install in one command:
-
 
 *Started by the Claude builder community · March 2026 · MIT License*
