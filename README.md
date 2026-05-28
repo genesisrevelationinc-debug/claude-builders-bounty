@@ -1,18 +1,3 @@
-# Claude Changelog Generator 📝
-
-Automatically generate a structured `CHANGELOG.md` from your git history.
-
-## Quick Start
-
-1. Clone the repo
-2. Run the changelog generator script
-3. Get a structured changelog with commit categories
-
-# Manual Installation
-
-Make the script executable and run:
-
-
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -63,6 +48,11 @@ You're in the right place.
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
----
+## Active Bounties
 
-*Started by the Claude builder community · March 2026 · MIT License*
+<!-- CHANGELOG_START -->
+<!-- CHANGELOG_END -->
+
+| # | Task | Amount | Status |
+|---|------|--------|--------|
+| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
