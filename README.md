@@ -1,10 +1,7 @@
 # Claude Builders Bounty 🤖
 
-> A community bounty board for Claude Code builders.
-
-Building with Claude Code? Have tasks to delegate?
-Want to get paid for contributing to AI projects?
-You're in the right place.
+> Building with Claude Code? Have tasks to delegate? Want to get paid for contributing to AI projects?
+> You're in the right place.
 
 ---
 
@@ -12,12 +9,14 @@ You're in the right place.
 
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
+2. Comment `/opire create $XXX` in the issue
 3. Share the link — contributors will find it
 
 **To claim a bounty**
 1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
+
+---
+
 3. Submit a PR — payment is automatic on merge ✅
 
 ---
@@ -50,7 +49,4 @@ You're in the right place.
 
 ---
 
-# changelog-generator
-
-Automatically generate structured changelog from git history
 *Started by the Claude builder community · March 2026 · MIT License*
