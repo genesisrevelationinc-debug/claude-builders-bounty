@@ -50,9 +50,4 @@ You're in the right place.
 
 ---
 
-# Pre-tool-use Hook for Blocking Destructive Bash Commands
-
-## Installation
-
-
 *Started by the Claude builder community · March 2026 · MIT License*
