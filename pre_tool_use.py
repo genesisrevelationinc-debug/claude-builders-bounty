@@ -1,51 +1,114 @@
 #!/usr/bin/env python3
-import sys
+"""
+Claude Code pre-tool-use hook to block destructive bash commands.
+
+Blocks:
+- rm -rf
+- DROP TABLE
+- git push --force
+- TRUNCATE
+- DELETE FROM without WHERE
+"""
+
 import os
-from datetime import datetime
+import sys
+import json
 import re
+from datetime import datetime
+from pathlib import Path
 
-# Destructive command patterns to block
-DANGEROUS_PATTERNS = [
-    r'rm\s+-rf',
-    r'DROP\s+TABLE',
-    r'git\s+push\s+--force',
-    r'TRUNCATE',
-    r'DELETE\s+FROM\s+\w+\s*(?=;|$)'
-]
-
-def is_dangerous_command(command):
-    """Check if command matches any dangerous patterns"""
-    for pattern in DANGEROUS_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True
-    return False
+def get_project_path():
+    """Get the current project path (current working directory)"""
+    return str(Path.cwd())
 
 def log_blocked_command(command, project_path):
-    """Log blocked command attempts"""
-    log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    """Log blocked command to the log file"""
+    hook_dir = Path.home() / '.claude' / 'hooks'
+    log_file = hook_dir / 'blocked.log'
     
-    with open(log_file, "a") as f:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        f.write(f"[{timestamp}] Blocked: {command} in {project_path}\n")
+    # Create directories if they don't exist
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"[{timestamp}] [{project_path}] BLOCKED: {command}\n"
+    
+    with open(log_file, 'a') as f:
+        f.write(log_entry)
+
+def is_destructive_command(command):
+    """Check if command contains destructive patterns"""
+    # Normalize command for case-insensitive matching
+    cmd_lower = command.lower().strip()
+    
+    # Check for rm -rf pattern (including variants like rm -rf /)
+    if re.search(r'rm\s+-(?:r?f|fr?)\s+', cmd_lower) or 'rm -rf' in cmd_lower:
+        return True
+    
+    # Check for DROP TABLE (case insensitive)
+    if 'drop table' in cmd_lower:
+        return True
+    
+    # Check for git push --force and git push -f
+    if 'git push' in cmd_lower and ('--force' in cmd_lower or '-f' in cmd_lower):
+        return True
+    
+    # Check for TRUNCATE (case insensitive)
+    if 'truncate' in cmd_lower:
+        return True
+    
+    # Check for DELETE FROM without WHERE (case insensitive)
+    # Match DELETE FROM followed by any non-whitespace chars, then end or newline or semicolon
+    # but not followed by WHERE
+    if re.search(r'delete\s+from\s+\w+(?!\s+where)', cmd_lower):
+        return True
+    
+    return False
 
 def main():
-    # Read command from stdin
-    command = sys.stdin.read().strip()
-    
-    # Get project path from environment or default to current directory
-    project_path = os.environ.get('PROJECT_PATH', os.getcwd())
-    
-    # Check if command is dangerous
-    if is_dangerous_command(command):
-        log_blocked_command(command, project_path)
-        print("Claude Code Assistant: This command has been blocked for safety.", file=sys.stderr)
-        print("Blocked dangerous command:", command, file=sys.stderr)
-        sys.exit(1)
-    else:
-        # Pass through safe commands
-        print(command)
-        sys.exit(0)
+    """Main hook function"""
+    try:
+        # Read the JSON input from stdin
+        input_data = json.load(sys.stdin)
+        
+        # Extract command and tool name
+        tool_name = input_data.get('tool_name', '')
+        command = input_data.get('command', '')
+        project_path = get_project_path()
+        
+        # Only check bash commands
+        if tool_name != 'bash':
+            # Not a bash command, allow it
+            json.dump({"allow": True}, sys.stdout)
+            return
+        
+        # Check if it's a destructive command
+        if is_destructive_command(command):
+            # Log the blocked command
+            log_blocked_command(command, project_path)
+            
+            # Block the command
+            response = {
+                "allow": False,
+                "message": f"❌ BLOCKED: Destructive command detected!\n\n"
+                          f"Command: {command}\n"
+                          f"Project: {project_path}\n\n"
+                          f"This command was blocked for security reasons.\n"
+                          f"Blocked patterns: rm -rf, DROP TABLE, git push --force, TRUNCATE, DELETE FROM (without WHERE)"
+            }
+            json.dump(response, sys.stdout)
+            return
+        
+        # Allow non-destructive commands
+        json.dump({"allow": True}, sys.stdout)
+        
+    except Exception as e:
+        # In case of any error, allow the command to proceed
+        # We don't want to block legitimate commands due to hook errors
+        error_response = {
+            "allow": True,
+            "message": f"⚠️  Hook error (allowing command to proceed): {str(e)}"
+        }
+        json.dump(error_response, sys.stdout)
 
 if __name__ == "__main__":
     main()
