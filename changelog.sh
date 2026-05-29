@@ -2,82 +2,64 @@
 
 # Script to generate a structured CHANGELOG.md from git history
 
-# Exit on any error
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Get the last tag or use empty string if no tags exist
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-# Function to print colored output
-print_status() {
-  echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-print_warning() {
-  echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-  echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Check if git is available
-if ! command -v git &> /dev/null; then
-  print_error "Git is not installed. Please install git and try again."
-  exit 1
-fi
-
-# Get the latest tag
-latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
-
-if [ -z "$latest_tag" ]; then
-  print_warning "No tags found. Using initial commit as starting point."
-  since_ref=$(git rev-list --max-parents=0 HEAD)
+# Get commit range
+if [ -z "$LAST_TAG" ]; then
+  COMMIT_RANGE="HEAD"
+  echo "No previous tag found. Generating changelog for all commits."
 else
-  print_status "Latest tag: $latest_tag"
-  since_ref="$latest_tag"
+  COMMIT_RANGE="$LAST_TAG..HEAD"
+  echo "Generating changelog from commits since tag: $LAST_TAG"
 fi
 
-# Get commits since the latest tag
-commits=$(git log --pretty=format:"%s" "$since_ref"..HEAD)
+# Temporary file to store commit messages
+TEMP_FILE=$(mktemp)
 
-# If no commits, exit
-if [ -z "$commits" ]; then
-  print_warning "No commits found since $since_ref"
-  exit 0
+# Get commits in the specified range
+git log --pretty=format:"%s" $COMMIT_RANGE > "$TEMP_FILE"
+
+# Initialize CHANGELOG.md if it doesn't exist
+if [ ! -f "CHANGELOG.md" ]; then
+  echo "# Changelog" > CHANGELOG.md
+  echo "" >> CHANGELOG.md
+  echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
+  echo "" >> CHANGELOG.md
 fi
 
-# Initialize changelog sections
-added=""
-fixed=""
-changed=""
-removed=""
+# Get current date in YYYY-MM-DD format
+DATE=$(date +"%Y-%m-%d")
 
-# Categorize commits based on prefixes
-while IFS= read -r line; do
-  case "$line" in
-    Added*|ADD*|add*) added+="- $line\n" ;;
-    Fixed*|FIX*|fix*) fixed+="- $line\n" ;;
-    Changed*|CHANGE*|change*) changed+="- $line\n" ;;
-    Removed*|REMOVE*|remove*) removed+="- $line\n" ;;
-    *) added+="- $line\n" ;; # Default to Added if no prefix
-  esac
-done <<< "$commits"
+# Add new version section
+echo "## [Unreleased] - $DATE" > temp_changelog.md
 
-# Generate the changelog content
-{
-  echo "# Changelog"
-  echo ""
-  echo "All notable changes to this project will be documented in this file."
-  echo ""
-  echo "## [Unreleased]"
-  [ -n "$added" ] && echo -e "\n### Added\n${added}"
-  [ -n "$fixed" ] && echo -e "\n### Fixed\n${fixed}"
-  [ -n "$changed" ] && echo -e "\n### Changed\n${changed}"
-  [ -n "$removed" ] && echo -e "\n### Removed\n${removed}"
-} > CHANGELOG.md
+# Categorize commits
+echo "" >> temp_changelog.md
+echo "### Added" >> temp_changelog.md
+grep -i "^add\|^feat" "$TEMP_FILE" | sed 's/^/* /' >> temp_changelog.md 2>/dev/null || true
 
-print_status "CHANGELOG.md has been generated successfully!"
+echo "" >> temp_changelog.md
+echo "### Fixed" >> temp_changelog.md
+grep -i "^fix\|^bug" "$TEMP_FILE" | sed 's/^/* /' >> temp_changelog.md 2>/dev/null || true
+
+echo "" >> temp_changelog.md
+echo "### Changed" >> temp_changelog.md
+grep -i "^change\|^update\|^refactor" "$TEMP_FILE" | sed 's/^/* /' >> temp_changelog.md 2>/dev/null || true
+
+echo "" >> temp_changelog.md
+echo "### Removed" >> temp_changelog.md
+grep -i "^remove\|^delete" "$TEMP_FILE" | sed 's/^/* /' >> temp_changelog.md 2>/dev/null || true
+
+# Add a blank line
+echo "" >> temp_changelog.md
+
+# Prepend the new content to CHANGELOG.md
+cat temp_changelog.md CHANGELOG.md > temp && mv temp CHANGELOG.md
+
+# Clean up temporary files
+rm "$TEMP_FILE" temp_changelog.md
+
+echo "CHANGELOG.md has been updated successfully."
