@@ -1,9 +1,10 @@
 # Claude Builders Bounty 🤖
+
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
-
 Want to get paid for contributing to AI projects?
+You're in the right place.
 
 ---
 
@@ -32,12 +33,6 @@ Want to get paid for contributing to AI projects?
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
-
-## Agent Implementation
-
-To set up the Claude Code sub-agent that reviews PRs and posts structured comments:
-
-
 
 ## Rules
 
