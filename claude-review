@@ -1,87 +1,74 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-import sys
 import requests
-import yaml
-from typing import Dict, List, Optional
-import openai
+import sys
+import os
 import json
-from github import Github
+from typing import Dict, List, Optional
 
-def get_pr_diff(owner: str, repo: str, pr_number: int, github_token: str) -> str:
-    """Fetch the diff of the pull request"""
-    g = Github()
-    pull_request = g.get_repo(f"{owner}/{repo}").get_pull(pr_number)
-    return pull_request.get_patch()
+def get_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
+    """Fetch the diff of a pull request."""
+    headers = {'Authorization': f'token {token}'} if token else {}
+    url = f'https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}'
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json().get('diff', '')
+    else:
+        response.raise_for_status()
 
-def analyze_code_diff(diff: str) -> Dict:
-    """Analyze the code diff and return structured feedback"""
-    # This is a simplified version - in practice, this would use Claude/GPT analysis
-    # For now we'll return mock analysis
+def analyze_code(code_diff: str) -> Dict:
+    """Analyze the code diff and return a structured review."""
+    # This is a simplified version - in practice, you would integrate with an LLM like Claude
+    # For now, we'll return a mock analysis
     return {
-        "summary": "This PR introduces new API endpoints for user management and enhances authentication logic.",
+        "summary": "This pull request modifies the core logic in the authentication module to enhance security checks.",
         "risks": [
-            "Potential SQL injection in user_service.py",
-            "Hardcoded API keys detected in config files"
+            "Potential security vulnerability in authentication flow",
         ],
         "suggestions": [
+            "Add input validation for user credentials",
+            "Consider adding rate limiting to authentication endpoints"
         ],
         "confidence": "Medium"
     }
 
-def format_comment(analysis: Dict) -> str:
-    """Format the analysis results into a structured markdown comment"""
-    comment = f"""### Code Review
-
-**Summary of Changes:**
-{analysis['summary']}
-
-**Identified Risks:**
-"""
-    for risk in analysis['risks']:
-        comment += f"- {risk}\n"
-    
-    if analysis['suggestions']:
-        comment += "\n**Improvement Suggestions:**\n"
-        for suggestion in analysis['suggestions']:
-            comment += f"- {suggestion}\n"
-    comment += f"\n**Confidence Score:** {analysis['confidence']}\n"
-    
-    return comment
-
 def main():
-    parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
-    parser.add_argument('--pr', required=True, 
-                     help='GitHub PR URL: https://github.com/owner/repo/pull/123')
-    
+    parser = argparse.ArgumentParser(description='Claude Code PR Reviewer')
+    parser.add_argument('--pr', required=True, help='Pull request URL')
     args = parser.parse_args()
-    
-    # Parse the PR URL
-    try:
-        pr_url = args.pr
-        # Extract owner/repo/pr_number from the URL
-        url_parts = pr_url.strip("/").split("/")
-        owner, repo, _, pr_number = url_parts[-4], url_parts[-3], url_parts[-2], int(url_parts[-1])
-    except Exception as e:
-        print(f"Error parsing PR URL: {e}")
-        return
-    
-    # Get PR diff
-    try:
-        diff = get_pr_diff(owner, repo, pr_number, os.getenv('GITHUB_TOKEN'))
-    except Exception as e:
-        print(f"Error fetching PR diff: {e}")
-        return
 
-    # Analyze the diff (simplified)
-    analysis = analyze_code_diff(diff)
-    comment = format_comment(analysis)
+    # Extract owner, repo, and PR number from URL
+    # This is a simplified parser - a real implementation would need more robust URL parsing
+    if "github.com/" in args.pr:
+        parts = args.pr.split("/")
+        owner = parts[parts.index("github.com") + 1]
+        repo = parts[parts.index("github.com") + 2]
+        pr_number = parts[parts.index("github.com") + 4].split("#")[0]
+    else:
+        print("Invalid GitHub URL provided")
+        sys.exit(1)
     
-    # In a real implementation, you would integrate with the LLM here
-    # For now we just print the analysis
-    print(comment)
+    # In a real implementation, you would use the GitHub token from environment variables
+    token = os.environ.get('GITHUB_TOKEN', '')
+    
+    try:
+        diff = get_pr_diff(owner, repo, pr_number, token)
+        analysis = analyze_code(diff)
+        
+        print("## Summary of Changes")
+        print(analysis["summary"])
+        print("\n## Identified Risks")
+        for risk in analysis["risks"]:
+            print(f"- {risk}")
+        print("\n## Improvement Suggestions")
+        for suggestion in analysis["suggestions"]:
+            print(f"- {suggestion}")
+        print(f"\n## Confidence Score: {analysis['confidence']}")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
