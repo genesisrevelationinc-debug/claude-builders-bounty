@@ -1,22 +1,33 @@
+# Claude Code PR Review Workflow
+
 name: Claude Code Review
+
 on:
   pull_request:
-    branches: [ main ]
-  issue_comment:
-    types: [ created ]
+    types: [opened, synchronize]
 
 jobs:
-  claude-review:
+  review:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
-    
-    - name: Run Claude Review
-      run: |
-        python claude-review.py --pr ${{ github.event.pull_request.html_url }}
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install httpx
+
+      - name: Run Claude Code Review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -o claude-review https://raw.githubusercontent.com/claude-builders-bounty/claude-builders-bounty/main/claude-review
+          chmod +x claude-review
+          ./claude-review --pr "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/$PR_NUMBER" --comment
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
