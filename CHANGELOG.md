@@ -8,22 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
-### Fixed
-
-### Changed
-
-### Removed
-
-## [0.1.0] - 2026-03-15
-
-### Added
-- Initial project setup
-- README with bounty information
-- This CHANGELOG file
-
-### Fixed
+- Initial release of the changelog generator script
+- Support for automatic categorization of commits
+- CHANGELOG.md generation from git history
 
 ### Changed
+- Updated README with setup instructions
+
+### Fixed
+- Issue with commit message parsing
+- Tag comparison logic
 
 ### Removed
+- Temporary debug output
+- Obsolete example files
+
+[Unreleased]: https://github.com/claude-builders-bounty/claude-builders-bounty/compare/v1.0.0...HEAD
