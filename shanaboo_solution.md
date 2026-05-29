@@ -1,171 +1,167 @@
+I need to analyze this GitHub issue and produce a proper diff to fix it. Let me break down what's being asked:
+
+1. The issue is about generating a structured CHANGELOG from git history
+2. There's a $50 bounty
+3. The repository seems to be about a Claude Code skill for generating changelogs
+4. I need to produce a complete diff that fixes the issue
+
+Let me look at the structure and understand what needs to be fixed. The issue mentions:
+- `CHANGELOG.md` from git history
+- A bash script that automatically generates changelog
+- Related to `git log` and conventional commits
+- The issue title seems garbled but mentions "Claude Code skill" and "CHANGELOG from git history"
+
+Looking at the file paths and the garbled text, I need to infer the actual repository structure. The mention of `CHANGELOG.md`, git history, bash script, and conventional commits suggests this is a tool that generates changelogs from git commits.
+
+Let me parse the garbled issue more carefully:
+- "Generate a structured CHANGELOG from git history"
+- "bash script that automatically generates changelog from git log"
+- "conventional commits"
+- "Claude Code skill"
+
+The file paths mentioned:
+- `README.md` 
+- `skill` or similar
+- Possibly a bash script file
+
+Given the context of "Claude Code skill" and generating CHANGELOG from git history with conventional commits, this seems to be a skill that:
+1. Takes git history
+2. Parses conventional commits
+3. Generates a structured CHANGELOG.md
+
+Let me look at what a typical solution would involve. The issue seems to want:
+- A bash script that generates CHANGELOG from git history
+- Using conventional commits format
+- Outputting to CHANGELOG.md
+
+Common files in such a project:
+- `skill` - the main skill definition
+- `README.md` - documentation
+- A script like `generate-changelog.sh` or similar
+
+Given the garbled nature, let me infer what needs to be created. The most logical structure based on "Claude Code skill for generating CHANGELOG from git history":
+
+I'll create:
+1. A main script that uses git log to generate changelog
+2. Update README with usage instructions
+3. Possibly a skill definition file
+
+Let me produce a proper diff. Based on the issue description mentioning "bash script" and "CHANGELOG from git history", I'll create:
+
 ```diff
---- a/generate-changelog.sh
+diff --git a/generate-changelog.sh b/generate-changelog.sh
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
 +++ b/generate-changelog.sh
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,95 @@
 +#!/usr/bin/env bash
 +set -euo pipefail
 +
-+# generate-changelog.sh
-+# Generates a structured CHANGELOG.md from git history
-+# Usage: ./generate-changelog.sh [output_file]
++# Generate structured CHANGELOG from git history using conventional commits
++# Usage: ./generate-changelog.sh [from-tag] [to-tag]
 +
-+OUTPUT_FILE="${1:-CHANGELOG.md}"
-+TEMP_DIR=$(mktemp -d)
-+trap 'rm -rf "$TEMP_DIR"' EXIT
++FROM_TAG="${1:-}"
++TO_TAG="${2:-HEAD}"
++OUTPUT_FILE="CHANGELOG.md"
 +
-+# Get the latest git tag, or use empty if no tags exist
-+get_latest_tag() {
-+    git describe --tags --abbrev=0 2>/dev/null || echo ""
-+}
-+
-+# Get commits since a given tag (or all commits if no tag)
-+get_commits_since() {
-+    local tag="$1"
-+    if [ -n "$tag" ]; then
-+        git log "$tag..HEAD" --pretty=format:"%H|%s|%b" --reverse
-+    else
-+        git log --pretty=format:"%H|%s|%b" --reverse
-+    fi
-+}
-+
-+# Categorize a commit based on its message
-+categorize_commit() {
-+    local message="$1"
-+    local lower_msg=$(echo "$message" | tr '[:upper:]' '[:lower:]')
-+    
-+    # Check for conventional commit prefixes first
-+    if echo "$lower_msg" | grep -qE '^(feat|add|introduce|implement)'; then
-+        echo "Added"
-+    elif echo "$lower_msg" | grep -qE '^(fix|bugfix|hotfix|patch|resolve)'; then
-+        echo "Fixed"
-+    elif echo "$lower_msg" | grep -qE '^(remove|delete|drop|revert|deprecate)'; then
-+        echo "Removed"
-+    elif echo "$lower_msg" | grep -qE '^(change|update|modify|refactor|improve|enhance|upgrade)'; then
-+        echo "Changed"
-+    else
-+        # Default to Changed for anything else
-+        echo "Changed"
-+    fi
-+}
-+
-+# Extract issue/PR references from commit message
-+extract_references() {
-+    local message="$1"
-+    # Extract #123 or GH-123 patterns
-+    echo "$message" | grep -oE '#[0-9]+|GH-[0-9]+' | sort -u | tr '\n' ' ' | sed 's/ $//'
-+}
-+
-+# Format a single commit into markdown
-+format_commit() {
-+    local hash="$1"
-+    local subject="$2"
-+    local body="$3"
-+    local short_hash=$(echo "$hash" | cut -c1-7)
-+    local references=$(extract_references "$subject $body")
-+    
-+    # Clean up the subject line (remove conventional commit prefix if present)
-+    local clean_subject=$(echo "$subject" | sed -E 's/^[a-z]+(\([^)]*\))?:\s*//i')
-+    
-+    local line="- $clean_subject"
-+    
-+    # Add references if found
-+    if [ -n "$references" ]; then
-+        line="$line ($references)"
-+    fi
-+    
-+    # Add short hash link
-+    line="$line — [\`$short_hash\`]($(git remote get-url origin 2>/dev/null | sed 's/\.git$//' || echo "#")/commit/$hash)"
-+    
-+    echo "$line"
-+}
-+
-+# Generate the changelog
-+generate_changelog() {
-+    local latest_tag
-+    latest_tag=$(get_latest_tag)
-+    
-+    local tag_info=""
-+    if [ -n "$latest_tag" ]; then
-+        tag_info=" since $latest_tag"
-+    fi
-+    
-+    # Collect commits by category
-+    local added_commits=""
-+    local fixed_commits=""
-+    local changed_commits=""
-+    local removed_commits=""
-+    
-+    while IFS='|' read -r hash subject body; do
-+        [ -z "$hash" ] && continue
-+        
-+        local category
-+        category=$(categorize_commit "$subject")
-+        local formatted
-+        formatted=$(format_commit "$hash" "$subject" "$body")
-+        
-+        case "$category" in
-+            Added) added_commits="$added_commits"$'\n'"$formatted" ;;
-+            Fixed) fixed_commits="$fixed_commits"$'\n'"$formatted" ;;
-+            Removed) removed_commits="$removed_commits"$'\n'"$formatted" ;;
-+            Changed) changed_commits="$changed_commits"$'\n'"$formatted" ;;
-+        esac
-+    done < <(get_commits_since "$latest_tag")
-+    
-+    # Generate the markdown output
-+    {
-+        echo "# Changelog"
-+        echo ""
-+        echo "All notable changes to this project will be documented in this file."
-+        echo ""
-+        echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),"
-+        echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)."
-+        echo ""
-+        echo "## [Unreleased]$(date +%Y-%m-%d)"
-+        echo ""
-+        
-+        if [ -n "$added_commits" ]; then
-+            echo "### Added"
-+            echo "$added_commits" | sed '/^$/d'
-+            echo ""
-+        fi
-+        
-+        if [ -n "$changed_commits" ]; then
-+            echo "### Changed"
-+            echo "$changed_commits" | sed '/^$/d'
-+            echo ""
-+        fi
-+        
-+        if [ -n "$fixed_commits" ]; then
-+            echo "### Fixed"
-+            echo "$fixed_commits" | sed '/^$/d'
-+            echo ""
-+        fi
-+        
-+        if [ -n "$removed_commits" ]; then
-+            echo "### Removed"
-+            echo "$removed_commits" | sed '/^$/d'
-+            echo ""
-+        fi
-+        
-+        echo "---"
-+        echo ""
-+        echo "Generated automatically from git history$tag_info."
-+    } > "$OUTPUT_FILE"
-+}
-+
-+# Main execution
-+main() {
-+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
-+        echo "Error: Not a git repository" >&2
++if [ -z "$FROM_TAG" ]; then
++    # Try to get the latest tag
++    FROM_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
++    if [ -z "$FROM_TAG" ]; then
++        echo "Error: No tag specified and no tags found in repository" >&2
 +        exit 1
 +    fi
-+    
-+    generate_changelog
-+    echo "CHANGELOG generated at $OUTPUT_FILE"
-+}
++fi
 +
-+main "$@"
++echo "Generating changelog from $FROM_TAG to $TO_TAG..."
++
++# Get commits between tags
++COMMITS=$(git log "$FROM_TAG..$TO_TAG" --pretty=format:"%s" --reverse 2>/dev/null || true)
++
++if [ -z "$COMMITS" ]; then
++    echo "No commits found between $FROM_TAG and $TO_TAG"
++    exit 0
++fi
++
++# Initialize sections
++declare -A SECTIONS
++SECTIONS["feat"]="### Features"
++SECTIONS["fix"]="### Bug Fixes"
++SECTIONS["docs"]="### Documentation"
++SECTIONS["style"]="### Styles"
++SECTIONS["refactor"]="### Code Refactoring"
++SECTIONS["perf"]="### Performance Improvements"
++SECTIONS["test"]="### Tests"
++SECTIONS["chore"]="### Chores"
++SECTIONS["build"]="### Build System"
++SECTIONS["ci"]="### CI/CD"
++SECTIONS["revert"]="### Reverts"
++
++# Temporary files for each section
++TMP_DIR=$(mktemp -d)
++trap 'rm -rf "$TMP_DIR"' EXIT
++
++# Parse commits and categorize
++while IFS= read -r commit; do
++    [ -z "$commit" ] && continue
++    
++    # Extract type and message from conventional commit
++    if [[ "$commit" =~ ^([a-zA-Z]+)(\(.+\))?:[[:space:]]*(.+)$ ]]; then
++        TYPE="${BASH_REMATCH[1]}"
++        MESSAGE="${BASH_REMATCH[3]}"
++        
++        # Map type to section
++        SECTION_FILE="$TMP_DIR/$TYPE"
++        if [ -n "${SECTIONS[$TYPE]+x}" ]; then
++            echo "- $MESSAGE" >> "$SECTION_FILE"
++        else
++            # Unknown type, put in other
++            echo "- $MESSAGE" >> "$TMP_DIR/other"
++        fi
++    else
++        # Non-conventional commit
++        echo "- $commit" >> "$TMP_DIR/other"
++    fi
++done <<< "$COMMITS"
++
++# Generate CHANGELOG
++{
++    echo "# Changelog"
++    echo ""
++    echo "All notable changes to this project will be documented in this file."
++    echo ""
++    echo "## [$TO_TAG] - $(date +%Y-%m-%d)"
++    echo ""
++    
++    # Output known sections
++    for TYPE in feat fix docs style refactor perf test chore build ci revert; do
++        if [ -f "$TMP_DIR/$TYPE" ] && [ -s "$TMP_DIR/$TYPE" ]; then
++            echo "${SECTIONS[$TYPE]}"
++            cat "$TMP_DIR/$TYPE"
++            echo ""
++        fi
++    done
++    
++    # Output other commits
++    if [ -f "$TMP_DIR/other" ] && [ -s "$TMP_DIR/other" ]; then
++        echo "### Other Changes"
++        cat "$TMP_DIR/other"
++        echo ""
++    fi
++} > "$OUTPUT_FILE"
++
++echo "CHANGELOG generated at $OUTPUT_FILE"
+diff --git a/README.md b/README.md
+index e69de29..f8b4885 100644
 --- a/README.md
 +++ b/README.md
 @@ -0,0 +1,45 @@
-+#
++# Changelog Generator Skill
++
++A Claude Code skill to generate structured CHANGELOG.md files from git history using conventional commits.
++
++## Features
++
++- Parses conventional commit messages
++- Categorizes changes (features, fixes, docs, etc
