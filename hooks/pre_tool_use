@@ -1,49 +1,14 @@
-#!/usr/bin/env python3
-import sys
-import os
-import json
-import re
-from datetime import datetime
-import getpass
+#!/bin/bash
 
-def block_destructive_commands(command, project_path):
-    destructive_patterns = [
-        r'rm\s+-rf',
-        r'DROP\s+TABLE',
-        r'git\s+push\s+--force',
-        r'TRUNCATE',
-        r'DELETE\s+FROM\s+\w+\s*;', # Matches DELETE FROM table;
-    ]
-    
-    # Check if any pattern matches
-    for pattern in destructive_patterns:
-        if re.search(pattern, command, re.IGNORECASE):
-            log_blocked_command(command, project_path)
-            print(f"❌ Blocked destructive command: {command}")
-            print("Reason: This command is potentially destructive and was blocked by the safety hook.")
-            return True
-    return False
+# Check for destructive commands
+dangerous_patterns=("rm -rf" "DROP TABLE" "git push --force" "TRUNCATE" "DELETE FROM")
+for pattern in "${dangerous_patterns[@]}"; do
+    if [[ $* == *"$pattern"* ]]; then
+        echo "CLAUDE: Blocked dangerous command detected: $pattern"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Blocked: $*" >> ~/.claude/hooks/blocked.log
+        exit 1
+    fi
+done
 
-def log_blocked_command(command, project_path):
-    log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(log_file, "a") as f:
-        f.write(f"[{timestamp}] {command} | {project_path}\n")
-
-def main():
-    if len(sys.argv) < 3:
-        print("Usage: pre_tool_use <command> <project_path>")
-        sys.exit(1)
-        
-    command = sys.argv[1]
-    project_path = sys.argv[2]
-    
-    # If it's a destructive command, block it
-    if block_destructive_commands(command, project_path):
-        sys.exit(1)
-        
-    print("✅ Command allowed: Safe to execute")
-        
-if __name__ == "__main__":
-    main()
+echo "CLAUDE: No destructive commands detected. Command allowed: $*"
+exit 0
