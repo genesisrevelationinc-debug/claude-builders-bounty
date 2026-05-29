@@ -50,11 +50,4 @@ You're in the right place.
 
 ---
 
-# Pre-tool-use Hook: Block Destructive Bash Commands
-
-This hook blocks dangerous bash commands that could cause data loss or system damage.
-
-## Installation
-
-
 *Started by the Claude builder community · March 2026 · MIT License*
