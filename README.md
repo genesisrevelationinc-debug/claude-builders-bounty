@@ -22,10 +22,10 @@ You're in the right place.
 
 ---
 
-## Active Bounties
-
-| # | Task | Amount | Status |
-|---|------|--------|--------|
+## Rules
+- Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
+- Quality over speed — a solid PR beats a fast one
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
