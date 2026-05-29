@@ -50,9 +50,7 @@ You're in the right place.
 
 ---
 
-# Claude Code Pre-tool-use Hook for Destructive Command Blocking
-
-This hook intercepts and blocks dangerous bash commands before they are executed in Claude Code.
+# 🛡️ Destructive Command Blocker
 
 ## Installation
 
