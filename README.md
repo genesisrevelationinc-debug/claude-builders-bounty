@@ -1,3 +1,20 @@
+# Claude Builders Bounty 🤖
+
+> A community bounty board for Claude Code builders.
+
+Building with Claude Code? Have tasks to delegate?
+Want to get paid for contributing to AI projects?
+You're in the right place.
+
+---
+
+## How it works
+
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
+2. Comment `/opire create $XXX` in the issue to set the reward
+3. Share the link — contributors will find it
+
 **To claim a bounty**
 1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
@@ -32,5 +49,19 @@
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Claude Destructive Command Blocker Hook
+
+This hook intercepts and blocks potentially destructive bash commands before they are executed.
+
+## Features
+
+- Blocks dangerous commands like `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without WHERE clause
+- Logs all blocked attempts to `~/.claude/hooks/blocked.log` with timestamp, command, and project path
+- Displays clear feedback when a command is blocked
+
+## Installation
+
+1. Create the hook directory and make it executable:
 
 *Started by the Claude builder community · March 2026 · MIT License*
