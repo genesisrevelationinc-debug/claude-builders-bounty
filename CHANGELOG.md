@@ -8,19 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
-### Fixed
+- Initial project setup
+- README with bounty information
+- This CHANGELOG file
 
 ### Changed
+- Updated bounty amounts in README
+
+### Fixed
+- Typo in README header
 
 ### Removed
+- Old project files
 
 ## [1.0.0] - 2026-03-15
 
 ### Added
-- Initial release of the Claude Builders Bounty repository
-- Bounty board for Claude Code builders
-- Integration with Opire for automatic bounty payments
-
-### Changed
-- README with clear instructions for posting and claiming bounties
+- Initial release
