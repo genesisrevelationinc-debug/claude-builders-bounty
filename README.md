@@ -1,6 +1,16 @@
-<a name="claude-builders-bounty"></a>
-# Claude Builders Bounty 🤖
+# Claude Destructive Command Blocker
 
+## Description
+
+This hook blocks potentially destructive bash commands in Claude Code before they are executed.
+
+## Installation
+
+1. Create a new directory: `mkdir -p ~/.claude/hooks`
+2. Copy the `pre-tool-use` hook to `~/.claude/hooks/pre-tool-use`
+
+## How it works
+This hook intercepts dangerous bash commands before they are executed.
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
@@ -24,12 +34,11 @@ You're in the right place.
 ---
 
 ## Active Bounties
+
+| # | Task | Amount | Status |
+|---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#6](../../issues/6) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
