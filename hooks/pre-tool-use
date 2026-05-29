@@ -1,104 +1,63 @@
-#!/usr/bin/env python3
-"""
-Claude Code pre-tool-use hook to block destructive bash commands.
+#!/bin/bash
 
-This hook intercepts dangerous bash commands before they are executed
-and blocks them with a clear explanation.
-"""
+# Pre-tool-use hook to block destructive bash commands
 
-import json
-import os
-import re
-import sys
-from datetime import datetime, timezone
+# Configuration
+HOOK_DIR="$HOME/.claude/hooks"
+LOG_FILE="$HOOK_DIR/blocked.log"
 
+# Create log file if it doesn't exist
+touch "$LOG_FILE" 2>/dev/null || true
 
-BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
+# Log format: timestamp, command, project path
+log_blocked() {
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local command="$1"
+    local project_path="${CLAUDE_CODE_PROJECT_PATH:-unknown}"
+    echo "[$timestamp] BLOCKED: $command in project: $project_path" >> "$LOG_FILE"
+}
 
+# Check for destructive command patterns
+is_destructive() {
+    local cmd="$1"
+    case "$cmd" in
+        *"rm -rf"*)
+            log_blocked "$cmd"
+            echo "Destructive command 'rm -rf' blocked for safety."
+            exit 1
+            ;;
+        *"DROP TABLE"*)
+            log_blocked "$cmd"
+            echo "Destructive SQL command 'DROP TABLE' blocked for safety."
+            exit 1
+            ;;
+        *"TRUNCATE"*)
+            # Check if it's a TRUNCATE command without a WHERE clause
+            if [[ "$cmd" != *"WHERE"* ]]; then
+                log_blocked "$cmd"
+                echo "Destructive SQL command 'TRUNCATE' without WHERE clause blocked for safety."
+                exit 1
+            fi
+            ;;
+        *"DELETE FROM"*)
+            # Check if it's a DELETE command without a WHERE clause
+            if [[ "$cmd" != *"WHERE"* ]]; ] && [[ "$cmd" != *"where"* ]]; then
+                log_blocked "$cmd"
+                echo "Destructive SQL command 'DELETE' without WHERE clause blocked for safety."
+                exit 1
+            fi
+            ;;
+        *"git push --force"*)
+            log_blocked "$cmd"
+            echo "Destructive command 'git push --force' blocked for safety."
+            exit 1
+            ;;
+        *)
+            # No match, allow command to proceed
+            echo "$cmd"
+            exit 0
+            ;;
+    esac
+}
 
-def log_blocked(command: str, project_path: str):
-    """Log a blocked command attempt to the blocked log file."""
-    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
-    timestamp = datetime.now(timezone.utc).isoformat()
-    log_entry = f"{timestamp} | {project_path} | {command}\n"
-    with open(BLOCKED_LOG, "a") as f:
-        f.write(log_entry)
-
-
-def is_destructive(command: str) -> tuple[bool, str]:
-    """
-    Check if a command matches destructive patterns.
-    Returns (is_blocked, reason).
-    """
-    upper = command.upper()
-
-    # Pattern: rm -rf (and variants like rm -rf /, rm -rf *)
-    if re.search(r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+', command) or re.search(r'\brm\s+-\S*r\S*f', command):
-        return True, "Destructive file deletion: `rm -rf` is blocked to prevent accidental data loss."
-
-    # Pattern: DROP TABLE
-    if re.search(r'\bDROP\s+TABLE\b', upper):
-        return True, "Destructive SQL: `DROP TABLE` is blocked to prevent database destruction."
-
-    # Pattern: git push --force or git push -f
-    if re.search(r'\bgit\s+push\s+.*(--force\b|-f\b)', command):
-        return True, "Destructive git operation: `git push --force` is blocked to prevent history rewriting."
-
-    # Pattern: TRUNCATE
-    if re.search(r'\bTRUNCATE\b', upper):
-        return True, "Destructive SQL: `TRUNCATE` is blocked to prevent data loss."
-
-    # Pattern: DELETE FROM without WHERE
-    if re.search(r'\bDELETE\s+FROM\b', upper) and not re.search(r'\bWHERE\b', upper):
-        return True, "Destructive SQL: `DELETE FROM` without a `WHERE` clause is blocked to prevent accidental full-table deletion."
-
-    return False, ""
-
-
-def main():
-    # Read the tool use request from stdin (JSON)
-    try:
-        data = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        # Not a valid JSON, let it pass
-        sys.exit(0)
-
-    # Only intercept bash tool
-    if data.get("tool_name") != "bash":
-        sys.exit(0)
-
-    command = data.get("command", "")
-    project_path = data.get("project_path", os.getcwd())
-
-    blocked, reason = is_destructive(command)
-    if blocked:
-        log_blocked(command, project_path)
-        print(f"🚫 BLOCKED: {reason}", file=sys.stderr)
-        print(f"   Attempted command: {command}", file=sys.stderr)
-        print(f"   This command has been logged to {BLOCKED_LOG}", file=sys.stderr)
-        print(f"   If you need to run this command, use the --no-hooks flag or disable the hook.", file=sys.stderr)
-        sys.exit(1)
-
-    # Not destructive, allow
-    sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()
-
-# Pre-Tool-Use Hook: Block Destructive Bash Commands
-
-A Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash commands before they can execute.
-
-## What It Blocks
-
-| Pattern | Reason |
-|---------|--------|
-| `rm -rf` | Prevents accidental recursive file deletion |
-| `DROP TABLE` | Prevents database table destruction |
-| `git push --force` / `git push -f` | Prevents force-pushing and rewriting git history |
-| `TRUNCATE` | Prevents table data truncation |
-| `DELETE FROM` without `WHERE` | Prevents accidental full-table deletion |
-
-## Installation
-
+is_destructive "$1"
