@@ -1,34 +1,22 @@
 name: Claude Code Review
-
 on:
   pull_request:
-    types: [opened, synchronize]
+    branches: [ main ]
+  issue_comment:
+    types: [ created ]
 
 jobs:
-  review:
+  claude-review:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
-
-      - name: Run Claude Review
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Download the claude-review script
-          curl -o claude-review https://raw.githubusercontent.com/${{ github.GITHUB_REPOSITORY }}/main/claude-review
-          chmod +x claude-review
-          # Run the review against the PR
-          python claude-review --pr "https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}" > review_comment.md
-          # In a real implementation, you would post the comment to the PR here
-          cat review_comment.md
+    - name: Checkout code
+      uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    
+    - name: Run Claude Review
+      run: |
+        python claude-review.py --pr ${{ github.event.pull_request.html_url }}
