@@ -8,21 +8,15 @@ You're in the right place.
 
 ---
 
-## How it works
 
 **To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
+**To post a bounty**
+
+**To claim a bounty**
 3. Share the link — contributors will find it
 
 **To claim a bounty**
 1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
-3. Submit a PR — payment is automatic on merge ✅
-
----
-
-## Active Bounties
 
 | # | Task | Amount | Status |
 |---|------|--------|--------|
@@ -34,25 +28,21 @@ You're in the right place.
 
 ---
 
-## Rules
+- Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
+| Payment is handled by [Opire](https://opire.dev) (Stripe) |
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+## Community
 
 - Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
 
 ---
 
-## Solution
-
-The solution includes:
-
-- An [n8n workflow JSON file](./weekly-dev-summary.json)
-- A [setup guide](./SETUP.md) with instructions
-- A [screenshot](./n8n-execution.png) of the successful execution
-
----
-
-## Rules
 ## Community
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
