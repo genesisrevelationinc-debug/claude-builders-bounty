@@ -20,13 +20,13 @@ You're in the right place.
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
 
-
 ---
 
 ## Active Bounties
 
 | # | Task | Amount | Status |
 |---|------|--------|--------|
+| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
@@ -50,20 +50,11 @@ You're in the right place.
 
 ---
 
+# Destructive Command Blocker Hook
+
+## Description
+This hook blocks dangerous bash commands before they are executed by Claude Code.
+
+## Installation
+
 *Started by the Claude builder community · March 2026 · MIT License*
-<sup>Started by the Claude builder community · March 2026 · MIT License</sup>
-
-* * *
-
-# Claude Builders Bounty 🤖
-
-> A community bounty board for Claude Code builders.
-
-Building with Claude Code? Have tasks to delegate?
-
-Want to get paid for contributing to AI projects?
-
-You're in the right place.
-
-
-
