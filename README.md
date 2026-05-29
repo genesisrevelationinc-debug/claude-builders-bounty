@@ -29,11 +29,13 @@ You're in the right place.
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+# Claude Builders Bounty 🤖
 
----
+> A community bounty board for Claude Code builders.
 
+  <li>Tasks related to AI tooling</li>
+  <li>Every issue must have clear acceptance criteria before a bounty is activated</li>
+  <li>Payment is handled by [Opire](https://opir
 ## Rules
 
 - Tasks must be related to Claude Code or AI tooling
@@ -50,19 +52,35 @@ You're in the right place.
 
 ---
 
-# Git Changelog Generator
+<h1>How to Claim the Bounty</h3>
 
-This tool automatically generates a structured `CHANGELOG.md` from a project's git history.
+<p>Follow these steps to claim the bounty:</p>
+<ol>
+  <li>Comment <code>/opire try</code> in this issue</li>
+  <li>Submit a PR with your implementation</.
+  <li>Payment is released automatically on merge</li>
+</ol>
 
-## Setup
+<h3>Implementation</h3>
+<p>The solution includes:</p>
+<ul>
+  <li>changelog.sh script</li>
+  <li>SKILL.md file</li>
+</ul>
 
-1. Copy `changelog.sh` to your project's root directory
-2. Make it executable: `chmod +x changelog.sh`
-3. Run the script: `./changelog.sh`
+<h3>How to use this skill</h3>
+<ol>
+  <li>Run the script: <code>bash changelog.sh</code></li>
+  <li>Or use the SKILL.md file in Claude Code</li>
+  <li>The script will fetch the latest changes since the last tag and create a CHANGELOG.md file</li>
+</ol>
 
-## Usage
+<p>Bash script that automatically generates a structured CHANGELOG.md from a project's git history.</p>
 
-Simply run the script to generate or update your CHANGELOG.md:
-
-
+<h2>Acceptance Criteria</h2>
+<ul>
+  <li>Works via <code>/generate-changelog</code> command or <code>bash changelog.sh</code></li>
+  <li>Fetches commits since the last git tag</li>
+  <li>Auto-categorizes into: <code>Added</code> / <code>Fixed</code> / <code>Changed</code> / <code>Removed</code></li>
+  <
 *Started by the Claude builder community · March 2026 · MIT License*
