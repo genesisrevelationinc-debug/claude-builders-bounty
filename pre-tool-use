@@ -1,30 +1,64 @@
 #!/bin/bash
-   "rm -rf"
-   "DROP TABLE"
-   "git push --force"
-   "TRUNCATE"
-   "DELETE FROM"
-   local cmd="$1"
-   
-   # Check if the command matches any destructive pattern
-   for pattern in "${DESTRUCTIVE_PATTERNS[@]}"; do
-       if [[ "$cmd" == *"$pattern"* ]]; then
-           return 0
-       fi
-   done
-   
-   # Check for DELETE FROM without WHERE clause
-   if [[ "$cmd" == *"DELETE FROM"* ]] && ! [[ "$cmd" =~ WHERE ]]; then
-       return 0
-   fi
-   return 1
-   # Log the blocked attempt
-   TIMESTAMP=$(date -Iseconds)
-   PROJECT_PATH=$(pwd)
-   
-   echo "[$TIMESTAMP] Blocked command: $CMD_NAME in project: $PROJECT_PATH" >> "$LOG_FILE"
-   
-   # Output explanation for Claude
-   echo "CLAUDE, this command has been blocked due to containing destructive patterns."
-   echo "Command was: $CMD_NAME"
-   exit 1
+
+# List of dangerous commands to block
+DANGEROUS_PATTERNS=(
+    "rm -rf"
+    "DROP TABLE"
+    "git push --force"
+    "TRUNCATE"
+    "DELETE FROM"
+)
+
+# Check if command contains any of the dangerous patterns (case insensitive)
+for pattern in "${DANGEROUS_PATTERNS[@]}"; do
+    if [[ "$INPUT" == *"$pattern"* ]]; then
+        echo "CLAUD_BLOCKED: Command blocked: $pattern command not allowed" >&2
+        echo "Command: $INPUT" >&2
+        echo "Project path: $PROJECT_PATH" >&2
+        echo "Blocked at: $(date): $INPUT in $PROJECT_PATH" >> ~/.claude/hooks/blocked.log
+        exit 1
+    fi
+done
+
+# Special handling for DELETE FROM without WHERE clause
+if [[ "$INPUT" == *"DELETE FROM"* ]] && ! [[ "$INPUT" == *"WHERE"* ]]; then
+    echo "CLAUD_BLOCKED: Command blocked: DELETE FROM command without WHERE clause" >&2
+    echo "Command: $INPUT" >&2
+    echo "Project path: $PROJECT_PATH" >&2
+    echo "Blocked at: $(date): $INPUT in $PROJECT_PATH" >> ~/.claude/hooks/blocked.log
+    exit 1
+fi
+
+# Special handling for TRUNCATE without WHERE
+if [[ "$INPUT" == *"TRUNCATE"* ]]; then
+    echo "CLAUD_BLOCKED: Command blocked: TRUNCATE command not allowed" >&2
+    echo "Command: $INPUT" >&2
+    echo "Project path: $PROJECT_PATH" >&2
+    echo "Blocked at: $(date): $INPUT in $PROJECT_PATH" >> ~/.claude/hooks/blocked.log
+    exit 1
+fi
+
+# Special handling for rm commands
+if [[ "$INPUT" == *"rm "* ]] || [[ "$INPUT" == *"rm.exe "* ]]; then
+    if [[ "$INPUT" == *"rm -rf"* ]] || [[ "$INPUT" == *"rm.exe -rf"* ]]; then
+        echo "CLAUD_BLOCKED: Command blocked: rm -rf command not allowed" >&2
+        echo "Command: $INPUT" >&2
+        echo "Project path: $PROJECT_PATH" >&2
+        echo "Blocked at: $(date): $INPUT in $PROJECT_PATH" >> ~/.claude/hooks/blocked.log
+        exit 1
+    fi
+fi
+
+# Special handling for git commands
+if [[ "$INPUT" == *"git "* ]] || [[ "$INPUT" == *"git.exe "* ]]; then
+    if [[ "$INPUT" == *"git push --force"* ]]; then
+        echo "CLAUD_BLOCKED: Command blocked: git push --force command not allowed" >&2
+        echo "Command: $INPUT" >&2
+        echo "Project path: $PROJECT_PATH" >&2
+        echo "Blocked at: $(date): $INPUT in $PROJECT_PATH" >> ~/.claude/hooks/blocked.log
+        exit 1
+    fi
+fi
+
+# If we get here, the command is allowed
+echo "CLAUD_ALLOWED"
