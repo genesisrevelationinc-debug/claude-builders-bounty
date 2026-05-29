@@ -50,7 +50,9 @@ You're in the right place.
 
 ---
 
-# 🛡️ Destructive Command Blocker
+# Destructive Command Blocker Hook
+
+This hook intercepts and blocks dangerous bash commands before they are executed by Claude Code.
 
 ## Installation
 
