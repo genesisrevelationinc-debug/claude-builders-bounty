@@ -1,17 +1,26 @@
-## [ unreleased ]
+# Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
 
 ### Added
-- Initial CHANGELOG.md file
-
-### Changed
-- Updated README with new documentation
-- Added changelog generation script
 
 ### Fixed
-- Fixed issue with user authentication flow
+
+### Changed
 
 ### Removed
-- Unused dependencies
-- Deprecated features
-  [2025-02-14]
+
+## [1.0.0] - 2026-03-15
+
+### Added
+- Initial release of the Claude Builders Bounty repository
+- Bounty board for Claude Code builders
+- Integration with Opire for automatic bounty payments
+
+### Changed
+- README with clear instructions for posting and claiming bounties
