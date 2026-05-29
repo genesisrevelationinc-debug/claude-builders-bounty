@@ -1,42 +1,71 @@
 #!/bin/bash
 
-# Get the last tag or use initial commit if no tags exist
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
-if [ -z "$LAST_TAG" ]; then
-    LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+# Script to generate a structured CHANGELOG.md from git history
+
+# Exit on any error
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+  echo -e "${GREEN}STATUS:${NC} $1"
+}
+
+print_warning() {
+  echo -e "${YELLOW}WARNING:${NC} $1"
+}
+
+print_error() {
+  echo -e "${RED}ERROR:${NC} $1"
+}
+
+# Get the latest git tag
+latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+if [ -z "$latest_tag" ]; then
+  print_warning "No git tags found. Using initial commit as starting point."
+  start_ref=$(git rev-list --max-parents=0 HEAD)
+else
+  print_status "Latest tag: $latest_tag"
+  start_ref="$latest_tag"
 fi
 
-# Get commits since last tag
-COMMITS=$(git log --pretty=format:"%s" $LAST_TAG..HEAD)
+# Get commits since the last tag (or initial commit)
+commits=$(git log --pretty=format:"%s" "$start_ref"..HEAD)
 
 # Initialize changelog sections
-ADDED=""
-FIXED=""
-CHANGED=""
-REMOVED=""
+added=""
+fixed=""
+changed=""
+removed=""
 
-# Categorize commits
-while IFS= read -r line; do
-    if [[ $line == *"add"* ]] || [[ $line == *"Add"* ]] || [[ $line == *"new"* ]] || [[ $line == *"New"* ]]; then
-        ADDED+="- $line"$'\n'
-    elif [[ $line == *"fix"* ]] || [[ $line == *"Fix"* ]] || [[ $line == *"bug"* ]] || [[ $line == *"Bug"* ]]; then
-        FIXED+="- $line"$'\n'
-    elif [[ $line == *"remove"* ]] || [[ $line == *"Remove"* ]] || [[ $line == *"delete"* ]] || [[ $line == *"Delete"* ]]; then
-        REMOVED+="- $line"$'\n'
-    else
-        CHANGED+="- $line"$'\n'
-    fi
-done <<< "$COMMITS"
+# Categorize commits based on prefixes
+while IFS= read -r commit; do
+  if [[ $commit == "Add:"* ]] || [[ $commit == "feat:"* ]] || [[ $commit == "+ "* ]]; then
+    added+="  - ${commit#*: }\n"
+  elif [[ $commit == "Fix:"* ]] || [[ $commit == "fix:"* ]]; then
+    fixed+="  - ${commit#*: }\n"
+  elif [[ $commit == "Change:"* ]] || [[ $commit == "refactor:"* ]] || [[ $commit == "update:"* ]]; then
+    changed+="  - ${commit#*: }\n"
+  elif [[ $commit == "Remove:"* ]] || [[ $commit == "delete:"* ]]; then
+    removed+="  - ${commit#*: }\n"
+  fi
+done <<< "$commits"
 
-# Generate changelog content
-echo "# Changelog" > CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "## [Unreleased]" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
+# Generate the changelog content
+{
+  echo "# Changelog"
+  echo ""
+  echo "## [Unreleased]"
+  [ -n "$added" ] && echo -e "\n### Added\n$added"
+  [ -n "$fixed" ] && echo -e "\n### Fixed\n$fixed"
+  [ -n "$changed" ] && echo -e "\n### Changed\n$changed"
+  [ -n "$removed" ] && echo -e "\n### Removed\n$removed"
+} > CHANGELOG.md
 
-[[ -n "$ADDED" ]] && echo "### Added" >> CHANGELOG.md && echo "$ADDED" >> CHANGELOG.md
-[[ -n "$FIXED" ]] && echo "### Fixed" >> CHANGELOG.md && echo "$FIXED" >> CHANGELOG.md
-[[ -n "$REMOVED" ]] && echo "### Removed" >> CHANGELOG.md && echo "$REMOVED" >> CHANGELOG.md
-[[ -n "$CHANGED" ]] && echo "### Changed" >> CHANGELOG.md && echo "$CHANGED" >> CHANGELOG.md
-
-echo "CHANGELOG.md has been generated successfully!"
+print_status "CHANGELOG.md has been generated successfully!"
