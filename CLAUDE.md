@@ -1,13 +1,12 @@
-# CLAUDE.md - Development Guide
+# Project Context for Claude Code
 
 ## Stack & Versions
 
-- **Next.js**: 15.0.0 (App Router)
-- **Database**: SQLite (Turso or better-sqlite3)
-- **ORM**: Drizzle ORM
-- **Styling**: Tailwind CSS
-- **Components**: Server Components, with selective client components
-- **Data Fetching**: React Server Components with Server Actions for mutations, useSWR for data fetching
+- **Next.js 15** with App Router
+- **SQLite** (better-sql3 or Turso)
+- **TypeScript** for all type definitions
+- **Tailwind CSS** for utility-first CSS
+- **Drizzle** as our primary ORM
 
 ## Folder Structure
 
