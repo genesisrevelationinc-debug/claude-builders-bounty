@@ -1,12 +1,17 @@
-# CLAUDE.md
+# Project Guide: CLAUDE.md
+
+This document defines the development standards, conventions, and structure for this Next.js + SQLite SaaS project. It ensures consistency, maintainability, and team alignment when working with Claude Code.
 
 ## Stack & Versions
-- Next.js 15 with App Router
-- TypeScript 5.4+
-- Tailwind CSS 3.x
-- SQLite (better-sqlite3 or Turso)
-- shadcn/ui (with Framer Motion)
-- pnpm
+
+We use the following technologies and tools:
+
+- **Next.js 15** with App Router
+- **SQLite** (via [Turso](https://turso.tech/) in production, better-sqlite3 for local dev)
+- **TypeScript** with strict mode enabled
+- **Tailwind CSS** for styling
+- **Zod** for validation
+- **Drizzle** for ORM
 
 ## Folder Structure
 
