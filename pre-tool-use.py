@@ -1,93 +1,83 @@
 #!/usr/bin/env python3
+"""
+Claude Code pre-tool-use hook to block destructive bash commands.
 
+This hook blocks dangerous commands like:
+- rm -rf
+- DROP TABLE
+- git push --force
+- TRUNCATE
+- DELETE FROM without WHERE clause
+"""
+
+import sys
 import os
 import json
 import re
 from datetime import datetime
-import sys
+from pathlib import Path
 
 def log_blocked_command(command, project_path):
-    log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
+    """Log blocked command to file"""
+    log_file = Path.home() / '.claude' / 'hooks' / 'blocked.log'
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_entry = f"[{timestamp}] Command blocked: {command} | Project: {project_path}\n"
+    log_entry = {
+        "timestamp": timestamp,
+        "command": command,
+        "project_path": str(project_path)
+    }
     
-    with open(log_file, "a") as f:
-        f.write(log_entry)
+    with open(log_file, 'a') as f:
+        f.write(json.dumps(log_entry) + '\n')
 
-def check_destructive_command(command):
-    # Define destructive patterns to block
-    destructive_patterns = [
-        r'^\s*rm\s+-rf.*',
-        r'^\s*DROP\s+TABLE.*',
-        r'^\s*git\s+push\s+--force.*',
-        r'^\s*TRUNCATE.*',
-        r'^\s*DELETE\s+FROM\s+\w+\s*$',  # DELETE FROM without WHERE
-        r'^\s*DELETE\s+FROM\s+.*\s+TRUNCATE.*',
-    ]
+def is_destructive_command(command):
+    """Check if command is destructive"""
+    # Normalize command for checking
+    cmd = command.strip().lower()
     
-    for pattern in destructive_patterns:
-        if re.match(pattern, command):
-            return True
-    return False
+    # Check for rm -rf
+    if re.search(r'rm\s+-.*rf?.*\/', cmd) or re.search(r'rm\s+-.*f.*r.*\/', cmd):
+        return True, "rm -rf command blocked"
+    
+    # Check for DROP TABLE
+    if 'drop table' in cmd:
+        return True, "DROP TABLE command blocked"
+    
+    # Check for git push --force
+    if 'git push' in cmd and ('--force' in cmd or '-f' in cmd):
+        return True, "git push --force command blocked"
+    
+    # Check for TRUNCATE
+    if cmd.strip().startswith('truncate'):
+        return True, "TRUNCATE command blocked"
+    
+    # Check for DELETE FROM without WHERE
+    if re.search(r'delete\s+from\s+\w+', cmd, re.IGNORECASE) and 'where' not in cmd:
+        return True, "DELETE FROM without WHERE clause blocked"
+    
+    return False, ""
 
 def main():
-    # Get the command from Claude Code
-    if len(sys.argv) > 1:
-        command = sys.argv[1]
-    else:
-        # If run directly, exit normally
-        return
-    
-    # Get the project path
-    project_path = os.getcwd()
-    
-    # Check if command is destructive
-    if check_destructive_command(command):
-        # Log the attempt
-        log_blocked_command(command, project_path)
-        
-        # Block execution by returning error message
-        print(f"Blocked destructive command: {command}", file=sys.stderr)
-        print("This command has been blocked as it contains potentially destructive operations.", file=sys.stderr)
-        print("Destructive commands like 'rm -rf', 'DROP TABLE', 'git push --force',", file=sys.stderr)
-        print("'TRUNCATE', and 'DELETE FROM' without WHERE are not allowed.", file=sys.stderr)
-        sys.exit(1)
-    
-    # If not blocked, output the command for Claude Code to execute
-    print(command)
-
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        command = sys.argv[1]
-    else:
-        # If run directly, exit
+    """Main hook function"""
+    if len(sys.argv) < 2:
+        # No command provided, allow execution
         sys.exit(0)
-        
-    # Check for destructive patterns
-    destructive_patterns = [
-        r'^\s*rm\s+-rf.*',
-        r'^\DROP\s+TABLE.*',
-        r'^\s*git\s+push\s+--force.*',
-        r'^\s*TRUNCATE.*',
-        r'^\s*DELETE\s+FROM\s+\w+\s*$',
-        r'^\s*DELETE\s+FROM\s+.*\s+TRUNCATE.*',
-    ]
     
-    is_destructive = False
-    for pattern in destructive_patterns:
-        if re.search(pattern, command):
-            is_destructive = True
-            break
-            
+    command = sys.argv[1]
+    project_path = Path.cwd()
+    
+    is_destructive, reason = is_destructive_command(command)
+    
     if is_destructive:
-        # Log and block
         log_blocked_command(command, project_path)
-        print(f"Blocked destructive command: {command}", file=sys.stderr)
-        print("This command has been blocked as it contains destructive operations", file=sys.stderr)
+        print(f"❌ BLOCKED: {reason}")
+        print(f"Command: {command}")
         sys.exit(1)
-    else:
-        # Allow non-destructive commands to proceed
-        print(command)
+    
+    # Command is safe, allow execution
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
