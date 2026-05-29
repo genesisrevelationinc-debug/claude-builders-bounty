@@ -1,8 +1,10 @@
-# Destructive Command Blocker Hook
+# Security Hook for Claude Code
 
-This hook blocks destructive bash commands like `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without a WHERE clause.
+This hook blocks dangerous bash commands before they are executed.
 
 ## Installation
 
-1. Create the file `~/.claude/hooks/pre_tool_use_hook.py`:
+1. Make the hook executable: `chmod +x ~/.claude/hooks/pre-tool-use`
+2. That's it! The hook is now active and will block dangerous commands automatically.
 
+All blocked commands are logged to `~/.claude/hooks/blocked.log` with timestamps and project paths.
