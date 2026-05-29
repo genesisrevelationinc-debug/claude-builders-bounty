@@ -16,12 +16,12 @@ You're in the right place.
 3. Share the link — contributors will find it
 
 **To claim a bounty**
+1. Browse the open issues below
+2. Comment `/opire try` in the issue you want to work on
+3. Submit a PR — payment is automatic on merge ✅
 
-## Active Bounties
+---
 
-| # | Task | Amount | Status |
-|---|------|--------|--------|
-| [#1](../../issues/1) | SKULL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 ## Active Bounties
 
 | # | Task | Amount | Status |
@@ -39,10 +39,20 @@ You're in the right place.
 - Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
-- Quality over speed — a solid PR beats a fast one
 
 ---
 
+## Solution
+
+The solution includes:
+
+- An [n8n workflow JSON file](./weekly-dev-summary.json)
+- A [setup guide](./SETUP.md) with instructions
+- A [screenshot](./n8n-execution.png) of the successful execution
+
+---
+
+## Rules
 ## Community
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
