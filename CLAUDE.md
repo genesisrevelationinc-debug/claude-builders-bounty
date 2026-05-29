@@ -1,12 +1,15 @@
-# Project Context for Claude Code
-
-## Stack & Versions
-
-- **Next.js 15** with App Router
-- **SQLite** (better-sql3 or Turso)
-- **TypeScript** for all type definitions
-- **Tailwind CSS** for utility-first CSS
-- **Drizzle** as our primary ORM
-
-## Folder Structure
-
+ # Claude Code Configuration
+ 
+ This document outlines the project structure, conventions, and development guidelines for this Next.js + SQLite SaaS application. Follow these rules to maintain consistency and code quality.
+ 
+ ## Stack & Versions
+ 
+ - **Next.js**: 15+ (App Router)
+ - **Database**: SQLite via Turso or better-sqlite3
+ - **TypeScript**: 5+
+ - **Node.js**: 18+
+ - **Package Manager**: pnpm
+ 
+ ## Folder Structure
+ 
+ 
