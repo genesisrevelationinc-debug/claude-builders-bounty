@@ -1,158 +1,150 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# changelog.sh — Generate a structured CHANGELOG.md from git history
+#
+# Usage:
+#   bash changelog.sh
+#
+# This script fetches commits since the last git tag, auto-categorizes them,
+# and appends a new section to CHANGELOG.md.
+#
 
-# Default options
-start_stop_date=$(date -u '+%Y-%m-%d %H:%M:%S')
-end_date=$start_stop_date
-commit_hash_len=8
-commit_message_len=50
+set -euo pipefail
 
-if [ "$1" != "" ]; then
-    start_stop_date="$1"
-fi
+# ── Helpers ──────────────────────────────────────────────────────────────────
 
-if [ "$2" != "" ]; then
-    end_date="$2"
-fi
+get_last_tag() {
+    git describe --tags --abbrev=0 2>/dev/null || echo ""
+}
 
-if [ "$3" != "" ]; then
-    end_date="$3"
-fi
+get_commits_since() {
+    local since="$1"
+    if [[ -z "$since" ]]; then
+        git log --pretty=format:"%s" --no-merges
+    else
+        git log --pretty=format:"%s" --no-merges "${since}..HEAD"
+    fi
+}
 
-if [ "$4" != "" ];  then
-    end_date="$4"
-fi
+categorize_commit() {
+    local msg="$1"
+    local lower
+    lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
 
-if [ "$5" != "" ]; then
-    commit_hash_len="$5"
-fi
+    # Added
+    if echo "$lower" | grep -qE '^(feat|add|create|introduce|implement|new)|\b(add|adds|added|adding|create|creates|created|creating|implement|implements|implemented|implementing|introduce|introduces|introduced|introducing|feature|features|feat)\b'; then
+        echo "Added"
+        return
+    fi
 
-if [ "$6" != "" ]; then
-    commit_message_len="$6"
-fi
+    # Fixed
+    if echo "$lower" | grep -qE '^(fix|fixes|fixed|fixing|patch|patches|patched|patching|resolve|resolves|resolved|resolving|bug|bugfix|hotfix)|\b(fix|fixes|fixed|fixing|bug|bugfix|hotfix|patch|patches|patched|patching|resolve|resolves|resolved|resolving)\b'; then
+        echo "Fixed"
+        return
+    fi
 
-if [ "$7" != "" ]; then
-    commit_message_len="$7"
-fi
+    # Removed
+    if echo "$lower" | grep -qE '^(remove|removes|removed|removing|delete|deletes|deleted|deleting|drop|drops|dropped|dropping|clean|cleanup|deprecate|deprecates|deprecated|deprecating)|\b(remove|removes|removed|removing|delete|deletes|deleted|deleting|drop|drops|dropped|dropping|clean|cleanup|deprecate|deprecates|deprecated|deprecating)\b'; then
+        echo "Removed"
+        return
+    fi
 
-if [ "$8" != "" ]; then
-    commit_message_len="$8"
-fi
+    # Changed (default)
+    echo "Changed"
+}
 
-if [ "$9" != "" ]; then
-    commit_message_len="$9"
-fi
+# ── Main ───────────────────────────────────────────────────────────────────
 
-if [ "$10" != "" ]; then
-    commit_message_len="$10"
-fi
+main() {
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        echo "Error: Not a git repository." >&2
+        exit 1
+    fi
 
-if [ "$11" != "" ]; then
-    commit_message_len="$11"
-fi
+    local last_tag
+    last_tag=$(get_last_tag)
 
-if [ "$12" != "" ]; then
-    commit_message_len="$12"
-fi
+    local commits
+    commits=$(get_commits_since "$last_tag")
 
-if [ "$13" != "" ]; then
-    commit_message_len="$13"
-fi
+    if [[ -z "$commits" ]]; then
+        echo "No commits found since last tag."
+        exit 0
+    fi
 
-if [ "$14" != "" ]; then
-    commit_message_len="$14"
-fi
+    local version_date
+    version_date=$(date +%Y-%m-%d)
 
-if [ "$15" != "" ]; then
-    commit_message_len="$15"
-fi
+    local version_header
+    if [[ -n "$last_tag" ]]; then
+        version_header="## [Unreleased] — $version_date"
+    else
+        version_header="## [Unreleased] — $version_date"
+    fi
 
-if [ "$16" != "" ]; then
-    commit_message_len="$16"
-fi
+    # Build changelog body
+    local added="" fixed="" changed="" removed=""
 
-if [ "$17" != "" ]; then
-    commit_message_len="$17"
-fi
+    while IFS= read -r commit; do
+        [[ -z "$commit" ]] && continue
+        local category
+        category=$(categorize_commit "$commit")
+        local line="- $commit"
+        case "$category" in
+            Added)   added+=$'\n'"$line" ;;
+            Fixed)   fixed+=$'\n'"$line" ;;
+            Removed) removed+=$'\n'"$line" ;;
+            Changed) changed+=$'\n'"$line" ;;
+        esac
+    done <<< "$commits"
 
-if [ "$18" != "" ]; then
-    commit_message_len="$18"
-fi
+    # Trim leading newlines
+    added=$(echo "$added" | sed '/^$/d')
+    fixed=$(echo "$fixed" | sed '/^$/d')
+    changed=$(echo "$changed" | sed '/^$/d')
+    removed=$(echo "$removed" | sed '/^$/d')
 
-if [ "$19" != "" ]; then
-    commit_message_len="$19"
-fi
+    # Generate output
+    {
+        echo "# Changelog"
+        echo ""
+        echo "All notable changes to this project will be documented in this file."
+        echo ""
+        echo "$version_header"
+        echo ""
 
-if [ "$20" != "" ]; then
-    commit_message_len="$20"
-fi
+        if [[ -n "$added" ]]; then
+            echo "### Added"
+            echo "$added"
+            echo ""
+        fi
 
-if [ "$21" != "" ]; then
-    commit_message_len="$21"
-fi
+        if [[ -n "$changed" ]]; then
+            echo "### Changed"
+            echo "$changed"
+            echo ""
+        fi
 
-if [ "$22" != "" ]; then
-    commit_message_len="$22"
-fi
+        if [[ -n "$fixed" ]]; then
+            echo "### Fixed"
+            echo "$fixed"
+            echo ""
+        fi
 
-if [ "$23" != "" ]; then
-    commit_message_len="$23"
-fi
+        if [[ -n "$removed" ]]; then
+            echo "### Removed"
+            echo "$removed"
+            echo ""
+        fi
+    } > CHANGELOG.md
 
-if [ "$24" != "" ]; then
-    commit_message_len="$24"
-fi
+    echo "CHANGELOG.md generated successfully."
+}
 
-if [ "$25" != "" ]; then
-    commit_message_len="$25"
-fi
+main "$@"
+# /generate-changelog
 
-if [ "$26" != "" ]; then
-    commit_message_len="$26"
-fi
+Generate a structured `CHANGELOG.md` from the project's git history.
 
-if [ "$27" != "" ]; then
-    commit_message_len="$27"
-fi
+## Usage
 
-if [ "$28" != "" ]; then
-    commit_message_len="$28"
-fi
-
-if [ "$29" != "" ]; then
-    commit_message_len="$29"
-fi
-
-if [ "$30" != "" ]; then
-    commit_message_len="$30"
-fi
-
-if [ "$31" != "" ]; then
-    commit_message_len="$31"
-fi
-
-if [ "$32" != "" ]; then
-    commit_message_len="$32"
-fi
-
-if [ "$33" != "" ]; then
-    commit_message_len="$33"
-fi
-
-if [ "$34" != "" ]; then
-    commit_message_len="$34"
-fi
-
-if [ "$35" != "" ]; then
-    commit_message_len="$35"
-fi
-
-if [ "$36" != "" ]; then
-    commit_message_len="$36"
-fi
-
-if [ "$37" != "" ]; then
-    commit_message_len="$37"
-fi
-
-if [ "$38" != "" ]; then
-    commit_message
