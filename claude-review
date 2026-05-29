@@ -1,74 +1,143 @@
 #!/usr/bin/env python3
+"""
+Claude Code PR Review Agent
+
+Reviews GitHub PRs and generates structured Markdown feedback.
+"""
 
 import argparse
-import requests
-import sys
-import os
 import json
+import os
+import re
+import sys
 from typing import Dict, List, Optional
 
-def get_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
-    """Fetch the diff of a pull request."""
-    headers = {'Authorization': f'token {token}'} if token else {}
-    url = f'https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}'
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        return response.json().get('diff', '')
-    else:
-        response.raise_for_status()
+import httpx
 
-def analyze_code(code_diff: str) -> Dict:
-    """Analyze the code diff and return a structured review."""
-    # This is a simplified version - in practice, you would integrate with an LLM like Claude
-    # For now, we'll return a mock analysis
+
+def parse_pr_url(url: str) -> tuple:
+    """Extract owner, repo, and PR number from GitHub URL."""
+    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
+    match = re.search(pattern, url)
+    if not match:
+        raise ValueError("Invalid GitHub PR URL")
+    return match.group(1), match.group(2), int(match.group(3))
+
+
+def fetch_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
+    """Fetch PR diff using GitHub API."""
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    
+    response = httpx.get(url, headers=headers)
+    response.raise_for_status()
+    
+    data = response.json()
+    return data.get("diff_url", "")
+
+
+def analyze_diff(diff_content: str) -> Dict:
+    """Analyze the diff and generate structured review."""
+    # In a real implementation, this would use Claude Code API
+    # For this demo, we'll return a sample analysis
+    
+    # Count lines changed
+    lines_added = diff_content.count("\n+")
+    lines_removed = diff_content.count("\n-")
+    
     return {
-        "summary": "This pull request modifies the core logic in the authentication module to enhance security checks.",
+        "summary": f"This PR modifies the codebase with {lines_added} additions and {lines_removed} deletions. "
+                   f"The changes appear to be focused on feature enhancement and bug fixes.",
         "risks": [
-            "Potential security vulnerability in authentication flow",
+            "Potential performance impact from new database queries",
+            "Missing error handling in authentication flow",
+            "Possible security vulnerability in input validation"
         ],
         "suggestions": [
-            "Add input validation for user credentials",
-            "Consider adding rate limiting to authentication endpoints"
+            "Consider adding unit tests for the new API endpoints",
+            "Implement input sanitization for user-provided data",
+            "Add caching mechanism for frequently accessed resources"
         ],
         "confidence": "Medium"
     }
 
-def main():
-    parser = argparse.ArgumentParser(description='Claude Code PR Reviewer')
-    parser.add_argument('--pr', required=True, help='Pull request URL')
-    args = parser.parse_args()
 
-    # Extract owner, repo, and PR number from URL
-    # This is a simplified parser - a real implementation would need more robust URL parsing
-    if "github.com/" in args.pr:
-        parts = args.pr.split("/")
-        owner = parts[parts.index("github.com") + 1]
-        repo = parts[parts.index("github.com") + 2]
-        pr_number = parts[parts.index("github.com") + 4].split("#")[0]
-    else:
-        print("Invalid GitHub URL provided")
-        sys.exit(1)
+def generate_markdown_report(analysis: Dict) -> str:
+    """Generate structured Markdown report from analysis."""
+    report = []
+    report.append("## Code Review Summary")
+    report.append("")
+    report.append(analysis["summary"])
+    report.append("")
+    report.append("## Identified Risks")
+    report.append("")
+    for risk in analysis["risks"]:
+        report.append(f"- {risk}")
+    report.append("")
+    report.append("## Improvement Suggestions")
+    report.append("")
+    for suggestion in analysis["suggestions"]:
+        report.append(f"- {suggestion}")
+    report.append("")
+    report.append(f"**Confidence Score: {analysis['confidence']}**")
     
-    # In a real implementation, you would use the GitHub token from environment variables
-    token = os.environ.get('GITHUB_TOKEN', '')
+    return "\n".join(report)
+
+
+def post_comment(owner: str, repo: str, pr_number: int, comment: str, token: str) -> None:
+    """Post comment to GitHub PR."""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    url = f"https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments"
+    data = {"body": comment}
+    
+    response = httpx.post(url, headers=headers, json=data)
+    response.raise_for_status()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Claude Code PR Review Agent")
+    parser.add_argument("--pr", help="GitHub PR URL", required=True)
+    parser.add_argument("--comment", help="Post review as comment to PR", action="store_true")
+    parser.add_argument("--token", help="GitHub personal access token")
+    
+    args = parser.parse_args()
     
     try:
-        diff = get_pr_diff(owner, repo, pr_number, token)
-        analysis = analyze_code(diff)
+        # Parse PR URL
+        owner, repo, pr_number = parse_pr_url(args.pr)
         
-        print("## Summary of Changes")
-        print(analysis["summary"])
-        print("\n## Identified Risks")
-        for risk in analysis["risks"]:
-            print(f"- {risk}")
-        print("\n## Improvement Suggestions")
-        for suggestion in analysis["suggestions"]:
-            print(f"- {suggestion}")
-        print(f"\n## Confidence Score: {analysis['confidence']}")
+        # Get GitHub token from args or environment
+        token = args.token or os.environ.get("GITHUB_TOKEN")
+        
+        # Fetch PR diff
+        diff_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        
+        response = httpx.get(diff_url, headers=headers)
+        response.raise_for_status()
+        
+        diff_content = response.json().get("patch", "")
+        
+        # Analyze the diff
+        analysis = analyze_diff(diff_content)
+        
+        # Generate report
+        report = generate_markdown_report(analysis)
+        print(report)
+        
+        # Post comment if requested
+        if args.comment and token:
+            post_comment(owner, repo, pr_number, report, token)
+            print("\nComment posted to PR successfully!")
         
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
