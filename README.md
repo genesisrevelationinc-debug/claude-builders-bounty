@@ -1,13 +1,3 @@
-# Claude Builders Bounty 🤖
-
-> A community bounty board for Claude Code builders.
-
-Building with Claude Code? Have tasks to delegate?
-Want to get paid for contributing to AI projects?
-You're in the right place.
-
----
-
 ## How it works
 
 **To post a bounty**
