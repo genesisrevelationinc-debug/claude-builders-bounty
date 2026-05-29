@@ -1,9 +1,3 @@
-# Claude Destructive Command Blocker Hook
-
-This hook blocks dangerous bash commands that could cause data loss or unwanted side effects.
-
-## Installation
-
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
