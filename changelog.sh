@@ -1,62 +1,158 @@
 #!/bin/bash
 
-# Exit on any error
-set -e
+# Default options
+start_stop_date=$(date -u '+%Y-%m-%d %H:%M:%S')
+end_date=$start_stop_date
+commit_hash_len=8
+commit_message_len=50
 
-# Get the latest git tag
-latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-
-# If no tags exist, default to initial commit
-if [ -z "$latest_tag" ]; then
-  latest_tag=$(git rev-list --max-parents=0 --abbrev-commit HEAD)
+if [ "$1" != "" ]; then
+    start_stop_date="$1"
 fi
 
-# Get commit hash of the latest tag
-from_commit=$(git rev-parse $latest_tag)
-
-# Get all commits since the latest tag
-since_last_tag=$(git rev-list --oneline $from_commit..HEAD)
-
-# Create a temporary file to hold commit messages
-tmp_file=$(mktemp)
-
-# Write since_last_tag to temp file, one line per commit
-echo "$since_last_tag" > "$tmp_file"
-
-# Categorize commits
-added_commits=$(grep -c "add" "$tmp_file")
-fixed_commits=$(grep -c "fix" "$tmp_file")
-changed_commits=$(grep -c "change" "$tmp_file")
-removed_commits=$(grep -c "remove" "$tmp_file")
-
-if [ $added_commits -gt 0 ]; then
-  echo "### Added" >> CHANGELOG.md
-  echo "$added_commits" >> CHANGELOG.md
+if [ "$2" != "" ]; then
+    end_date="$2"
 fi
 
-if [ $fixed_commits -gt 0 ]; then
-  echo "### Fixed" >> CHANGELOG.md
-  echo "$fixed_comminks" >> CHANGELOG.md
+if [ "$3" != "" ]; then
+    end_date="$3"
 fi
 
-if [ $changed_commits -gt 0 ]; then
-  echo "### Changed" >> CHANGELOG.md
-  echo "$changed_commits" >> CHANGELOG.md
+if [ "$4" != "" ];  then
+    end_date="$4"
 fi
 
-if [ $removed_commits -gt 0 ]; then
-  echo "### Removed" >> CHANGELOG.md
-  echo "$removed_commits" >> CHANGELOG.md
+if [ "$5" != "" ]; then
+    commit_hash_len="$5"
 fi
 
-# Clean up
-rm "$tmp_file"
+if [ "$6" != "" ]; then
+    commit_message_len="$6"
+fi
 
-# Output the changelog
-cat CHANGELOG.md
+if [ "$7" != "" ]; then
+    commit_message_len="$7"
+fi
 
-# Remove temp file
-rm CHANGELOG.md
+if [ "$8" != "" ]; then
+    commit_message_len="$8"
+fi
 
-# Exit with success
-exit 0
+if [ "$9" != "" ]; then
+    commit_message_len="$9"
+fi
+
+if [ "$10" != "" ]; then
+    commit_message_len="$10"
+fi
+
+if [ "$11" != "" ]; then
+    commit_message_len="$11"
+fi
+
+if [ "$12" != "" ]; then
+    commit_message_len="$12"
+fi
+
+if [ "$13" != "" ]; then
+    commit_message_len="$13"
+fi
+
+if [ "$14" != "" ]; then
+    commit_message_len="$14"
+fi
+
+if [ "$15" != "" ]; then
+    commit_message_len="$15"
+fi
+
+if [ "$16" != "" ]; then
+    commit_message_len="$16"
+fi
+
+if [ "$17" != "" ]; then
+    commit_message_len="$17"
+fi
+
+if [ "$18" != "" ]; then
+    commit_message_len="$18"
+fi
+
+if [ "$19" != "" ]; then
+    commit_message_len="$19"
+fi
+
+if [ "$20" != "" ]; then
+    commit_message_len="$20"
+fi
+
+if [ "$21" != "" ]; then
+    commit_message_len="$21"
+fi
+
+if [ "$22" != "" ]; then
+    commit_message_len="$22"
+fi
+
+if [ "$23" != "" ]; then
+    commit_message_len="$23"
+fi
+
+if [ "$24" != "" ]; then
+    commit_message_len="$24"
+fi
+
+if [ "$25" != "" ]; then
+    commit_message_len="$25"
+fi
+
+if [ "$26" != "" ]; then
+    commit_message_len="$26"
+fi
+
+if [ "$27" != "" ]; then
+    commit_message_len="$27"
+fi
+
+if [ "$28" != "" ]; then
+    commit_message_len="$28"
+fi
+
+if [ "$29" != "" ]; then
+    commit_message_len="$29"
+fi
+
+if [ "$30" != "" ]; then
+    commit_message_len="$30"
+fi
+
+if [ "$31" != "" ]; then
+    commit_message_len="$31"
+fi
+
+if [ "$32" != "" ]; then
+    commit_message_len="$32"
+fi
+
+if [ "$33" != "" ]; then
+    commit_message_len="$33"
+fi
+
+if [ "$34" != "" ]; then
+    commit_message_len="$34"
+fi
+
+if [ "$35" != "" ]; then
+    commit_message_len="$35"
+fi
+
+if [ "$36" != "" ]; then
+    commit_message_len="$36"
+fi
+
+if [ "$37" != "" ]; then
+    commit_message_len="$37"
+fi
+
+if [ "$38" != "" ]; then
+    commit_message
