@@ -1,24 +1,26 @@
-# CLAUDE.md — Next.js 15 + SQLite SaaS
+# CLAUDE.md — Project Style Guide
 
-> Opinionated project conventions. Read this before writing code. If a rule seems arbitrary, there's a reason—ask.
-
----
-
-## Stack & Versions
-
-| Layer | Choice | Why |
-|-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, no API route boilerplate for data fetching |
-| Runtime | Node.js 20+ | `crypto.randomUUID` native, stable `fetch`, `node:sqlite` available if we ever need it |
-| Database | `better-sqlite3` | Synchronous, fast, zero connection pooling complexity. Turso only if we need multi-region (rare at this stage) |
-| ORM/Query Builder | Drizzle ORM | Type-safe SQL, zero runtime bloat, migrations are just SQL files |
-| Auth | Lucia (or custom session cookies) | Don't bring in NextAuth/Auth0 until you need social login. SQLite sessions are trivial |
-| Styling | Tailwind CSS + shadcn/ui | Copy-paste components, no version drift, full control |
-| Validation | Zod | Same schemas for API, forms, and DB |
-
-**Lock these versions.** Do not upgrade major versions without a migration plan.
+> This document defines coding standards, conventions, and rationale for a Next.js 15 + SQLite SaaS project.  
+> Claude Code should understand and follow these rules without clarification.
 
 ---
 
-## Folder Structure
+## 🧠 Stack & Conventions
+
+### Core Stack
+- **Framework**: Next.js 15 (App Router)
+- **Database**: SQLite (via `better-sqlite3` or Turso/LibSQL)
+- **ORM**: Drizzle ORM
+- **Styling**: Tailwind CSS
+- **Deployment**: Vercel
+
+### Philosophy
+- **Explicit over magic** — No hidden behavior
+- **Colocation over abstraction** — Keep related code together
+- **SQLite-first** — Embrace SQLite's strengths (single-file, embedded, portable)
+- **Server Components by default** — Client components only when interactivity is required
+
+---
+
+## 📁 Project Structure
 
