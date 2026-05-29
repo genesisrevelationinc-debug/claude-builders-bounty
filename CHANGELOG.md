@@ -10,18 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial project setup
 - README with bounty information
-- This CHANGELOG file
 
 ### Changed
-- Updated bounty amounts in README
+- Updated bounty amounts and descriptions
 
 ### Fixed
-- Typo in README header
+- Corrected links in README
 
 ### Removed
-- Old project files
+- Obsolete installation instructions
 
 ## [1.0.0] - 2026-03-15
 
 ### Added
-- Initial release
+- Project skeleton
+- Basic issue templates
+- License file
+
+### Fixed
+- Typos in documentation
+
+### Changed
+- Improved issue templates
+- Updated README structure
