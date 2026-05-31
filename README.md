@@ -52,7 +52,7 @@ You're in the right place.
 
 # Destructive Command Blocker
 
-This Claude Code hook blocks potentially destructive bash commands before they execute.
+This is a `pre-tool-use` hook that blocks dangerous bash commands before they are executed.
 
 ## Installation
 
