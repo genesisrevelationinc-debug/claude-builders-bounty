@@ -9,20 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial project setup
-- Created README.md with bounty board information
+- Created README with bounty details
 - Added LICENSE file
 
 ### Changed
-- Updated active bounties list in README.md
+- Updated bounty board with new entries
 
 ### Fixed
-- Corrected formatting issues in README.md
+- Corrected formatting in README
+- Fixed broken links in bounty descriptions
 
 ### Removed
-
-## [v1.0.0] - 2026-03-15
-
-### Added
-- Launched the Claude Builders Bounty platform
-- Set up initial bounty issues
-- Integrated with Opire for automatic payments
+- Removed outdated information from previous bounty system
