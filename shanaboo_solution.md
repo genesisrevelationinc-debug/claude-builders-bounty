@@ -1,149 +1,219 @@
 ```diff
 --- /dev/null
-+++ b/n8n-workflow-dev-summary.json
-@@ -0,0 +1,1 @@
++++ b/weekly-dev-summary.json
+@@ -0,0 +1,1 +1199 @@
 +{
 +  "name": "Weekly Dev Summary",
 +  "nodes": [
 +    {
++      "parameters": {},
++      "id": "0",
++      "name": "Start",
++      "type": "n8n-nodes-base.manualTrigger",
++      "typeVersion": 1,
++      "position": [
++        250,
++        390
++      ]
++    },
++    {
 +      "parameters": {
-+        "cronExpression": "30 17 * * 5",
-+        "options": {
-+          "runOnAdditionalTries": false,
-+          "runOnItemRecovery": false,
-+          "runOnStartup": false
++        "rule": {
++          "interval": "weeks",
++          "weeks": 1,
++          "dayOfWeek": "5",
++          "hour": 17,
++          "minute": 0
 +        }
 +      },
-+      "id": "0",
++      "id": "1",
 +      "name": "Cron",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
 +        250,
-+        300
++        250
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "issue",
-+        "operation": "getAll",
-+        "getRepository": true,
-+        "getAssignees": true,
-+        "getLabels": true,
-+        "getMilestone": true,
-+        "getComments": true,
-+        "getEvents": true,
-+        "getRepositoryDetails": true,
-+        "getIssueEvents": true,
-+        "getPullRequests": true,
-+        "getReactions": true,
-+        "getReviewComments": true,
-+        "getStargazers": true,
-+        "getSubscribers": true,
-+        "getTeams": true,
-+        "getTopics": true,
-+        "getWorkflows": true,
-+        "getWorkflowRuns": true,
-+        "getWorkflowJobs": true,
-+        "getWorkflowRunLogs": true,
-+        "getWorkflowRunUsage": true,
-+        "getWorkflowRunArtifacts": true,
-+        "getWorkflowRunStatus": true,
-+        "getWorkflowRunConclusion": true,
-+        "getWorkflowRunStartedAt": true,
-+        "getWorkflowRunCompletedAt": true,
-+        "getWorkflowRunRunNumber": true,
-+        "getWorkflowRunRunAttempt": true,
-+        "getWorkflowRunHeadBranch": true,
-+        "getWorkflowRunHeadSha": true,
-+        "getWorkflowRunPreviousAttempts": true,
-+        "getWorkflowRunNodeId": true,
-+        "getWorkflowRunCheckSuiteNodeId": true,
-+        "getWorkflowRunCheckRunId": true,
-+        "getWorkflowRunCheckRunStatus": true,
-+        "getWorkflowRunCheckRunConclusion": true,
-+        "getWorkflowRunCheckRunStartedAt": true,
-+        "getWorkflowRunCheckRunCompletedAt": true,
-+        "getWorkflowRunCheckRunDetailsUrl": true,
-+        "getWorkflowRunCheckRunHtmlUrl": true,
-+        "getWorkflowRunCheckRunCheckSuiteId": true,
-+        "getWorkflowRunCheckRunCheckSuiteUrl": true,
-+        "getWorkflowRunCheckRunAppId": true,
-+        "getWorkflowRunCheckRunExternalId": true,
-+        "getWorkflowRunCheckRunHeadBranch": true,
-+        "getWorkflowRunCheckRunHeadSha": true,
-+        "getWorkflowRunCheckRunWorkflowName": true,
-+        "getWorkflowRunCheckRunJobId": true,
-+        "getWorkflowRunCheckRunJobStatus": true,
-+        "getWorkflowRunCheckRunJobConclusion": true,
-+        "getWorkflowRunCheckRunJobStartedAt": true,
-+        "getWorkflowRunCheckRunJobCompletedAt": true,
-+        "getWorkflowRunCheckRunJobDetailsUrl": true,
-+        "getWorkflowRunCheckRunJobHtmlUrl": true,
-+        "getWorkflowRunCheckRunJobAppId": true,
-+        "getWorkflowRunCheckRunJobExternalId": true,
-+        "getWorkflowRunCheckRunJobHeadBranch": true,
-+        "getWorkflowRunCheckRunJobHeadSha": true,
-+        "getWorkflowRunCheckRunJobWorkflowName": true,
-+        "getWorkflowRunCheckRunJobNodeId": true,
-+        "getWorkflowRunCheckRunJobCheckSuiteId": true,
-+        "getWorkflowRunCheckRunJobCheckSuiteUrl": true,
-+        "getWorkflowRunCheckRunJobCheckRunId": true,
-+        "getWorkflowRunCheckRunJobCheckRunStatus": true,
-+        "getWorkflowRunCheckRunJobCheckRunConclusion": true,
-+        "getWorkflowRunCheckRunJobCheckRunStartedAt": true,
-+        "getWorkflowRunCheckRunJobCheckRunCompletedAt": true,
-+        "getWorkflowRunCheckRunJobCheckRunDetailsUrl": true,
-+        "getWorkflowRunCheckRunJobCheckRunHtmlUrl": true,
-+        "getWorkflowRunCheckRunJobCheckRunAppId": true,
-+        "getWorkflowRunCheckRunJobCheckRunExternalId": true,
-+        "getWorkflowRunCheckRunJobCheckRunHeadBranch": true,
-+        "getWorkflowRunCheckRunJobCheckRunHeadSha": true,
-+        "getWorkflowRunCheckRunJobCheckRunWorkflowName": true
++        "resource": "search",
++        "operation": "issues",
++        "repositories": [
++          {
++            "repo": "={{ $parameter[\"repo\"] }}"
++          }
++        ],
++        "returnAll": true,
++        "options": {
++          "sort": "created",
++          "direction": "desc"
++        },
++        "filters": {
++          "state": "closed",
++          "type": "issue"
++        }
 +      },
-+      "id": "1",
-+      "name": "GitHub",
++      "id": "2",
++      "name": "Get Closed Issues",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
-+        "position": [
-+        250,
-+        300
++      "position": [
++        550,
++        250
++      ],
++      "credentials": {
++        "githubApi": {
++          "id": "1",
++          "name": "GitHub"
++        }
++      }
++    },
++    {
++      "parameters": {
++        "resource": "search",
++        "operation": "commits",
++        "repositories": [
++          {
++            "repo": "={{ $parameter[\"repo\"] }}"
++          }
++        ],
++        "returnAll": true,
++        "options": {
++          "sort": "created",
++          "direction": "desc"
++        }
++      },
++      "id": "3",
++      "name": "Get Recent Commits",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        550,
++        390
++      ],
++      "credentials": {
++        "githubApi": {
++          "id": "1",
++          "name": "GitHub"
++        }
++      }
++    },
++    {
++      "parameters": {
++        "resource": "search",
++        "operation": "issues",
++        "repositories": [
++          {
++            "repo": "={{ $parameter[\"repo\"] }}"
++          }
++        ],
++        "returnAll": true,
++        "options": {
++          "sort": "created",
++          "direction": "desc"
++        },
++        "filters": {
++          "state": "closed",
++          "type": "pr"
++        }
++      },
++      "id": "4",
++      "name": "Get Merged PRs",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        550,
++        530
++      ],
++      "credentials": {
++        "githubApi": {
++          "id": "1",
++          "name": "GitHub"
++        }
++      }
++    },
++    {
++      "parameters": {
++        "model": "claude-sonnet-4-20250514",
++        "prompt": "={{ $parameter[\"prompt\"] }}",
++        "maxTokens": 1024,
++        "temperature": 0.7
++      },
++      "id": "5",
++      "name": "Call Claude API",
++      "type": "n8n-nodes-base.claude",
++      "typeVersion": 1,
++      "position": [
++        850,
++        390
++      ],
++      "credentials": {
++        "claudeApi": {
++          "id": "1",
++          "name": "Claude"
++        }
++      }
++    },
++    {
++      "parameters": {
++        "subject": "Weekly Development Summary",
++        "toList": [
++          {
++            "email": "={{ $parameter[\"email\"] }}"
++          }
++        ],
++        "text": "={{ $json[\"response\"] }}",
++        "options": {}
++      },
++      "id": "6",
++      "name": "Send Email",
++      "type": "n8n-nodes-base.emailSend",
++      "typeVersion": 1,
++      "position": [
++        1150,
++        390
++      ],
++      "credentials": {
++        "smtp": {
++          "id": "1",
++          "name": "SMTP"
++        }
++      }
++    },
++    {
++      "parameters": {
++        "method": "POST",
++        "url": "={{ $parameter[\"webhookUrl\"] }}",
++        "options": {
++          "allowUnauthorizedCerts": true
++        },
++        "bodyContentType": "json",
++        "json": "={{ $json[\"response\"] }}",
++        "responseFormat": "json"
++      },
++      "id": "7",
++      "name": "Send to Webhook",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 1,
++      "position": [
++        1150,
++        530
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "pullRequest",
-+        "operation": "getAll",
-+        "getRepository": true,
-+        "getAssignees": true,
-+        "getLabels": true,
-+        "getMilestone": true,
-+        "getComments": true,
-+        "getEvents": true,
-+        "getRepositoryDetails": true,
-+        "getIssueEvents": true,
-+        "getPullRequests": true,
-+        "getReactions": true,
-+        "getReviewComments": true,
-+        "getStargazers": true,
-+        "getSubscribers": true,
-+        "getTeams": true,
-+        "getTopics": true,
-+        "getWorkflows": true,
-+        "getWorkflowRuns": true,
-+        "getWorkflowJobs": true,
-+        "getWorkflowRunLogs": true,
-+        "getWorkflowRunUsage": true,
-+        "getWorkflowRunArtifacts": true,
-+        "getWorkflowRunStatus": true,
-+        "getWorkflowRunConclusion": true,
-+        "getWorkflowRunStartedAt": true,
-+        "getWorkflowRunCompletedAt": true,
-+        "getWorkflowRunRunNumber": true,
-+        "getWorkflowRunRunAttempt": true,
-+        "getWorkflowRunNodeId": true,
-+        "getWorkflowRunCheckSuiteNodeId": true,
-+        "getWorkflowRunCheckRunId": true,
-+        "getWorkflowRunCheckRunStatus": true,
-+        "getWorkflowRunCheckRunConclusion": true,
-+        "getWorkflowRunCheck
++        "keepOnlySet": true,
++        "values": {
++          "string": [
++            {
++              "name": "repo",
++              "value": "={{ $parameter[\"repo\"] }}"
++            },
++            {
++              "name": "email",
++              "value": "={{ $parameter[\"email\"] }}"
++            },
++            {
++              "name": "webhookUrl",
++              "value": "
