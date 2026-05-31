@@ -1,16 +1,5 @@
-# Claude Destructive Command Blocker
+# Claude Builders Bounty 🤖
 
-## Description
-
-This hook blocks potentially destructive bash commands in Claude Code before they are executed.
-
-## Installation
-
-1. Create a new directory: `mkdir -p ~/.claude/hooks`
-2. Copy the `pre-tool-use` hook to `~/.claude/hooks/pre-tool-use`
-
-## How it works
-This hook intercepts dangerous bash commands before they are executed.
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
@@ -46,12 +35,20 @@ You're in the right place.
 ---
 
 ## Rules
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
-- Tasks must be related to Claude Code or AI tooling
-- Every issue must have clear acceptance criteria before a bounty is activated
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
-- Quality over speed — a solid PR beats a fast one
+---
 
+## Hooks
+
+| Hook | Description | Bounty |
+|------|-------------|--------|
+| [pre-tool-use](hooks/) | Block destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) | [#3](../../issues/3) |
+
+---
+
+## Rules
 ---
 
 ## Community
