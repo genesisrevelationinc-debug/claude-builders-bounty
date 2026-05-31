@@ -35,20 +35,12 @@ You're in the right place.
 ---
 
 ## Rules
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
----
+- Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
 
-## Hooks
-
-| Hook | Description | Bounty |
-|------|-------------|--------|
-| [pre-tool-use](hooks/) | Block destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) | [#3](../../issues/3) |
-
----
-
-## Rules
 ---
 
 ## Community
@@ -57,5 +49,12 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Destructive Command Blocker
+
+This Claude Code hook blocks potentially destructive bash commands before they execute.
+
+## Installation
+
 
 *Started by the Claude builder community · March 2026 · MIT License*
