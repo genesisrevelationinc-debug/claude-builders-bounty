@@ -1,100 +1,119 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # changelog.sh - Generate a structured CHANGELOG.md from git history
+# Usage: bash changelog.sh
 
-set -e
+set -euo pipefail
 
-# Function to display usage
-usage() {
-    echo "Usage: $0 <since_tag>"
-    echo "Example: $0 v1.0.0"
-    echo "        $0 --all # to generate changelog for all commits"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}📋 Generating CHANGELOG...${NC}"
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo -e "${RED}Error: Not a git repository${NC}"
     exit 1
-}
-
-# Check if git repository
-if [ ! -d .git ] && [ ! -f .git ]; then
-    echo "Error: Not a git repository"
-    exit 1
 fi
 
-# Default values
-SINCE_TAG=""
-OUTPUT_FILE="CHANGELOG.md"
+# Get the last tag
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-# Parse arguments
-if [ "$#" -eq 0 ]; then
-    # Get the last tag or all commits if no tags exist
-    SINCE_TAG=$(git describe --tags --abbrev=0 HEAD~ 2>/dev/null) || true
-elif [ "$#" -eq 1 ]; then
-    if [ "$1" = "--all" ]; then
-        SINCE_TAG=$(git rev-list --tags --max-count=1)
-    else
-        SINCE_TAG="$1"
-    fi
+if [ -z "$LAST_TAG" ]; then
+    echo -e "${YELLOW}No tags found. Using all commits.${NC}"
+    COMMIT_RANGE=""
 else
-    usage
+    echo -e "${GREEN}Last tag: $LAST_TAG${NC}"
+    COMMIT_RANGE="${LAST_TAG}..HEAD"
 fi
 
-# If no previous tag, start from the first commit
-if [ -z "$SINCE_TAG" ]; then
-    SINCE_TAG=$(git rev-list --max-parents=0 HEAD)
-fi
-
-# Get the commits
-if [ "$SINCE_TAG" = "$(git rev-list --tags --max-count=1)" ]; then
-    COMMITS=$(git log --oneline)
+# Get commits since last tag
+if [ -z "$COMMIT_RANGE" ]; then
+    COMMITS=$(git log --pretty=format:"%s" --no-merges)
 else
-    COMMITS=$(git log "$SINCE_TAG..HEAD" --oneline)
+    COMMITS=$(git log --pretty=format:"%s" --no-merges "$COMMIT_RANGE")
 fi
 
-# Create a temporary file to store commit messages
-TEMP_FILE=$(mktemp)
-echo "$COMMITS" > "$TEMP_FILE"
+if [ -z "$COMMITS" ]; then
+    echo -e "${YELLOW}No commits found since last tag.${NC}"
+    exit 0
+fi
 
-# Initialize sections
+# Categorize commits
 ADDED=""
 FIXED=""
 CHANGED=""
 REMOVED=""
 
-# Categorize commits
-while IFS= read -r line; do
-    if [[ $line == *"feat:"* ]] || [[ $line == *"add:"* ]] || [[ $line == *"new:"* ]]; then
-        ADDED+="- $line"$'\n'
-    elif [[ $line == *"fix:"* ]] || [[ $line == *"bug:"* ]]; then
-        FIXED+="- $line"$'\n'
-    elif [[ $line == *"refactor:"* ]] || [[ $line == *"update:"* ]] || [[ $line == *"improve:"* ]]; then
-        CHANGED+="- $line"$'\n'
-    elif [[ $line == *"remove:"* ]] || [[ $line == *"delete:"* ]] || [[ $line == *"revert:"* ]]; then
-        REMOVED+="- $line"$'\n'
+while IFS= read -r commit; do
+    [ -z "$commit" ] && continue
+    
+    # Normalize commit message for matching
+    lower_commit=$(echo "$commit" | tr '[:upper:]' '[:lower:]')
+    
+    if echo "$lower_commit" | grep -qE '^(feat|add|create|implement|introduce)|\b(add|adds|added|adding)\b'; then
+        ADDED="${ADDED}- ${commit}"$'\n'
+    elif echo "$lower_commit" | grep -qE '^(fix|bugfix|hotfix|patch)|\b(fix|fixes|fixed|fixing|resolve|resolves|resolved)\b'; then
+        FIXED="${FIXED}- ${commit}"$'\n'
+    elif echo "$lower_commit" | grep -qE '^(remove|delete|drop|revert)|\b(remove|removes|removed|removing|delete|deletes|deleted|deleting|drop|dropped)\b'; then
+        REMOVED="${REMOVED}- ${commit}"$'\n'
     else
-        # Default to Added if no matching pattern
-        ADDED+="- $line"$'\n'
+        # Default to Changed for everything else (update, refactor, modify, etc.)
+        CHANGED="${CHANGED}- ${commit}"$'\n'
     fi
-done < "$TEMP_FILE"
+done <<< "$COMMITS"
+
+# Generate CHANGELOG.md
+DATE=$(date +%Y-%m-%d)
+VERSION=""
+
+if [ -n "$LAST_TAG" ]; then
+    VERSION=" [$LAST_TAG → HEAD]"
+fi
+
+CHANGELOG="# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased] - ${DATE}${VERSION}
+"
+
+if [ -n "$ADDED" ]; then
+    CHANGELOG="${CHANGELOG}
+### Added
+${ADDED}"
+fi
+
+if [ -n "$FIXED" ]; then
+    CHANGELOG="${CHANGELOG}
+### Fixed
+${FIXED}"
+fi
+
+if [ -n "$CHANGED" ]; then
+    CHANGELOG="${CHANGELOG}
+### Changed
+${CHANGED}"
+fi
+
+if [ -n "$REMOVED" ]; then
+    CHANGELOG="${CHANGELOG}
+### Removed
+${REMOVED}"
+fi
 
 # Write to CHANGELOG.md
-{
-    echo "# Changelog"
-    echo ""
-    if [ -n "$ADDED" ]; then
-        echo "## Added"
-        echo "$ADDED"
-    fi
-    if [ -n "$FIXED" ]; then
-        echo "## Fixed"
-        echo "$FIXED"
-    fi
-    if [ -n "$CHANGED" ]; then
-        echo "## Changed"
-        echo "$CHANGED"
-    fi
-    if [ -n "$REMOVED" ]; then
-        echo "## Removed"
-        echo "$REMOVED"
-    fi
-} > "$OUTPUT_FILE"
+echo "$CHANGELOG" > CHANGELOG.md
 
-rm "$TEMP_FILE"
-echo "CHANGELOG.md has been generated."
+echo -e "${GREEN}✅ CHANGELOG.md generated successfully!${NC}"
+echo -e "${GREEN}   Categories:${NC}"
+[ -n "$ADDED" ] && echo -e "   • Added: $(echo "$ADDED" | grep -c '^-' || true) commits"
+[ -n "$FIXED" ] && echo -e "   • Fixed: $(echo "$FIXED" | grep -c '^-' || true) commits"
+[ -n "$CHANGED" ] && echo -e "   • Changed: $(echo "$CHANGED" | grep -c '^-' || true) commits"
+[ -n "$REMOVED" ] && echo -e "   • Removed: $(echo "$REMOVED" | grep -c '^-' || true) commits"
