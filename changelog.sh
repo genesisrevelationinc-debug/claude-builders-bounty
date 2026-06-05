@@ -2,94 +2,99 @@
 
 # changelog.sh - Generate a structured CHANGELOG.md from git history
 
-# Get the latest tag
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+set -e
 
-# If no tag exists, get all commits from the beginning
-if [ -z "$LATEST_TAG" ]; then
-    COMMIT_RANGE=""
-    echo "No tags found. Generating changelog for all commits."
-else
-    echo "Generating changelog since tag: $LATEST_TAG"
-    COMMIT_RANGE="$LATEST_TAG..HEAD"
+# Function to display usage
+usage() {
+    echo "Usage: $0 <since_tag>"
+    echo "Example: $0 v1.0.0"
+    echo "        $0 --all # to generate changelog for all commits"
+    exit 1
+}
+
+# Check if git repository
+if [ ! -d .git ] && [ ! -f .git ]; then
+    echo "Error: Not a git repository"
+    exit 1
 fi
 
-# Create a temporary file for commit messages
-TEMP_FILE=$(mktemp)
+# Default values
+SINCE_TAG=""
+OUTPUT_FILE="CHANGELOG.md"
 
-# Get commit messages excluding merge commits
-if [ -z "$COMMIT_RANGE" ]; then
-    git log --no-merges --pretty=format:"- %s" > "$TEMP_FILE"
-else
-    git log "$COMMIT_RANGE" --no-merges --pretty=format:"- %s" > "$TEMP_FILE"
-fi
-
-# Create or clear CHANGELOG.md
-echo "# Changelog" > CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)," >> CHANGELOG.md
-echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)." >> CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "## [Unreleased]" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
-
-# Initialize category arrays
-declare -a added=()
-declare -a changed=()
-declare -a fixed=()
-declare -a removed=()
-
-# Categorize commits based on keywords
-while IFS= read -r line; do
-    # Remove the leading dash and space
-    commit_message=${line#"- "}
-    
-    # Convert to lowercase for case-insensitive matching
-    lower_message=$(echo "$commit_message" | tr '[:upper:]' '[:lower:]')
-    
-    # Categorize based on keywords
-    if [[ $lower_message == *"add"* ]] || [[ $lower_message == *"new"* ]] || [[ $lower_message == *"implement"* ]] || [[ $lower_message == *"feature"* ]]; then
-        added+=("$line")
-    elif [[ $lower_message == *"change"* ]] || [[ $lower_message == *"update"* ]] || [[ $lower_message == *"modify"* ]] || [[ $lower_message == *"improve"* ]]; then
-        changed+=("$line")
-    elif [[ $lower_message == *"fix"* ]] || [[ $lower_message == *"resolve"* ]] || [[ $lower_message == *"correct"* ]] || [[ $lower_message == *"bug"* ]]; then
-        fixed+=("$line")
-    elif [[ $lower_message == *"remove"* ]] || [[ $lower_message == *"delete"* ]] || [[ $lower_message == *"drop"* ]]; then
-        removed+=("$line")
+# Parse arguments
+if [ "$#" -eq 0 ]; then
+    # Get the last tag or all commits if no tags exist
+    SINCE_TAG=$(git describe --tags --abbrev=0 HEAD~ 2>/dev/null) || true
+elif [ "$#" -eq 1 ]; then
+    if [ "$1" = "--all" ]; then
+        SINCE_TAG=$(git rev-list --tags --max-count=1)
     else
-        # Default to "added" if no keywords match
-        added+=("$line")
+        SINCE_TAG="$1"
+    fi
+else
+    usage
+fi
+
+# If no previous tag, start from the first commit
+if [ -z "$SINCE_TAG" ]; then
+    SINCE_TAG=$(git rev-list --max-parents=0 HEAD)
+fi
+
+# Get the commits
+if [ "$SINCE_TAG" = "$(git rev-list --tags --max-count=1)" ]; then
+    COMMITS=$(git log --oneline)
+else
+    COMMITS=$(git log "$SINCE_TAG..HEAD" --oneline)
+fi
+
+# Create a temporary file to store commit messages
+TEMP_FILE=$(mktemp)
+echo "$COMMITS" > "$TEMP_FILE"
+
+# Initialize sections
+ADDED=""
+FIXED=""
+CHANGED=""
+REMOVED=""
+
+# Categorize commits
+while IFS= read -r line; do
+    if [[ $line == *"feat:"* ]] || [[ $line == *"add:"* ]] || [[ $line == *"new:"* ]]; then
+        ADDED+="- $line"$'\n'
+    elif [[ $line == *"fix:"* ]] || [[ $line == *"bug:"* ]]; then
+        FIXED+="- $line"$'\n'
+    elif [[ $line == *"refactor:"* ]] || [[ $line == *"update:"* ]] || [[ $line == *"improve:"* ]]; then
+        CHANGED+="- $line"$'\n'
+    elif [[ $line == *"remove:"* ]] || [[ $line == *"delete:"* ]] || [[ $line == *"revert:"* ]]; then
+        REMOVED+="- $line"$'\n'
+    else
+        # Default to Added if no matching pattern
+        ADDED+="- $line"$'\n'
     fi
 done < "$TEMP_FILE"
 
-# Write categorized changes to CHANGELOG.md
-if [ ${#added[@]} -gt 0 ]; then
-    echo "### Added" >> CHANGELOG.md
-    printf '%s\n' "${added[@]}" >> CHANGELOG.md
-    echo "" >> CHANGELOG.md
-fi
+# Write to CHANGELOG.md
+{
+    echo "# Changelog"
+    echo ""
+    if [ -n "$ADDED" ]; then
+        echo "## Added"
+        echo "$ADDED"
+    fi
+    if [ -n "$FIXED" ]; then
+        echo "## Fixed"
+        echo "$FIXED"
+    fi
+    if [ -n "$CHANGED" ]; then
+        echo "## Changed"
+        echo "$CHANGED"
+    fi
+    if [ -n "$REMOVED" ]; then
+        echo "## Removed"
+        echo "$REMOVED"
+    fi
+} > "$OUTPUT_FILE"
 
-if [ ${#fixed[@]} -gt 0 ]; then
-    echo "### Fixed" >> CHANGELOG.md
-    printf '%s\n' "${fixed[@]}" >> CHANGELOG.md
-    echo "" >> CHANGELOG.md
-fi
-
-if [ ${#changed[@]} -gt 0 ]; then
-    echo "### Changed" >> CHANGELOG.md
-    printf '%s\n' "${changed[@]}" >> CHANGELOG.md
-    echo "" >> CHANGELOG.md
-fi
-
-if [ ${#removed[@]} -gt 0 ]; then
-    echo "### Removed" >> CHANGELOG.md
-    printf '%s\n' "${removed[@]}" >> CHANGELOG.md
-    echo "" >> CHANGELOG.md
-fi
-
-# Clean up
 rm "$TEMP_FILE"
-
 echo "CHANGELOG.md has been generated."
