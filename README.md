@@ -50,19 +50,14 @@ You're in the right place.
 
 ---
 
-# Git Changelog Generator
-
-Automatically generate structured changelogs from your git commit history.
-
-## Features
-
-- Auto-categorizes commits into Added, Fixed, Changed, and Removed sections
-- Works with any git repository
-- No dependencies - pure bash script
+# Generate Changelog
 
 ## Setup
 
-1. Clone this repository or download `changelog.sh`
-2. Make the script executable:
-   
+1. Make sure you have `bash` and `git` installed.
+2. Run the script with `bash changelog.sh` to generate a changelog since the last tag.
+3. To customize the behavior, run with a specific tag `bash changelog.sh v1.0.0` or all commits `bash changelog.sh --all`.
+
+The script will generate a `CHANGELOG.md` file in the current directory.
+
 *Started by the Claude builder community · March 2026 · MIT License*
