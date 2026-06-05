@@ -50,14 +50,14 @@ You're in the right place.
 
 ---
 
-# Generate Changelog
+# Changelog Generator
 
 ## Setup
 
-1. Make sure you have `bash` and `git` installed.
-2. Run the script with `bash changelog.sh` to generate a changelog since the last tag.
-3. To customize the behavior, run with a specific tag `bash changelog.sh v1.0.0` or all commits `bash changelog.sh --all`.
+1. Make sure you have git installed
+2. Run the script with `bash changelog.sh`
+3. Check the generated `CHANGELOG.md` file
 
-The script will generate a `CHANGELOG.md` file in the current directory.
-
+## Features
+- Auto-categorizes commits since last tag into Added, Fixed, Changed, and Removed sections
 *Started by the Claude builder community · March 2026 · MIT License*
