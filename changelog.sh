@@ -1,51 +1,121 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Get the latest tag, or default to v0.0.0 if no tags exist
-TAG=$(git describe --tags --abbrev=0 2>/dev/null) || TAG="v0.0.0"
+# changelog.sh - Generate a structured CHANGELOG.md from git history
+# Usage: bash changelog.sh
 
-# If there are no commits, exit
-if ! git rev-parse --git-dir >/dev/null 2>&1; then
-  echo "Not a git repository. Please run this in a git repository."
-  exit 1
-fi
+set -euo pipefail
 
-# Get commits from the last tag or all commits if no tags exist
-if [ "$TAG" = "v0.0.0" ]; then
-  COMMITS=$(git log --pretty=format:"%s" --reverse)
-else
-  COMMITS=$(git log $TAG..HEAD --pretty=format:"%s" --reverse)
-fi
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-# Create the changelog
-echo "## Changelog" > CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "## [v$(date +%Y-%m-%d)]" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
+# Get the last git tag
+get_last_tag() {
+    git describe --tags --abbrev=0 2>/dev/null || echo ""
+}
 
-# Categories for changelog entries
-CATEGORIES=("Added" "Fixed" "Changed" "Removed")
-
-# Process commits and categorize
-echo "$COMMITS" | while read -r commit; do
-  if [ -n "$commit" ]; then
-    # Try to categorize based on conventional commit format
-    if [[ $commit == *"feat:"* ]]; then
-      echo "- $commit" >> CHANGELOG.md
-    elif [[ $commit == *"fix:"* ]]; then
-      echo "- $commit" >> CHANGELOG.md
+# Get commits since the last tag (or all commits if no tag)
+get_commits_since_tag() {
+    local tag="$1"
+    if [ -n "$tag" ]; then
+        git log "$tag"..HEAD --pretty=format:"%s" 2>/dev/null || echo ""
     else
-      echo "- $commit" >> CHANGELOG.md
+        git log --pretty=format:"%s" 2>/dev/null || echo ""
     fi
-  fi
-done
+}
 
-# Write categorized commits to changelog
-echo "### ${CATEGORIES[0]}" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "### ${CATEGORIES[1]}" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "### ${CATEGORIES[2]}" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "### ${CATEGORIES[3]}" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "Done! See CHANGELOG.md for the generated changelog."
+# Categorize a single commit message
+categorize_commit() {
+    local msg="$1"
+    local lower_msg
+    lower_msg=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
+    
+    # Check for conventional commit prefixes first
+    if [[ "$lower_msg" =~ ^feat(\(.+\))?: ]]; then
+        echo "added"
+        return
+    elif [[ "$lower_msg" =~ ^fix(\(.+\))?: ]]; then
+        echo "fixed"
+        return
+    elif [[ "$lower_msg" =~ ^(chore|refactor|perf|style|docs|test|build|ci|revert)(\(.+\))?: ]]; then
+        echo "changed"
+        return
+    elif [[ "$lower_msg" =~ ^remove(\(.+\))?: ]]; then
+        echo "removed"
+        return
+    fi
+    
+    # Fallback: keyword-based categorization
+    if [[ "$lower_msg" =~ ^(add|create|implement|introduce|new|support|enable) ]]; then
+        echo "added"
+    elif [[ "$lower_msg" =~ ^(fix|bug|repair|correct|resolve|patch|hotfix) ]]; then
+        echo "fixed"
+    elif [[ "$lower_msg" =~ ^(remove|delete|drop|eliminate|deprecate|clean) ]]; then
+        echo "removed"
+    else
+        echo "changed"
+    fi
+}
+
+# Generate the CHANGELOG.md content
+generate_changelog() {
+    local tag
+    tag=$(get_last_tag)
+    
+    local commits
+    if [ -n "$tag" ]; then
+        commits=$(get_commits_since_tag "$tag")
+        echo -e "${GREEN}Generating changelog since tag: $tag${NC}"
+    else
+        commits=$(get_commits_since_tag "")
+        echo -e "${YELLOW}No tags found. Generating changelog from all commits.${NC}"
+    fi
+    
+    if [ -z "$commits" ]; then
+        echo -e "${RED}No commits found to include in changelog.${NC}"
+        exit 1
+    fi
+    
+    # Categorize commits
+    local added=""
+    local fixed=""
+    local changed=""
+    local removed=""
+    
+    while IFS= read -r commit; do
+        [ -z "$commit" ] && continue
+        
+        local category
+        category=$(categorize_commit "$commit")
+        
+        case "$category" in
+            added)   added="$added- $commit"$'\n' ;;
+            fixed)   fixed="$fixed- $commit"$'\n' ;;
+            changed) changed="$changed- $commit"$'\n' ;;
+            removed) removed="$removed- $commit"$'\n' ;;
+        esac
+    done <<< "$commits"
+    
+    # Generate output
+    local version_date
+    version_date=$(date +%Y-%m-%d)
+    
+    {
+        echo "# Changelog"
+        echo ""
+        echo "## [Unreleased] - $version_date"
+        echo ""
+        
+        [ -n "$added" ]   && echo "### Added"   && echo -e "$added"   && echo ""
+        [ -n "$changed" ] && echo "### Changed" && echo -e "$changed" && echo ""
+        [ -n "$fixed" ]   && echo "### Fixed"   && echo -e "$fixed"   && echo ""
+        [ -n "$removed" ] && echo "### Removed" && echo -e "$removed" && echo ""
+    } > CHANGELOG.md
+    
+    echo -e "${GREEN}CHANGELOG.md generated successfully!${NC}"
+}
+
+# Main execution
+generate_changelog
