@@ -1,16 +1,15 @@
-# CLAUDE.md - Next.js + SQLite SaaS Project Guide
+# CLAUDE.md - Next.js + SQLite SaaS Project Template
 
-This document defines the conventions, structure, and rules for working with this Next.js + SQLite SaaS project. It's designed to be used by Claude Code and developers to understand the project's architecture and development patterns.
+This document defines the development standards and conventions for our Next.js + SQLite SaaS project. This is an opinionated template designed for consistency and maintainability.
 
 ## Stack & Versions
 
-- **Next.js**: 15 (App Router)
+- **Framework**: Next.js 15 with App Router
 - **Database**: SQLite (better-sqlite3 for local development, Turso for production)
 - **ORM**: Drizzle ORM
-- **Styling**: Tailwind CSS with shadcn/ui components
-- **Authentication**: NextAuth.js
+- **Styling**: Tailwind CSS
+- **Language**: TypeScript
 - **Deployment**: Vercel
-- **Package Manager**: pnpm
 
 ## Folder Structure
 
