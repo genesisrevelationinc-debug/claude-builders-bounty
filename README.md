@@ -48,20 +48,21 @@ You're in the right place.
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
-
 ---
 
-## Hooks
+# Pre-Tool-Use Hook: Block Destructive Bash Commands
 
-### [pre-tool-use](hooks/pre-tool-use) — Block Destructive Bash Commands
+A Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash commands before they can execute.
 
-A security hook that intercepts dangerous bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.)
-before they execute in Claude Code. See [hooks/README.md](hooks/README.md) for installation.
+## What It Blocks
 
-**Bounty:** $100 | **Status:** ✅ Complete
+- `rm -rf` — recursive force delete
+- `DROP TABLE` — SQL table deletion
+- `git push --force` / `git push -f` — force push overwriting history
+- `TRUNCATE` — removes all data from a table
+- `DELETE FROM` without a `WHERE` clause — removes all rows
 
----
+## Installation
 
-## Community
 
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+*Started by the Claude builder community · March 2026 · MIT License*
