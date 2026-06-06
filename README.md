@@ -9,16 +9,16 @@ You're in the right place.
 ---
 
 ## How it works
-1. Fork the target repository (this one)
-2. Create a new skill following the [Claude Code Skill template](./SKILL.md)
-3. Test your skill and update the CHANGELOG.md file with your changes
 
-The skill should be a .sh file or a SKILL.md file that can be
-executed by Claude Code. The skill should fetch the latest commits since the last
-tag, categorize the commits, and output a CHANGELOG.md file with the following
-format:
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
+2. Comment `/opire create $XXX` in the issue to set the reward
+3. Share the link — contributors will find it
 
-
+**To claim a bounty**
+1. Browse the open issues below
+2. Comment `/opire try` in the issue you want to work on
+3. Submit a PR — payment is automatic on merge ✅
 
 ---
 
@@ -50,4 +50,13 @@ format:
 
 ---
 
+# Changelog Generator
+
+This tool automatically generates a structured `CHANGELOG.md` from your project's git history.
+
+## Setup
+
+1. Copy `changelog.sh` to your project root
+2. Make it executable: `chmod +x changelog.sh`
+3. Run: `./changelog.sh`
 *Started by the Claude builder community · March 2026 · MIT License*
