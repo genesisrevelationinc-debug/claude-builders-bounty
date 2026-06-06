@@ -1,61 +1,58 @@
  ```diff
 --- /dev/null
-+++ b/workflows/n8n-claude-weekly-summary/README.md
++++ b/workflows/n8n-weekly-dev-summary/README.md
 @@ -0,0 +1,45 @@
-+# n8n + Claude Weekly Dev Summary Workflow
++# n8n Weekly Dev Summary Workflow
 +
-+Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
++Automated weekly narrative summary of a GitHub repo's activity, powered by n8n and Claude API.
 +
 +## Setup (5 steps)
 +
-+### 1. Import the workflow
-+In n8n, go to **Workflows → Import from File** and select `weekly-dev-summary.json`.
-+
-+### 2. Set credentials
-+Configure these credentials in n8n:
-+- **GitHub API**: Personal access token with `repo` scope
-+- **Claude API**: Anthropic API key
-+- **Discord Webhook** (or configure Email/SMTP instead)
-+
-+### 3. Configure variables
-+Open the workflow and edit the **Set Config** node:
-+- `repoOwner` / `repoName`: Target GitHub repository
-+- `discordWebhook`: Your Discord channel webhook URL
-+- `language`: `EN` or `FR`
-+
-+### 4. Activate the schedule
-+The **Cron** node is pre-configured for Fridays at 5 PM. Adjust if needed.
-+
-+### 5. Activate & test
-+Click **Activate**, then use **Test Workflow** to verify. Check your Discord channel for the summary.
-+
-+---
++1. **Import the workflow**: In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`
++2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in *Settings → Credentials*
++3. **Configure variables**: Open the workflow and edit the *Set Config* node — set `repoOwner`, `repoName`, `language`, and `webhookUrl`
++4. **Activate**: Toggle the workflow to *Active* in the top-right corner
++5. **Test**: Click *Execute Workflow* to run manually, or wait for the weekly cron trigger
 +
 +## What It Does
 +
-+1. **Triggers weekly** (Friday 5 PM)
-+2. **Fetches** commits, closed issues, and merged PRs from the past 7 days
-+3. **Sends to Claude** (`claude-sonnet-4-20250514`) for narrative summarization
-+4. **Delivers** the formatted summary to Discord (configurable)
++- Runs every Friday at 5:00 PM
++- Fetches commits, closed issues, and merged PRs from the past 7 days
++- Sends them to Claude API (`claude-sonnet-4-20250514`) for a narrative summary
++- Delivers the summary via Discord webhook (configurable)
++
++## Required Credentials
++
++- `githubApi`: GitHub Personal Access Token (classic) with `repo` scope
++- `anthropicApi`: Anthropic API key from [console.anthropic.com](https://console.anthropic.com)
++
++## Configurable Variables
++
++| Variable | Description | Default |
++|----------|-------------|---------|
++| `repoOwner` | GitHub repository owner | `claude-builders-bounty` |
++| `repoName` | GitHub repository name | `claude-builders-bounty` |
++| `language` | Summary language (`EN` or `FR`) | `EN` |
++| `webhookUrl` | Discord webhook URL | — |
 +
 +## Output Example
 +
-+> **Weekly Dev Summary: `owner/repo`**
-+> 📅 May 12 – May 19, 2025
++> **Weekly Dev Summary — claude-builders-bounty**
 +>
-+> This week saw 12 commits, 3 merged PRs, and 5 closed issues. The team focused on refactoring the authentication module and improving test coverage...
++> This week saw 12 commits, 3 closed issues, and 2 merged PRs. The team focused on refactoring the authentication module and improving test coverage. Notable PR: #42 "Add OAuth2 support" by @alice.
 +
-+## Requirements
++## Troubleshooting
 +
-+- n8n 1.0+ (self-hosted or cloud)
-+- GitHub personal access token
-+- Anthropic API access
-\ No newline at end of file
++- **No data fetched**: Check that your GitHub token has access to the repo
++- **Claude API error**: Verify your Anthropic API key and billing status
++- **Webhook not sending**: Test the webhook URL with `curl` first
++
++*Tested on n8n v1.50+*
 --- /dev/null
-+++ b/workflows/n8n-claude-weekly-summary/weekly-dev-summary.json
-@@ -0,0 +1,518 @@
++++ b/workflows/n8n-weekly-dev-summary/weekly-dev-summary.json
+@@ -0,0 +1,530 @@
 +{
-+  "name": "Weekly Dev Summary - Claude + GitHub",
++  "name": "Weekly Dev Summary - n8n + Claude",
 +  "nodes": [
 +    {
 +      "parameters": {
@@ -63,20 +60,22 @@
 +          "interval": [
 +            {
 +              "field": "weeks",
-+              "expression": "1"
++              "hoursInterval": 168,
++              "triggerAtHour": 17,
++              "triggerAtMinute": 0,
++              "triggerAtDay": 5
 +            }
 +          ]
 +        }
 +      },
-+      "id": "cron-trigger",
-+      "name": "Weekly Cron",
++      "id": "trigger-cron",
++      "name": "Weekly Friday 5PM",
 +      "type": "n8n-nodes-base.scheduleTrigger",
 +      "typeVersion": 1,
 +      "position": [
 +        250,
 +        300
-+      ],
-+      "webhookId": "weekly-cron"
++      ]
 +    },
 +    {
 +      "parameters": {
@@ -91,12 +90,12 @@
 +              "value": "claude-builders-bounty"
 +            },
 +            {
-+              "name": "discordWebhook",
-+              "value": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
-+            },
-+            {
 +              "name": "language",
 +              "value": "EN"
++            },
++            {
++              "name": "webhookUrl",
++              "value": "https://discord.com/api/webhooks/YOUR_WEBHOOK"
 +            }
 +          ]
 +        }
@@ -104,7 +103,7 @@
 +      "id": "set-config",
 +      "name": "Set Config",
 +      "type": "n8n-nodes-base.set",
-+      "typeVersion": 1,
++      "typeVersion": 2,
 +      "position": [
 +        450,
 +        300
@@ -112,12 +111,12 @@
 +    },
 +    {
 +      "parameters": {
-+        "jsCode": "const now = new Date();\nconst sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\nconst since = sevenDaysAgo.toISOString();\n\nreturn [{\n  json: {\n    since: since,\n    sinceDate: since.split('T')[0]\n  }\n}];"
++        "jsCode": "// Calculate date range for the past 7 days\nconst now = new Date();\nconst sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\n\nconst toISO = (d) => d.toISOString();\n\nreturn {\n  json: {\n    since: toISO(sevenDaysAgo),\n    until: toISO(now),\n    sinceDateOnly: sevenDaysAgo.toISOString().split('T')[0]\n  }\n};"
 +      },
-+      "id": "calculate-dates",
-+      "name": "Calculate Dates",
++      "id": "calc-dates",
++      "name": "Calc Date Range",
 +      "type": "n8n-nodes-base.code",
-+      "typeVersion": 1,
++      "typeVersion": 2,
 +      "position": [
 +        650,
 +        300
@@ -125,6 +124,7 @@
 +    },
 +    {
 +      "parameters": {
++        "method": "GET",
 +        "url": "=https://api.github.com/repos/{{ $json.repoOwner }}/{{ $json.repoName }}/commits",
 +        "sendQuery": true,
 +        "queryParameters": {
@@ -134,53 +134,35 @@
 +              "value": "={{ $json.since }}"
 +            },
 +            {
++              "name": "until",
++              "value": "={{ $json.until }}"
++            },
++            {
 +              "name": "per_page",
 +              "value": "100"
 +            }
 +          ]
 +        },
 +        "authentication": "genericCredentialType",
-+        "genericAuthType": "httpHeaderAuth"
++        "genericAuthType": "httpHeaderAuth",
++        "sendHeaders": true,
++        "headerParameters": {
++          "parameters": [
++            {
++              "name": "Authorization",
++              "value": "=token {{ $credentials.githubApi.apiKey }}"
++            },
++            {
++              "name": "Accept",
++              "value": "application/vnd.github.v3+json"
++            },
++            {
++              "name": "User-Agent",
++              "value": "n8n-weekly-summary"
++            }
++          ]
++        }
 +      },
 +      "id": "github-commits",
 +      "name": "GitHub Commits",
-+      "type": "n8n-nodes-base.httpRequest",
-+      "typeVersion": 4.1,
-+      "position": [
-+        850,
-+        100
-+      ],
-+      "credentials": {
-+        "httpHeaderAuth": {
-+          "id": "github-api",
-+          "name": "GitHub API"
-+        }
-+      }
-+    },
-+    {
-+      "parameters": {
-+        "url": "=https://api.github.com/repos/{{ $json.repoOwner }}/{{ $json.repoName }}/issues",
-+        "sendQuery": true,
-+        "queryParameters": {
-+          "parameters": [
-+            {
-+              "name": "state",
-+              "value": "closed"
-+            },
-+            {
-+              "name": "since",
-+              "value": "={{ $json.since }}"
-+            },
-+            {
-+              "name": "per_page",
-+              "value": "100"
-+            }
-+          ]
-+        },
-+        "authentication": "genericCredentialType",
-+        "genericAuthType": "httpHeaderAuth"
-+      },
-+      "id": "github-issues",
-+      "name": "GitHub Closed Issues",
-+      "type": "n8n-nodes-base.httpRequest",
-+      "typeVersion": 4.1
++      "type": "n8n-n
