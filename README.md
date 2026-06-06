@@ -48,14 +48,20 @@ You're in the right place.
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
+
 ---
 
-# Destructive Command Blocker Hook
+## Hooks
 
-A Claude Code pre-tool-use hook that blocks dangerous bash commands for safety.
+### [pre-tool-use](hooks/pre-tool-use) — Block Destructive Bash Commands
 
-## Installation
+A security hook that intercepts dangerous bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.)
+before they execute in Claude Code. See [hooks/README.md](hooks/README.md) for installation.
 
-1. Copy the hook script to your Claude hooks directory:
+**Bounty:** $100 | **Status:** ✅ Complete
 
-*Started by the Claude builder community · March 2026 · MIT License*
+---
+
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
