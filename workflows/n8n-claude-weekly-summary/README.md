@@ -4,30 +4,29 @@ Automatically generates a weekly narrative summary of a GitHub repo's activity u
 
 ## Setup (5 steps)
 
-1. **Import the workflow**: In n8n, go to *Workflows* → *Import from File* → select `workflow.json`
-2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in n8n *Settings* → *Credentials*
-3. **Configure variables**: Open the workflow and edit the *Set Variables* node with your repo, destination, and language
-4. **Activate the schedule**: Toggle the workflow *Active* — it runs Fridays at 5pm automatically
-5. **Test manually**: Click *Execute Workflow* to verify, then check your email/Discord for the summary
-
-## Required Credentials
-
-- **GitHub Personal Access Token** (classic or fine-grained with `repo` scope)
-- **Anthropic API Key** (from [console.anthropic.com](https://console.anthropic.com))
-
-## Configurable Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `githubRepo` | Full GitHub repo path | `claude-builders-bounty/claude-builders-bounty` |
-| `destinationChannel` | Email or webhook URL | `https://hooks.discord.com/...` |
-| `language` | Summary language | `EN` or `FR` |
-| `summaryStyle` | Narrative style | `executive`, `detailed`, or `bullet` |
+1. **Import workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
+2. **Set credentials**: Add your GitHub Personal Access Token, Claude API key, and email/SMTP or webhook credentials in n8n *Settings* → *Credentials*
+3. **Configure variables**: Open the workflow and edit the *Set Variables* node — set `repoOwner`, `repoName`, `destinationChannel`, and `language`
+4. **Activate**: Toggle the workflow to *Active* in the top-right corner
+5. **Test run**: Click *Execute Workflow* to verify, or wait for the next Friday at 5 PM
 
 ## Delivery Options
 
-- **Email**: Set `destinationChannel` to an email address; configure SMTP credentials in n8n
-- **Discord/Slack**: Set `destinationChannel` to a webhook URL; the workflow auto-detects the format
+The workflow supports two delivery methods (configured via `deliveryMethod` variable):
+
+- **email**: Sends via SMTP (configure SMTP credentials in n8n)
+- **webhook**: Posts to a Discord or Slack webhook URL
+
+Set `deliveryMethod` to `email` or `webhook` in the *Set Variables* node.
+
+## Required Credentials
+
+| Service | Credential Type | How to Obtain |
+|---------|----------------|-------------|
+| GitHub | `githubApi` | [GitHub Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens) |
+| Claude | `claudeApi` | [Anthropic Console → API keys](https://console.anthropic.com/settings/keys) |
+| SMTP (for email) | `smtp` | Your email provider's SMTP settings |
+| Webhook | None needed | Paste URL directly in variables |
 
 ## Workflow Overview
 
