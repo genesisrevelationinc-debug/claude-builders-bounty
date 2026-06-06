@@ -6,6 +6,11 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
+## Quick Start
+
+Generate a changelog from your git history:
+
+
 ---
 
 ## How it works
@@ -50,13 +55,4 @@ You're in the right place.
 
 ---
 
-# CHANGELOG Generator
-
-This script generates a structured `CHANGELOG.md` from your git history.
-
-## Setup
-
-1. Make sure you have `git` installed
-2. Make the script executable: `chmod +x changelog.sh`
-3. Run the script: `bash changelog.sh`
 *Started by the Claude builder community · March 2026 · MIT License*
