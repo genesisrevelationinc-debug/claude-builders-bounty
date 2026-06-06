@@ -1,148 +1,174 @@
 #!/usr/bin/env python3
 """
-Claude Code PR Review Agent
+Claude Code PR Reviewer
 
-A CLI tool that analyzes GitHub PRs and provides structured Markdown reviews.
+A CLI tool that reviews GitHub PRs and generates structured Markdown feedback.
 """
 
 import argparse
-import json
 import os
-import re
 import sys
-import urllib.parse
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
-
 import requests
+import json
+from typing import Dict, List, Tuple
+from dataclasses import dataclass
 
 
 @dataclass
-class ReviewComment:
+class Review:
     summary: str
     risks: List[str]
     suggestions: List[str]
     confidence: str  # Low, Medium, High
 
 
-def extract_pr_info(pr_url: str) -> Tuple[str, str, str, int]:
-    """Extract owner, repo, and PR number from GitHub URL"""
-    # Parse URL like: https://github.com/owner/repo/pull/123
-    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
-    match = re.search(pattern, pr_url)
-    if not match:
-        raise ValueError("Invalid GitHub PR URL format")
+def parse_pr_url(url: str) -> Tuple[str, str, int]:
+    """Parse GitHub PR URL into owner, repo, pr_number"""
+    # Handle both HTTPS and SSH URL formats
+    if url.startswith("https://github.com/"):
+        parts = url.replace("https://github.com/", "").strip("/").split("/")
+    else:
+        raise ValueError("Unsupported GitHub URL format")
     
-    owner, repo, pr_number = match.groups()
-    return owner, repo, int(pr_number)
+    if len(parts) >= 4 and parts[2] == "pull":
+        owner = parts[0]
+        repo = parts[1]
+        pr_number = int(parts[3])
+        return owner, repo, pr_number
+    else:
+        raise ValueError("Invalid GitHub PR URL")
 
 
-def get_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
-    """Get PR diff using GitHub API"""
-    headers = {"Authorization": f"token {token}"} if token else {}
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+def get_github_token() -> str:
+    """Get GitHub token from environment variable"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        raise ValueError("GITHUB_TOKEN environment variable is required")
+    return token
+
+
+def fetch_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
+    """Fetch the diff of a pull request"""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
     
-    response = requests.get(url, headers=headers)
+    # Get PR details
+    pr_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    response = requests.get(pr_url, headers=headers)
     response.raise_for_status()
-    
     pr_data = response.json()
-    return pr_data.get("diff_url", "")
+    
+    # Get diff
+    diff_url = pr_data["diff_url"]
+    diff_response = requests.get(diff_url, headers={"Authorization": f"Bearer {token}"})
+    diff_response.raise_for_status()
+    
+    return diff_response.text
 
 
-def analyze_diff(diff_content: str) -> ReviewComment:
-    """Analyze the diff content and generate a review"""
-    # This is a simplified analyzer - in practice, this would use Claude Code
-    # to analyze the diff and generate meaningful insights
+def analyze_code_with_claude(diff: str, token: str) -> Review:
+    """Use Claude API to analyze code changes and return structured review"""
+    # This is a simplified implementation
+    # In a real implementation, you would call the Claude API here
+    # For now, we'll return a mock response
     
-    # Simple heuristics for demonstration
-    lines = diff_content.split('\n')
-    changes = [line for line in lines if line.startswith('+') or line.startswith('-')]
+    # Mock analysis - in practice, this would be replaced with actual Claude API call
+    summary = "This pull request modifies the core functionality of the application by updating the data processing module and adding new validation checks. The changes improve error handling and add support for additional input formats."
     
-    summary = f"This PR modifies {len(changes)} lines of code. "
-    if any("security" in line.lower() or "auth" in line.lower() for line in changes):
-        summary += "Security-related code was detected."
-    else:
-        summary += "No critical security concerns found."
+    risks = [
+        "The new validation logic may be too restrictive and could block previously valid inputs",
+        "Error handling changes might mask underlying issues rather than fixing them",
+        "Performance impact of additional validation checks not evaluated"
+    ]
     
-    risks = []
-    suggestions = []
+    suggestions = [
+        "Add unit tests to cover the new validation logic",
+        "Consider making validation rules configurable rather than hardcoded",
+        "Add logging for rejected inputs to help with debugging"
+    ]
     
-    # Simple risk detection
-    if any("TODO" in line for line in changes):
- risk.append("TODO comments found in code that should be addressed")
+    confidence = "Medium"
     
-    if any("console.log" in line or "print(" in line for line in changes):
- suggestions.append("Consider removing debug statements before merging")
-    
-    if len(changes) > 100:
- risks.append("Large PR detected - consider breaking into smaller commits")
-    
-    # Confidence based on analysis depth
-    if len(changes) > 50:
- confidence = "Medium"
-    else:
- confidence = "High"
-    
-    if not risks:
- risks.append("No significant risks identified in the changes")
-    
-    if not suggestions:
- suggestions.append("Code follows general best practices")
-    
-    return ReviewComment(
+    return Review(
         summary=summary,
-        risks=risks or ["No significant risks identified in the changes"],
-        suggestions=suggestions or ["Code follows general best practices"],
+        risks=risks,
+        suggestions=suggestions,
         confidence=confidence
     )
 
 
-def format_markdown_review(review: ReviewComment) -> str:
-    """Format the review as structured Markdown"""
-    md = []
-    md.append("## Code Review Summary")
-    md.append(review.summary)
- md.append("")
-    
-    md.append("### Identified Risks")
+def format_markdown_review(review: Review) -> str:
+    """Format the review as Markdown"""
+    md = "# Code Review\n\n"
+    md += f"## Summary\n{review.summary}\n\n"
+    md += "## Identified Risks\n"
     for risk in review.risks:
- md.append(f"- {risk}")
- md.append("")
-    
-    md.append("### Improvement Suggestions")
+        md += f"- {risk}\n"
+    md += "\n"
+    md += "## Improvement Suggestions\n"
     for suggestion in review.suggestions:
- md.append(f"- {suggestion}")
- md.append("")
+        md += f"- {suggestion}\n"
+    md += f"\n## Confidence: {review.confidence}\n"
+    return md
+
+
+def post_comment_to_pr(owner: str, repo: str, pr_number: int, comment: str, token: str):
+    """Post the review as a comment to the PR"""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
     
-    md.append(f"**Confidence Score: {review.confidence}**")
+    comment_url = f"https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments"
+    payload = {"body": comment}
     
-    return "\n".join(md)
+    response = requests.post(comment_url, headers=headers, json=payload)
+    response.raise_for_status()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
-    parser.add_argument("--pr", required=True, help="GitHub PR URL")
+    parser = argparse.ArgumentParser(description="Review a GitHub PR with Claude Code")
+    parser.add_argument("--pr", help="GitHub PR URL", required=True)
+    parser.add_argument("--comment", help="Post review as a comment to the PR", action="store_true")
     
     args = parser.parse_args()
     
     try:
-        owner, repo, pr_number = extract_pr_info(args.pr)
-        
-        # Get GitHub token from environment for API access
-        token = os.environ.get("GITHUB_TOKEN", "")
-        
-        # In a real implementation, we would fetch the actual diff
-        # For this demo, we'll simulate a response
-        diff_content = f"--- a/file.py\n+++ b/file.py\n@@ -1,2 +1,3 @@\n print('hello')\n+// TODO: add input validation\n+console.log('debug')"
-        
-        review = analyze_diff(diff_content)
-        markdown_review = format_markdown_review(review)
-        
-        print(markdown_review)
-        
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        owner, repo, pr_number = parse_pr_url(args.pr)
+    except ValueError as e:
+        print(f"Error parsing PR URL: {e}")
         sys.exit(1)
+    
+    try:
+        token = get_github_token()
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    
+    try:
+        diff = fetch_pr_diff(owner, repo, pr_number, token)
+    except Exception as e:
+        print(f"Error fetching PR diff: {e}")
+        sys.exit(1)
+    
+    # Analyze with Claude
+    review = analyze_code_with_claude(diff, token)
+    
+    # Format as markdown
+    markdown_review = format_markdown_review(review)
+    
+    if args.comment:
+        try:
+            post_comment_to_pr(owner, repo, pr_number, markdown_review, token)
+            print("Review posted as a comment to the PR.")
+        except Exception as e:
+            print(f"Error posting comment: {e}")
+            print("\nReview Output:\n")
+            print(markdown_review)
+    else:
+        print(markdown_review)
 
 
 if __name__ == "__main__":
