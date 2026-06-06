@@ -50,4 +50,9 @@ You're in the right place.
 
 ---
 
+# Claude Destructive Command Blocker
+
+## Installation
+
+
 *Started by the Claude builder community · March 2026 · MIT License*
