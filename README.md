@@ -34,12 +34,18 @@ You're in the right place.
 
 ---
 
+
+---
+
+## Hooks
+
+- **[pre-tool-use](hooks/pre-tool-use)** — Blocks destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute. See [hooks/README.md](hooks/README.md) for details.
+
+---
+
 ## Rules
 
 - Tasks must be related to Claude Code or AI tooling
-- Every issue must have clear acceptance criteria before a bounty is activated
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
-- Quality over speed — a solid PR beats a fast one
 
 ---
 
@@ -49,11 +55,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# Destructive Command Blocker Hook
-
-## Installation
-
-1. Create the hooks directory and copy the hook:
 
 *Started by the Claude builder community · March 2026 · MIT License*
