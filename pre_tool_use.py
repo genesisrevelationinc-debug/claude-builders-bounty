@@ -1,83 +1,88 @@
 #!/usr/bin/env python3
 """
-Claude Code pre-tool-use hook to block destructive bash commands.
+Pre-tool-use hook for Claude Code that blocks destructive bash commands.
 """
 
-import sys
 import json
+import sys
 import os
+import re
 from datetime import datetime
+import logging
 
-# Dangerous patterns to block
-DANGEROUS_PATTERNS = [
-    'rm -rf',
-    'DROP TABLE',
-    'git push --force',
-    'TRUNCATE',
-    'DELETE FROM'
-]
+# Set up logging
+log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
+os.makedirs(os.path.dirname(log_file), exist_ok=True)
+logging.basicConfig(
+    filename=log_file,
+    level=logging.INFO,
+    format='%(asctime)s - %(message)s'
+)
 
-def log_blocked_command(command, project_path):
-    """Log blocked command to file"""
-    log_path = os.path.expanduser('~/.claude/hooks/blocked.log')
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+def block_destructive_commands(command):
+    """Check if command is destructive and should be blocked"""
+    destructive_patterns = [
+        r"rm\s+-rf",
+        r"DROP\s+TABLE",
+        r"git\s+push\s+--force",
+        r"TRUNCATE",
+        r"DELETE\s+FROM(?!\s+.*\s+WHERE\b)"
+    ]
     
-    # Create log entry
-    log_entry = f"{timestamp} | {command} | {project_path}\n"
-    
-    # Write to log file
-    with open(log_path, 'a') as f:
-        f.write(log_entry)
+    for pattern in destructive_patterns:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True
+    return False
 
-def is_destructive_command(command_str):
-    """Check if command contains dangerous patterns"""
-    if 'rm -rf' in command_str:
-        return True
-    if 'DROP TABLE' in command_str:
-        return True
-    if 'git push --force' in command_str:
-        return True
-    if 'TRUNCATE' in command_str:
-        return True
-    if 'DELETE FROM' in command_str and 'WHERE' not in command_str:
-        return True
+def is_delete_without_where(command):
+    """Check if DELETE command lacks WHERE clause"""
+    if "DELETE FROM" in command.upper():
+        # Simple check: if there's no WHERE clause, block it
+        if not re.search(r"\bWHERE\b", command, re.IGNORECASE):
+            return True
     return False
 
 def main():
+    # Read input from Claude
+    input_data = sys.stdin.read()
+    if not input_data:
+        # No input, allow the command
+        sys.exit(0)
+    
     try:
-        # Read the tool use request from stdin
-        request = json.load(sys.stdin)
+        data = json.loads(input_data)
+    except json.JSONDecodeError:
+        # Invalid JSON, allow the command
+        sys.exit(0)
+    
+    # Extract command
+    command = data.get("command", "")
+    
+    # Check if command should be blocked
+    if block_destructive_commands(command) or is_delete_without_where(command):
+        project_path = data.get("project_path", os.getcwd())
+        logging.info(f"Blocked command: {command} | Project: {project_path}")
         
-        # Extract command and arguments
-        tool_name = request.get('tool_name', '')
-        tool_args = request.get('tool_args', {})
-        command = tool_args.get('command', '') if isinstance(tool_args, dict) else ''
-        
-        # Only check bash commands
-        if tool_name != 'bash':
-            # Not a bash command, allow it
-            print(json.dumps(request))
-            return 0
-            
-        # Check if this is a destructive command
-        if is_destructive_command(command):
-            # Log the blocked command
-            project_path = os.getcwd()
-            log_blocked_command(command, project_path)
-            
-            # Block the command and explain why
-            print("Command blocked: " + command, file=sys.stderr)
-            print("Reason: This command contains potentially destructive patterns", file=sys.stderr)
-            print("Blocked patterns: rm -rf, DROP TABLE, git push --force, TRUNCATE, DELETE FROM (without WHERE)", file=sys.stderr)
-            return 1
-        
-        # Allow non-destructive commands
-        print(json.dumps(request))
-        return 0
-        
-    except Exception as e:
-        print(f"Error in hook: {e}", file=sys.stderr)
-        return 1
+        # Print message to Claude
+        print("I cannot execute this command because it has been blocked for being potentially destructive.")
+        print("Blocked command:", command)
+        print("Blocked at:", datetime.now().isoformat())
+        print("Project path:", project_path)
+        sys.exit(1)  # Non-zero exit will prevent command execution
+    
+    # Allow non-destructive commands
+    sys.exit(0)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Check if we're running as a hook
+    if len(sys.argv) > 1 and sys.argv[1] == "pre-tool-use":
+        main()
+    else:
+        # For direct execution/testing
+        if not sys.stdin.isatty():
+            # Simulate being called as a hook
+            main()
+        else:
+            print("This script is intended to be used as a Claude Code pre-tool-use hook")
+            print("It should be placed in ~/.claude/hooks/ and configured in Claude Code settings")
+            sys.exit(0)
