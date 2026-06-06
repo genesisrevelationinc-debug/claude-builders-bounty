@@ -1,58 +1,84 @@
 #!/usr/bin/env python3
 """
-Claude Code pre-tool-use hook that blocks destructive bash commands.
+Claude Code pre-tool-use hook to block destructive bash commands.
 """
 
 import sys
 import os
 import re
 from datetime import datetime
-import subprocess
+import json
+import shutil
 
-# Destructive patterns to block
-DESTRUCTIVE_PATTERNS = [
-    r'rm\s+-rf',
-    r'DROP\s+TABLE',
-    r'git\s+push\s+--force',
-    r'TRUNCATE',
-    r'DELETE\s+FROM\s+\w+\s*;?$'  # DELETE FROM without WHERE clause
-]
+def log_blocked_command(command, project_path):
+    """Log blocked command attempts to file"""
+    log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Ensure log directory exists
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    
+    log_entry = {
+        "timestamp": timestamp,
+        "command": command,
+        "project_path": project_path
+    }
+    
+    with open(log_file, "a") as f:
+        f.write(f"[{timestamp}] Blocked command: {command} (Project: {project_path})\n")
 
-def block_destructive_commands(command_line, tool_name, tool_args):
-    # Only check bash commands
-    if tool_name != 'bash':
-        return None, None
+def is_destructive_command(command):
+    """Check if command matches destructive patterns"""
+    destructive_patterns = [
+        r'rm\s+-rf',  # rm -rf commands
+        r'DROP\s+TABLE',  # SQL DROP TABLE
+        r'git\s+push\s+--force',  # git push --force
+        r'TRUNCATE\s+',  # SQL TRUNCATE
+        r'DELETE\s+FROM\s+\w+\s*$',  # DELETE FROM without WHERE clause
+        r'DELETE\s+FROM\s+\w+\s*;',  # DELETE FROM without WHERE clause
+    ]
     
-    # Check if command matches any destructive patterns
-    full_command = ' '.join(tool_args)
-    for pattern in DSTRUCTIVE_PATTERNS:
-        if re.search(pattern, full_command, re.IGNORECASE):
-            # Log the blocked attempt
-            log_entry = f"[{datetime.now().isoformat()}] Blocked: {full_command} | Project: {os.getcwd()}\n"
-            os.makedirs(os.path.expanduser('~/.claude/hooks'), exist_ok=True)
-            with open(os.path.expanduser('~/.claude/hooks/blocked.log'), 'a') as f:
-                f.write(log_entry)
-            
-            block_message = f"🚫 Blocked destructive command: {full_command}\n"
-            block_message += "The following destructive commands are blocked for your safety:\n"
-            block_message += "- rm -rf\n- DROP TABLE\n- git push --force\n- TRUNCATE\n- DELETE FROM without WHERE clause\n"
-            return False, block_message
-    
-    # If we get here, no destructive patterns matched
-    return None, None
+    # Check if any pattern matches
+    for pattern in destructive_patterns:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True
+    return False
 
 def main():
-    if len(sys.argv) < 3:
-        return
-    
-    tool_name = sys.argv[1]
-    tool_args = sys.argv[2:]
-    command_line = ' '.join(sys.argv[2:]) if len(sys.argv) > 2 else ""
-    
-    block_result, message = block_destructive_commands(command_line, tool_name, tool_args)
-    if message:
-        print(message)
-    if block_result is False:
+    # Read command from stdin
+    input_data = sys.stdin.read()
+    if not input_data:
+        sys.exit(1)
+        
+    try:
+        # Parse the JSON input
+        data = json.loads(input_data)
+        command = data.get('tool_input', {}).get('command', '') if data.get('tool_input') else ''
+        project_path = os.getcwd()
+        
+        if is_destructive_command(command):
+            log_blocked_command(command, project_path)
+            
+            # Print explanation for Claude
+            print("Error: Destructive command blocked for security.")
+            if 'rm -rf' in command:
+                sys.exit(1)
+            elif 'DROP TABLE' in command:
+                sys.exit(1)
+            elif 'git push --force' in command:
+                sys.exit(1)
+            elif 'TRUNCATE' in command:
+                sys.exit(1)
+            elif 'DELETE FROM' in command and 'WHERE' not in command:
+                sys.exit(1)
+            else:
+                sys.exit(1)
+        else:
+            # Not a destructive command, allow execution
+            sys.exit(0)
+    except json.JSONDecodeError:
+        # If we can't parse JSON, err on the side of caution and block
+        print("Error: Could not parse command input")
         sys.exit(1)
 
 if __name__ == "__main__":
