@@ -1,100 +1,57 @@
-Looking at the issue, I need to create an n8n workflow for generating weekly development summaries using the Claude API. Since there are no existing workflow files, I'll create the necessary structure.
-
-First, let me create a workflows directory and the actual workflow file:
-
 ```diff
 --- /dev/null
-+++ b/workflows/weekly-dev-summary.json
-@@ -0,0 +1,1024 @@
++++ b/n8n-github-summary.json
+@@ -0,0 +1,1304 @@
 +{
-+  "name": "Weekly Dev Summary Generator",
++  "name": "Weekly GitHub Summary",
 +  "nodes": [
 +    {
 +      "parameters": {},
-+      "id": "1",
++      "id": "0a0d7b56-878d-426d-9e71-9de4a828fd60",
 +      "name": "Start",
++      "type": "n8n-nodes-base.manualTrigger",
++      "typeVersion": 1,
++      "position": [
++        240,
++        340
++      ]
++    },
++    {
++      "parameters": {
++        "rule": {
++          "interval": [
++            {
++              "field": "weeks",
++              "weeks": [
++                "5pm on Friday"
++              ]
++            }
++          ]
++        }
++      },
++      "id": "8e5f36a8-7b1e-4b5e-9d5a-8e5f36a87b1e",
++      "name": "Cron",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
-+        250,
-+        300
++        240,
++        340
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "search",
-+        "operation": "issuesAndPullRequests",
-+        "query": "repo:={{ $json[\"github_repo\"] }} is:issue state:closed closed:>={{ $json[\"start_date\"] }} closed:<={{ $json[\"end_date\"] }}",
-+        "options": {}
-+      },
-+      "id": "2",
-+      "name": "GitHub Issues Search",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        550,
-+        250
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "search",
-+        "operation": "commits",
-+        "query": "repo:={{ $json[\"github_repo\"] }} committer-date:{{ $json[\"start_date\"] }}..{{ $json[\"end_date\"] }}",
-+        "options": {}
-+      },
-+      "id": "3",
-+      "name": "GitHub Commits Search",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        550,
-+        400
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "search",
-+        "operation": "issuesAndPullRequests",
-+        "query": "repo:={{ $json[\"github_repo\"] }} is:pr state:closed merged:>={{ $json[\"start_date\"] }} merged:<={{ $json[\"end_date\"] }}",
-+        "options": {}
-+      },
-+      "id": "4",
-+      "name": "GitHub PRs Search",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        550,
-+        550
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "model": "claude-3-5-sonnet-20240620",
++        "method": "GET",
++        "url": "https://api.github.com/repos/{{ $json.github_repo }}/commits",
 +        "options": {
-+          "systemPrompt": "You are a technical writer creating a weekly development summary. Be concise and focus on the most important changes.",
-+          "maxTokens": 2048,
-+          "temperature": 0.7
-+        },
-+        "prompt": "Create a weekly development summary in {{ $json[\"language\"] }} for the {{ $json[\"github_repo\"] }} repository.\n\nDate Range: {{ $json[\"start_date\"] }} to {{ $json[\"end_date\"] }}\n\nRecent commits:\n{% for commit in $json[\"commits\"] %}\n- {{ commit.commit.message }} (by {{ commit.commit.author.name }})\n{% endfor %}\n\nClosed issues:\n{% for issue in $json[\"issues\"] %}\n- #{{ issue.number }}: {{ issue.title }}\n{% endfor %}\n\nMerged pull requests:\n{% for pr in $json[\"pull_requests\"] %}\n- #{{ pr.number }}: {{ pr.title }}\n{% endfor %}\n\nPlease create a narrative summary that highlights the key developments, major features, and important fixes from this week's activity. Organize the information in a clear, professional format."
++          "qs": {
++            "since": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}",
++          }
++        }
 +      },
-+      "id": "5",
-+      "name": "Claude API",
-+      "type": "n8n-nodes-base.anthropic",
-+      "typeVersion": 1.1,
-+      "position": [
-+        1000,
-+        400
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "functionCode": "const now = new Date();\nconst end_date = now.toISOString().split('T')[0];\n\n// Calculate start date (7 days ago)\nconst startDate = new Date(now);\nstartDate.setDate(now.getDate() - 7);\nconst start_date = startDate.toISOString().split('T')[0];\n\n// Get repository from environment variables\nconst github_repo = $env.GITHUB_REPO || 'claude-builders-bounty/claude-builders-bounty';\n\n// Get language from environment variables (default to EN)\nconst language = $env.LANGUAGE || 'EN';\n\n// Get delivery method\nconst delivery_method = $env.DELIVERY_METHOD || 'email';\n\nreturn [{ \n  json: { \n    start_date,\n    end_date,\n    github_repo,\n    language,\n    delivery_method\n  } \n}];"
-+      },
-+      "id": "6",
-+      "name": "Set Date Range",
-+      "type": "n8n-nodes-base.function",
-+      "typeVersion": 2,
++      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
++      "name": "Get Commits",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 1,
 +      "position": [
 +        400,
 +        300
@@ -102,20 +59,101 @@ First, let me create a workflows directory and the actual workflow file:
 +    },
 +    {
 +      "parameters": {
-+        "functionCode": "// Process commits data\nconst commits = [];\n\nif (items.length > 0) {\n  items[0].json.commits = $input.all();\n  return [items[0]];\n}\n\nreturn items;"
++        "method": "GET",
++        "url": "https://api.github.com/repos/{{ $json.github_repo }}/issues",
++        "options": {
++          "qs": {
++            "state": "closed",
++            "since": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}"
++          }
++        }
 +      },
-+      "id": "7",
-+      "name": "Process Commits",
-+      "type": "n8n-nodes-base.function",
-+      "typeVersion": 2,
++      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567891",
++      "name": "Get Closed Issues",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 1,
 +      "position": [
-+        700,
++        400,
 +        400
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "functionCode": "// Process issues data\nconst issues = [];\n\nif (items.length > 0) {\n  items[0].json.issues = $input.all();\n  return [items[0]];\n}\n\nreturn items;"
++        "method": "GET",
++        "url": "https://api.github.com/repos/{{ $json.github_repo }}/pulls",
++        "options": {
++          "qs": {
++            "state": "closed",
++            "sort": "updated",
++            "direction": "desc"
++          }
++        }
 +      },
-+      "id": "8",
-+      "
++      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567892",
++      "name": "Get Merged PRs",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 1,
++      "position": [
++        400,
++        500
++      ]
++    },
++    {
++      "parameters": {
++        "prompt": "Generate a narrative summary of the following GitHub activity for the past week:\n\nCommits:\n{{ $json.commits }}\n\nClosed Issues:\n{{ $json.closed_issues }}\n\nMerged PRs:\n{{ $json.merged_prs }}\n\nPlease provide a concise, narrative summary in {{ $json.language }}.",
++        "model": "claude-sonnet-4-20250514",
++        "max_tokens": 1000,
++        "temperature": 0.7
++      },
++      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567893",
++      "name": "Claude API",
++      "type": "claude-ai.Claude",
++      "typeVersion": 1,
++      "position": [
++        600,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "subject": "Weekly GitHub Summary",
++        "to": "{{ $json.email }}",
++        "text": "={{ $json.claude_response }}",
++        "html": "={{ $json.claude_response }}"
++      },
++      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567894",
++      "name": "Send Email",
++      "type": "n8n-nodes-base.emailSend",
++      "typeVersion": 1,
++      "position": [
++        600,
++        400
++      ]
++    },
++    {
++      "parameters": {
++        "keepOnlySet": true,
++        "values": {
++          "string": [
++            {
++              "name": "github_repo",
++              "value": "={{ $parameter.github_repo }}",
++              "type": "string"
++            },
++            {
++              "name": "language",
++              "value": "={{ $parameter.language }}",
++              "type": "string"
++            },
++            {
++              "name": "email",
++              "value": "={{ $parameter.email }}",
++              "type": "string"
++            }
++          ]
++        }
++      },
++      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567895",
++      "name": "Set Variables",
++      "type": "n8n-nodes-base.set",
++      "typeVersion
