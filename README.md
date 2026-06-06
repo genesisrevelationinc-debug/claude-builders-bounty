@@ -50,9 +50,18 @@ You're in the right place.
 
 ---
 
-# Block Destructive Commands Hook
-
-## Installation
-
-
 *Started by the Claude builder community · March 2026 · MIT License*
+
+---
+
+## Hooks
+
+This repository includes a community-contributed **pre-tool-use hook** that blocks destructive bash commands in Claude Code.
+
+See [`hooks/README.md`](hooks/README.md) for details.
+
+---
+
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
