@@ -1,24 +1,24 @@
 # Changelog
 
-## [v1.0.0] - 2025-04-01
+All notable changes to this project will be documented in this file.
+
+## [Unreleased]
 
 ### Added
-- Initial project structure
-- Core functionality for changelog generation
-- README with setup instructions
+- New features and enhancements
 
 ### Fixed
-- Minor typos in documentation
+- Bug fixes and patches
 
 ### Changed
-- Updated dependencies
-- Improved performance of git history parsing
+- Changes to existing functionality
 
 ### Removed
-- Deprecated legacy scripts
+- Deprecated features that have been removed
 
-## [v0.1.0] - 2025-03-15
+## [1.0.0] - 2026-03-15
 
 ### Added
-- Project initialized
-- Basic git tag support
+- Initial release of the changelog generator
+- Support for automatic changelog generation from git history
+- Categorization of changes into Added, Fixed, Changed, and Removed sections
