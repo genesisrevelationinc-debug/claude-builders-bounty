@@ -1,13 +1,10 @@
+# Claude PR Review Agent
+
+## Setup
+
+1. Clone this repository:
+
 # Claude Builders Bounty 🤖
-
-## Claude Code PR Reviewer
-
-This agent analyzes PR diffs and generates structured Markdown review comments.
-
-### Setup
-
-1. Install the required dependencies:
-
 
 > A community bounty board for Claude Code builders.
 
