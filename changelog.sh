@@ -1,49 +1,42 @@
 #!/bin/bash
 
-# Exit on any error
+# changelog.sh - Generate a structured CHANGELOG.md from git history
+
 set -e
 
-# Get the directory of the script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+REPO_DIR=$(pwd)
+CHANGELOG_FILE="CHANGELOG.md"
 
-# Get the last tag
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+# Function to determine change type from commit message
+get_change_type() {
+  local message="$1"
+  case "$message" in
+    *fix*|*Fix*|*bug*|*Bug*) echo "Fixed" ;;
+    *remove*|*delete*|*Remove*|*Delete*) echo "Removed" ;;
+    *change*|*update*|*modify*|*Change*|*Update*|*Modify*) echo "Changed" ;;
+    *) echo "Added" ;;
+  esac
+}
 
-# If there are no tags, use the initial commit
-if [ "$LAST_TAG" = "v0.0.0" ]; then
-    LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+# Get the last tag or use initial commit
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+if [ -z "$LAST_TAG" ]; then
+  LAST_TAG=$(git rev-list --max-parents=0 HEAD)
 fi
 
-# Get commit messages since last tag
-COMMITS_SINCE_TAG=$(git log --oneline "$LAST_TAG"..HEAD)
+# Get commits since last tag
+COMMITS=$(git log "$LAST_TAG"..HEAD --no-merges --oneline)
 
-# If no commits since last tag, exit
-if [ -z "$COMMITS_SINCE_TAG" ]; then
-    echo "No commits since last tag ($LAST_TAG)"
-    exit 0
-fi
+# Generate changelog content
+{
+  echo "# Changelog"
+  echo ""
+  echo "## [Unreleased]"
+  echo "$COMMITS" | while read -r commit; do
+    message=$(echo "$commit" | sed 's/^[a-f0-9]* *//')
+    type=$(get_change_type "$message")
+    echo "  - $type: $message"
+  done
+} > $CHANGELOG_FILE
 
-# Create temporary file for changelog
-TEMP_FILE=$(mktemp)
-echo "## Changelog" > "$TEMP_FILE"
-echo "" >> "$TEMP_FILE"
-echo "### Added" >> "$TEMP_FILE"
-echo "" >> "$TEMP_FILE"
-echo "### Fixed" >> "$TEMP_FILE"
-echo "" >> "$TEMP_FILE"
-echo "### Changed" >> "$TEMP_FILE"
-echo "" >> "$TEMP_FILE"
-echo "### Removed" >> "$TEMP_FILE"
-echo "" >> "$TEMP_FILE"
-
-# Process commits and categorize them
-echo "$COMMITS_SINCE_TAG" | while read -r line; do
-    # Here we would normally categorize based on commit message
-    # For now, we'll just add all to "Changed" section as a placeholder
-    echo "* $line" >> "$TEMP_FILE"
-done
-
-# Move the temporary file to CHANGELOG.md
-mv "$TEMP_FILE" CHANGELOG.md
-echo "CHANGELOG.md has been generated."
+echo "Generated $CHANGELOG_FILE"
