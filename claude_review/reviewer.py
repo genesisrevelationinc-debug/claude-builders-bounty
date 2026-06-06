@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Claude Code PR Review Agent.
 
-Takes a PR diff as input, analyzes it with Claude, and returns a
-structured Markdown review comment.
+Takes a PR diff as input, analyzes it with Claude, and returns
+a structured Markdown review comment.
 """
 
 from __future__ import annotations
@@ -13,90 +13,70 @@ import os
 import re
 import subprocess
 import sys
-from dataclasses import dataclass
-from typing import Optional
+import tempfile
+import urllib.parse
+from pathlib import Path
 
-import requests
-
-
-@dataclass
-class ReviewResult:
-    """Structured PR review result."""
-
-    summary: str
-    risks: list[str]
-    suggestions: list[str]
-    confidence: str
+try:
+    import requests
+except ImportError:
+    requests = None  # type: ignore
 
 
-def get_pr_diff(pr_url: str, github_token: Optional[str] = None) -> str:
-    """Fetch the PR diff from GitHub."""
-    # Parse PR URL to get owner, repo, and PR number
-    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
-    if not match:
-        raise ValueError(f"Invalid PR URL: {pr_url}")
+def fetch_pr_diff(pr_url: str, github_token: str | None = None) -> str:
+    """Fetch the diff for a GitHub PR URL."""
+    # Convert PR URL to diff URL
+    # https://github.com/owner/repo/pull/123 -> https://github.com/owner/repo/pull/123.diff
+    diff_url = pr_url.rstrip("/") + ".diff"
 
-    owner, repo, pr_number = match.groups()
-
-    # Use GitHub API to get the diff
-    headers = {
+    headers: dict[str, str] = {
         "Accept": "application/vnd.github.v3.diff",
-        "User-Agent": "claude-review/0.1.0",
     }
-
     if github_token:
         headers["Authorization"] = f"token {github_token}"
 
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-
-    response = requests.get(api_url, headers=headers, timeout=30)
+    response = requests.get(diff_url, headers=headers, timeout=30)
     response.raise_for_status()
-
     return response.text
 
 
-def get_pr_info(pr_url: str, github_token: Optional[str] = None) -> dict:
-    """Fetch PR metadata from GitHub API."""
-    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
-    if not match:
-        raise ValueError(f"Invalid PR URL: {pr_url}")
-
-    owner, repo, pr_number = match.groups()
-
-    headers = {
-        "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "claude-review/0.1.0",
-    }
-
-    if github_token:
-        headers["Authorization"] = f"token {github_token}"
-
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-
-    response = requests.get(api_url, headers=headers, timeout=30)
-    response.raise_for_status()
-
-    return response.json()
-
-
-def call_claude_api(diff: str, pr_info: dict, api_key: Optional[str] = None) -> ReviewResult:
-    """Call Claude API to analyze the PR diff."""
+def call_claude_api(diff_text: str, api_key: str | None = None) -> str:
+    """Call the Anthropic Claude API to analyze the diff."""
     api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY not set")
+        raise ValueError(
+            "ANTHROPIC_API_KEY environment variable must be set. "
+            "Get one at https://console.anthropic.com/"
+        )
 
-    # Truncate diff if too long (Claude has context limits)
-    max_diff_chars = 100000
-    if len(diff) > max_diff_chars:
-        diff = diff[:max_diff_chars] + "\n\n[... diff truncated due to length ...]"
+    prompt = f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
 
-    pr_title = pr_info.get("title", "Unknown")
-    pr_body = pr_info.get("body", "") or ""
+Please respond in the following format (Markdown):
 
-    prompt = f"""You are an expert code reviewer. Analyze the following pull request and provide a structured review.
+## 🔍 PR Review
 
-PR Title: {pr_title}
-PR Description: {pr_body}
+### Summary
+[2-3 sentence summary of what the PR does]
 
-Here is the diff:
+### Identified Risks
+- [Risk 1]
+- [Risk 2]
+- ...
+
+### Improvement Suggestions
+- [Suggestion 1]
+- [Suggestion 2]
+- ...
+
+### Confidence Score
+**Confidence: [Low/Medium/High]**
+
+Rules:
+- Be concise but thorough
+- Focus on code quality, security, performance, and maintainability
+- If the diff is too large to review fully, note that limitation
+- If you see no significant issues, say so clearly
+- The confidence score reflects how certain you are about your assessment
+
+Here is the diff to review:
 
