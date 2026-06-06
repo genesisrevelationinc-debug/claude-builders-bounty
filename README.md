@@ -1,5 +1,5 @@
 # Claude Builders Bounty 🤖
-> A community bounty board for Claude Code builders.
+
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
@@ -30,12 +30,11 @@ You're in the right place.
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
+
+## Rules
 
 - Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
@@ -50,5 +49,19 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Claude Code PR Reviewer
+
+This agent analyzes GitHub PRs and generates structured code reviews using Claude Code.
+
+## Features
+
+- **CLI Tool**: Run code reviews from your terminal
+- **GitHub Action**: Automatically review PRs in your workflow
+- **Structured Markdown Output**: Clean, readable review comments
+- **Risk Analysis**: AI-powered code quality checks
+
+## Installation
+
 
 *Started by the Claude builder community · March 2026 · MIT License*
