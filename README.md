@@ -1,16 +1,4 @@
-# Claude PR Reviewer Agent
-
-An AI-powered code review agent that analyzes GitHub PRs and provides structured feedback.
-
-## Features
-
-- Analyzes PR diffs and provides structured feedback
-- Generates actionable insights for code quality improvements
-- CLI and GitHub Actions support
-
-## Installation
-
-
+# Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
 
@@ -61,5 +49,19 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Claude Code PR Review Agent
+
+This agent automatically reviews GitHub pull requests and provides structured feedback.
+
+## Features
+
+- Analyzes PR diffs for code quality
+- Generates structured Markdown reviews
+- Identifies risks and improvement suggestions
+- Works as CLI tool or GitHub Action
+
+## Installation
+
 
 *Started by the Claude builder community · March 2026 · MIT License*
