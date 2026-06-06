@@ -1,143 +1,117 @@
 #!/usr/bin/env python3
+"""
+Claude Code PR Review Agent
+
+Reviews GitHub PRs and generates structured feedback.
+"""
 
 import argparse
-import requests
-import sys
+import json
 import os
-import re
-from typing import Dict, List, Tuple
+import sys
+from typing import Dict, List, Optional
+import requests
+import openai
 
-
-def parse_pr_url(url: str) -> Tuple[str, str, int]:
-    """Parse GitHub PR URL to extract owner, repo, and PR number."""
-    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
-    match = re.search(pattern, url)
-    if not match:
-        raise ValueError("Invalid GitHub PR URL")
-    owner, repo, pr_number = match.groups()
-    return owner, repo, int(pr_number)
-
-
-def get_github_token() -> str:
-    """Get GitHub token from environment variable."""
-    token = os.environ.get("GITHUB_TOKEN")
-    if not token:
-        raise ValueError("GITHUB_TOKEN environment variable is required")
-    return token
-
-
-def fetch_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
-    """Fetch the diff of a GitHub PR."""
-    headers = {"Authorization": f"token {token}"}
+def get_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
+    """Fetch the diff of a pull request."""
     url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    headers = {"Authorization": f"token {token}"}
     response = requests.get(url, headers=headers)
     response.raise_for_status()
-    pr_data = response.json()
-    return pr_data["diff_url"]
-
-
-def fetch_diff_content(diff_url: str, token: str) -> str:
-    """Fetch the actual diff content."""
-    headers = {"Authorization": f"token {token}"}
-    response = requests.get(diff_url, headers=headers)
-    response.raise_for_status()
-    return response.text
-
+    return response.json()["diff_url"]
 
 def analyze_diff(diff_content: str) -> Dict:
-    """Analyze the diff and return structured feedback."""
-    # This is a simplified analyzer - in a real implementation,
-    # this would contain more sophisticated analysis logic
-    changes = []
-    risks = []
-    suggestions = []
+    """Analyze the diff content using Claude."""
+    prompt = f"""
+    You are a senior software engineer reviewing a pull request.
+    Analyze the following diff and provide a structured review:
+
+    DIFF:
+    {diff_content}
+
+    Please provide your review in the following JSON format:
+    {{
+        "summary": "2-3 sentence summary of the changes",
+        "risks": ["risk1", "risk2", ...],
+        "suggestions": ["suggestion1", "suggestion2", ...],
+        "confidence": "Low/Medium/High"
+    }}
+    """
+
+    client = openai.OpenAI(api_key=os.environ.get("CLAUDE_API_KEY"))
+    response = client.chat.completions.create(
+        model="claude-3-sonnet-20240229",
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_object"}
+    )
     
-    # Split the diff into files and hunks
-    files = diff_content.split("diff --git")
-    for file in files[1:]:  # Skip the first empty split
-        lines = file.strip().split('\n')
-        if not lines:
-            continue
-            
-        # Extract file name
-        file_header = lines[0]
-        file_name_match = re.search(r" b/(.+)", file_header)
-        file_name = file_name_match.group(1) if file_name_match else "unknown"
-        
-        # Look for added/removed lines
-        added_lines = [line for line in lines if line.startswith("+") and not line.startswith("+++") and len(line) > 1]
-        removed_lines = [line for line in lines if line.startswith("-") and not line.startswith("---") and len(line) > 1]
-        
-        if added_lines or removed_lines:
-            changes.append(f"Changes in {file_name}")
-            
-        # Simple heuristics for risks and suggestions
-        for line in added_lines:
-            if "password" in line.lower() or "secret" in line.lower():
-                risks.append("Potential exposure of sensitive information")
-            if "TODO" in line:
-                suggestions.append("Consider removing TODO comments in production code")
-                
-    # Generate a simple summary
-    summary = "This pull request contains changes to multiple files with additions and deletions."
-    if len(files) > 2:
-        summary = f"This pull request modifies {len(files)-1} files with various additions and deletions."
-    
-    # Determine confidence based on diff size
-    changes_count = diff_content.count("\n+")
-    if changes_count > 100:
-        confidence = "Low"
-    elif changes_count > 20:
-        confidence = "Medium"
+    return json.loads(response.choices[0].message.content)
+
+def format_markdown_review(review: Dict) -> str:
+    """Format the review as markdown."""
+    md = "# PR Review\n\n"
+    md += f"## Summary\n{review['summary']}\n\n"
+    md += "## Risks\n"
+    for risk in review['risks']:
+        md += f"- {risk}\n"
+    md += "\n## Suggestions\n"
+    for suggestion in review['suggestions']:
+        md += f"- {suggestion}\n"
+    md += f"\n## Confidence\n{review['confidence']}\n"
+    return md
+
+def parse_pr_url(url: str) -> tuple:
+    """Parse GitHub PR URL into components."""
+    # Handle different URL formats
+    if "github.com" in url:
+        parts = url.split("/")
+        owner = parts[3]
+        repo = parts[4]
+        pr_number = int(parts[6])
+        return owner, repo, pr_number
     else:
-        confidence = "High"
-
-    return {
-        "summary": summary,
-        "risks": risks if risks else ["No significant risks identified"],
-        "suggestions": suggestions if suggestions else ["No specific suggestions identified"],
-        "confidence": confidence
-    }
-
-
-def generate_markdown_report(analysis: Dict) -> str:
-    """Generate a structured Markdown report from the analysis."""
-    report = [
-        "## Code Review",
-        "",
-        f"### Summary",
-        f"{analysis['summary']}",
-        "",
-        "### Identified Risks",
-        *[f"- {risk}" for risk in analysis['risks']],
-        "",
-        "### Improvement Suggestions",
-        *[f"- {suggestion}" for suggestion in analysis['suggestions']],
-        "",
-        f"### Confidence Score: {analysis['confidence']}",
-        ""
-    ]
-    return "\n".join(report)
-
+        raise ValueError("Unsupported URL format")
 
 def main():
-    parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
-    parser.add_argument("--pr", required=True, help="GitHub PR URL")
+    parser = argparse.ArgumentParser(description="Claude PR Reviewer")
+    parser.add_argument("--pr", help="PR URL to review")
+    parser.add_argument("--output", help="Output file (optional)")
     
     args = parser.parse_args()
     
-    try:
-        owner, repo, pr_number = parse_pr_url(args.pr)
-        token = get_github_token()
-        diff_url = fetch_pr_diff_diff(owner, repo, pr_number, token)
-        diff_content = fetch_diff_content(diff_url, token)
-        analysis = analyze_diff(diff_content)
-        report = generate_markdown_report(analysis)
-        print(report)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+    # Get GitHub token from environment
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if not github_token:
+        print("Error: GITHUB_TOKEN environment variable required")
         sys.exit(1)
-
+    
+    # Parse PR URL
+    owner, repo, pr_number = parse_pr_url(args.pr)
+    
+    # Fetch PR diff
+    try:
+        diff = get_pr_diff(owner, repo, pr_number, github_token)
+    except Exception as e:
+        print(f"Error fetching PR diff: {e}")
+        sys.exit(1)
+    
+    # Analyze with Claude
+    try:
+        review = analyze_diff(diff)
+    except Exception as e:
+        print(f"Error analyzing diff: {e}")
+        sys.exit(1)
+    
+    # Format and output
+    markdown_review = format_markdown_review(review)
+    
+    if args.output:
+        with open(args.output, 'w') as f:
+            f.write(markdown_review)
+        print(f"Review written to {args.output}")
+    else:
+        print(markdown_review)
 
 if __name__ == "__main__":
     main()
