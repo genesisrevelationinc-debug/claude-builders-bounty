@@ -1,6 +1,3 @@
-# Destructive Command Blocker Hook
+This directory contains Claude Code hooks.
 
-## Installation
-
-1. Create the hooks directory:
-   
+See documentation at https://docs.anthropic.com/claude-code/hooks
