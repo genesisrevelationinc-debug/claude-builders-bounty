@@ -3,6 +3,8 @@
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
+
+Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
@@ -21,12 +23,16 @@ You're in the right place.
 3. Submit a PR — payment is automatic on merge ✅
 
 ---
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
+
+## Changelog Generator
+
+Automatically generate structured changelogs from git history with `/generate-changelog` command.
+
+---
 
 ## Active Bounties
-
-| # | Task | Amount | Status |
-|---|------|--------|--------|
-| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
@@ -49,15 +55,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# Generate Changelog
-
-This script automatically generates a structured `CHANGELOG.md` from your project's git history.
-
-## Setup
-
-1. Make the script executable: `chmod +x changelog.sh`
-2. Run with: `bash changelog.sh`
-3. The script will generate a `CHANGELOG.md` file in the current directory
 
 *Started by the Claude builder community · March 2026 · MIT License*
