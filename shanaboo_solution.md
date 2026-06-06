@@ -1,218 +1,170 @@
 ```diff
 --- /dev/null
-+++ b/n8n-claude-weekly-summary.json
-@@ -0,0 +1,1 @@
++++ b/n8n-github-weekly-summary.json
+@@ -0,0 +1,1178 @@
 +{
-+  "name": "Weekly Dev Summary",
++  "name": "Weekly GitHub Summary",
 +  "nodes": [
 +    {
 +      "parameters": {},
++      "id": "0",
++      "name": "Start",
++      "type": "n8n-nodes-base.cron",
++      "typeVersion": 1,
++      "position": [
++        250,
++        300
++      ],
++      "webhookId": "a1b2c3d4-e5f6-7890-ghij-k1l2m3n4o5p6"
++    },
++    {
++      "parameters": {
++        "resource": "commits",
++        "owner": "={{ $parameter[\"repoOwner\"] }}",
++        "repository": "={{ $parameter[\"repoName\"] }}",
++        "additionalFields": {
++          "since": "={{ $parameter[\"startDate\"] }}",
++          "until": "={{ $parameter[\"endDate\"] }}"
++        }
++      },
 +      "id": "1",
-+      "name": "Cron",
-+      "type": "n8n-nodes-base.cron",
-+      "typeVersion": 1,
-+      "position": [
-+        0,
-+        0
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "rule": {
-+          "interval": [
-+            {
-+              "field": "cronExpression",
-+              "value": "0 17 * * 5"
-+            }
-+          ]
-+        }
-+      },
-+      "id": "2",
-+      "name": "Schedule Trigger",
-+      "type": "n8n-nodes-base.cron",
-+      "typeVersion": 1,
-+      "position": [
-+        0,
-+        0
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "search",
-+      "options": {
-+        "repo": "={{ $json.repo }}",
-+        "sort": "updated",
-+        "direction": "desc",
-+        "perPage": "100",
-+        "state": "all"
-+      }
-+      },
-+      "id": "3",
-+      "name": "GitHub",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        0,
-+        0
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "options": {
-+          "repo": "={{ $json.repo }}",
-+          "sort": "updated",
-+          "direction": "desc",
-+          "perPage": "100",
-+          "state": "all"
-+        }
-+      },
-+      "id": "4",
 +      "name": "Get Commits",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        0,
-+        0
-+      ]
++        450,
++        300
++      ],
++      "credentials": {
++        "githubApi": "={{ $parameter[\"githubCredentials\"] }}"
++      }
 +    },
 +    {
 +      "parameters": {
++        "resource": "issues",
++        "operation": "getAll",
++        "owner": "={{ $parameter[\"repoOwner\"] }}",
++        "repository": "={{ $parameter[\"repoName\"] }}",
 +        "options": {
-+          "repo": "={{ $json.repo }}",
-+          "sort": "updated",
-+          "direction": "desc",
-+          "perPage": "100",
-+          "state": "all"
++          "state": "closed",
++          "since": "={{ $parameter[\"startDate\"] }}"
 +        }
 +      },
-+      "id": "5",
-+      "name": "Get Issues",
++      "id": "2",
++      "name": "Get Closed Issues",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        0,
-+        0
-+      ]
++        650,
++        300
++      ],
++      "credentials": {
++        "githubApi": "={{ $parameter[\"githubCredentials\"] }}"
++      }
 +    },
 +    {
 +      "parameters": {
++        "resource": "pulls",
++        "operation": "getAll",
++        "owner": "={{ $parameter[\"repoOwner\"] }}",
++        "repository": "={{ $parameter[\"repoName\"] }}",
 +        "options": {
-+          "repo": "={{ $json.repo }}",
-+          "sort": "updated",
-+          "direction": "desc",
-+          "perPage": "100",
-+          "state": "all"
++          "state": "closed",
++          "since": "={{ $parameter[\"startDate\"] }}"
 +        }
 +      },
-+      "id": "6",
-+      "name": "Get Pull Requests",
++      "id": "3",
++      "name": "Get Merged PRs",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        0,
-+        0
-+      ]
++        850,
++        300
++      ],
++      "credentials": {
++        "githubApi": "={{ $parameter[\"githubCredentials\"] }}"
++      }
 +    },
 +    {
 +      "parameters": {
 +        "model": "claude-sonnet-4-20250514",
-+        "system": "You are a helpful assistant that summarizes GitHub activity.",
-+        "messages": [
-+          {
-+            "role": "user",
-+            "content": "Please summarize the following GitHub activity for the week:\n\nCommits:\n{{ $json.commits }}\n\nIssues:\n{{ $json.issues }}\n\nPull Requests:\n{{ $json.prs }}"
-+          }
-+        ],
-+        "max_tokens": 1000
++        "prompt": "={{ $json[\"prompt\"] }}",
++        "options": {
++          "maxTokensToSample": 1000
++        }
 +      },
-+      "id": "7",
++      "id": "4",
 +      "name": "Claude API",
-+      "type": "n8n-nodes-base.anthropic",
++      "type": "nodes/claude-ai-plugin.claude",
 +      "typeVersion": 1,
 +      "position": [
-+        0,
-+        0
-+      ]
++        1050,
++        300
++      ],
++      "credentials": {
++        "claudeApi": "={{ $parameter[\"claudeCredentials\"] }}"
++      }
 +    },
 +    {
 +      "parameters": {
-+        "fromEmail": "={{ $json.fromEmail }}",
-+        "toEmail": "={{ $json.toEmail }}",
-+        "subject": "Weekly Development Summary",
-+        "text": "={{ $json.summary }}"
++        "resource": "send",
++        "data": "={{ $json[\"summary\"] }}",
++        "additionalFields": {
++          "to": "={{ $parameter[\"email\"] }}",
++          "subject": "={{ $parameter[\"emailSubject\"] }}"
++        }
 +      },
-+      "id": "8",
++      "id": "5",
 +      "name": "Send Email",
 +      "type": "n8n-nodes-base.emailSend",
 +      "typeVersion": 1,
 +      "position": [
-+        0,
-+        0
-+      ]
++        1250,
++        300
++      ],
++      "credentials": {
++        "smtp": "={{ $parameter[\"emailCredentials\"] }}"
++      }
 +    },
 +    {
 +      "parameters": {
-+        "url": "={{ $json.webhookUrl }}",
-+        "text": "={{ $json.summary }}"
++        "resource": "send",
 +      },
-+      "id": "9",
++      "id": "6",
 +      "name": "Send to Webhook",
 +      "type": "n8n-nodes-base.webhook",
 +      "typeVersion": 1,
 +      "position": [
-+        0,
-+        0
-+      ]
-+    }
-+  ],
-+  "connections": {
-+    "Schedule Trigger": {
-+      "main": [
-+        [
-+          {
-+            "node": "Get Commits",
-+            "type": "n8n-nodes-base.github",
-+            "index": 0
-+          }
-+        ]
++        1450,
++        300
 +      ]
 +    },
-+    "Get Commits": {
-+      "main": [
-+        [
-+          {
-+            "node": "Get Issues",
-+            "type": "n8n-nodes-base.github",
-+            "index": 0
-+          }
-+        ]
++    {
++      "parameters": {
++        "resource": "set",
++        "values": {
++          "repoOwner": "={{ $parameter[\"repoOwner\"] }}",
++          "repoName": "={{ $parameter[\"repoName\"] }}",
++          "startDate": "={{ $parameter[\"startDate\"] }}",
++          "endDate": "={{ $parameter[\"endDate\"] }}",
++          "githubCredentials": "={{ $parameter[\"githubCredentials\"] }}",
++          "claudeCredentials": "={{ $parameter[\"claudeCredentials\"] }}",
++          "email": "={{ $parameter[\"email\"] }}",
++          "emailSubject": "={{ $parameter[\"emailSubject\"] }}",
++          "emailCredentials": "={{ $parameter[\"emailCredentials\"] }}",
++          "language": "={{ $parameter[\"language\"] }}"
++        }
++      },
++      "id": "7",
++      "name": "Set Variables",
++      "type": "n8n-nodes-base.set",
++      "typeVersion": 1,
++      "position": [
++        350,
++        100
 +      ]
 +    },
-+    "Get Issues": {
-+      "main": [
-+        [
-+          {
-+            "node": "Get Pull Requests",
-+            "type": "n8n-nodes-base.github",
-+            "index": 0
-+          }
-+        ]
-+      ]
-+    },
-+    "Get Pull Requests": {
-+      "main": [
-+        [
-+          {
-+            "node": "Claude API",
-+            "type": "n8n-nodes-base.anthropic",
-+            "index": 0
-+          }
-+        ]
-+      ]
-+    },
-+    "Claude API": {
-+      "main": [
-+        [
-+          {
-+            "node": "Send Email",
-+            "type": "n8
++    {
++      "parameters": {
++        "resource": "function",
++        "functionCode": "const { DateTime } = require('luxon');\n\nconst now = DateTime.now();\nconst lastWeek = now.minus({ weeks: 1 });\n\nitems[0].json = {\n  startDate: lastWeek.toISO(),\n  endDate: now.toISO(),\n  repoOwner: 'cla
