@@ -1,17 +1,15 @@
-# CLAUDE.md
+# CLAUDE.md - Next.js SaaS Project Guidelines
 
-This document defines the development standards, conventions, and rules for this Next.js + SQLite SaaS project. It serves as a single source of truth for how we build, structure, and maintain our codebase.
+This document defines the development standards, conventions, and practices for Claude Code when working with our Next.js 15 + SQLite SaaS project. Follow these rules strictly to maintain consistency and quality.
 
 ## Stack & Versions
 
 - **Framework**: Next.js 15 (App Router)
-- **Database**: SQLite (via `better-sqlite3` or Turso)
+- **Database**: SQLite (via `better-sqlite3` or `@libsql/client`)
+- **Styling**: Tailwind CSS v3
 - **ORM**: Drizzle ORM
-- **Styling**: Tailwind CSS
-- **Authentication**: NextAuth.js
 - **Deployment**: Vercel
-- **Package Manager**: pnpm
-- **Node.js**: >= 20.x
+- **Language**: TypeScript 5+
 
 ## Folder Structure
 
