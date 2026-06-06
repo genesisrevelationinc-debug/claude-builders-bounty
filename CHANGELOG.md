@@ -1,28 +1,24 @@
 # Changelog
 
-## [1.1.0] - 2024-03-15
+## [v1.0.0] - 2025-04-01
 
 ### Added
-- Initial project setup
+- Initial project structure
 - Core functionality for changelog generation
-
-### Changed
-- Improved changelog formatting
+- README with setup instructions
 
 ### Fixed
-- Fixed a bug in version sorting
-
-
-## [1.0.0] - 2024-03-01
-
-### Added
-- This is the first release of the changelog generator tool.
+- Minor typos in documentation
 
 ### Changed
-- Restructured the project for better performance.
-
-### Fixed
-- Resolved issues with markdown formatting.
+- Updated dependencies
+- Improved performance of git history parsing
 
 ### Removed
-- Obsolete code files
+- Deprecated legacy scripts
+
+## [v0.1.0] - 2025-03-15
+
+### Added
+- Project initialized
+- Basic git tag support
