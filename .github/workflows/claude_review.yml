@@ -1,40 +1,41 @@
-name: Claude Code PR Reviewer
+name: Claude Code PR Review
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  issue_comment:
-    types: [created, edited]
 
 jobs:
-  review:
+  claude-review:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
 
-      - name: Install Dependencies
-        run: |
-          pip install PyGithub openai requests
+    - name: Install dependencies
+      run: |
+        pip install PyGithub openai
 
-      - name: Run Claude Code PR Review
-        run: |
-          python claude-review --pr ${{ github.event.pull_request.html_url }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    - name: Run Claude Code Review
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        CLAUDE_API_KEY: ${{ secrets.CLADE_API_KEY }}
+      run: |
+        python claude_review.py --pr ${{ github.event.pull_request.html_url }} --github-token $GITHUB_TOKEN --claude-api-key $CLAUDE_API_KEY
 
-      - name: Comment on PR with analysis
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: claude_code_analysis
-          message: |
-            ${{ steps.claude.outputs.analysis }}
-    outputs:
-      pr_number: ${{ steps.extract_pr_number.outputs.pr_number }}
-      claude_analysis: ${{ steps.cla
+    - name: Post Comment
+      uses: maroc81/act-codenotify@v1.1.0
+      if: github.event_name == 'pull_request'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        message: |
+          ## Claude Code Review
+          ${{ steps.claude-review.outputs.result }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
