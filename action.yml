@@ -1,35 +1,22 @@
-name: 'Claude Code PR Reviewer'
-description: 'A GitHub Action that uses Claude Code to review PRs and post structured comments'
+name: 'Claude Code Review'
+description: 'Reviews PRs with Claude Code and posts structured comments'
 author: 'Claude Builder'
-
 inputs:
   github-token:
-    description: 'GitHub token for accessing pull requests'
+    description: 'GitHub token for API access'
     required: true
-  claude-api-key:
-    description: 'Claude API key for code analysis'
+  claude-token:
+    description: 'Claude Code API token'
     required: true
-
 runs:
   using: 'composite'
   steps:
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-        cache: 'npm'
-    - name: Install dependencies
-      run: npm ci
-      shell: bash
-    - name: Run Claude Review
+    - name: Get PR diff
       run: |
-        echo "Running Claude Code PR review..."
-        node src/action.js
+        PR_NUMBER=$(echo $GITHUB_REF | sed 's/refs\/pull\///' | sed 's/\/merge//')
+        echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+    - name: Analyze with Claude Code
+      run: |
+        # Here you would call the Claude Code API with the PR diff
+        # and generate the structured review comment
       shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-        CLAUDE_API_KEY: ${{ inputs.claude-api-key }}
-
-branding:
-  icon: 'code'
-  color: 'blue'
