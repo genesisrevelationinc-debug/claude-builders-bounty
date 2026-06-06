@@ -1,39 +1,27 @@
-# Weekly Dev Summary — n8n Workflow
+# n8n Weekly Dev Summary Workflow
 
-Automated weekly narrative summary of a GitHub repo's activity, powered by n8n + Claude API.
+Automated weekly narrative summary of GitHub repo activity using n8n + Claude API.
 
 ## Setup (5 steps)
 
-1. **Import the workflow**
-   - In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`
+1. **Import workflow**: In n8n, click *Workflows → Import from File* and select `weekly-dev-summary.json`
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in *Settings → Credentials*
+3. **Configure variables**: Open the *Set Variables* node and set your `repo`, `channelWebhook`, and `language` (EN/FR)
+4. **Activate**: Toggle the workflow to *Active* in the top-right corner
+5. **Verify**: Click *Execute Workflow* to test, or wait for the weekly cron trigger
 
-2. **Set your credentials**
-   - *GitHub API* — create a [Personal Access Token](https://github.com/settings/tokens) with `repo` scope
-   - *Claude API* — create an [Anthropic API key](https://console.anthropic.com/settings/keys)
-   - *Email (SMTP)* or *Webhook* — configure based on your chosen delivery method
+## Delivery Options
 
-3. **Configure workflow variables**
-   - Open the workflow, click *Settings → Variables*, and set:
-     - `githubRepo` — e.g., `owner/repo-name`
-     - `destinationChannel` — email address or webhook URL
-     - `language` — `en` or `fr`
+The workflow supports **Discord/Slack webhook** by default. To switch to email:
+- Replace the *HTTP Request* node with an *Email (SMTP)* node
+- Use the same `{{ $json.summary }}` expression in the body
 
-4. **Activate the workflow**
-   - Toggle the workflow to *Active* — it runs every Friday at 17:00 UTC
+## Required Credentials
 
-5. **Verify execution**
-   - Click *Execute Workflow* manually or wait for the cron trigger
-   - Check your email/Discord/Slack for the summary
-
-## Delivery Methods
-
-| Method | Configuration |
-|--------|---------------|
-| **Email** (default) | SMTP credentials + `destinationChannel` = email address |
-| **Discord** | Webhook URL as `destinationChannel`, enable Discord node |
-| **Slack** | Webhook URL as `destinationChannel`, enable Slack node |
-
-To switch methods, disable the unused delivery node and enable your preferred one.
+| Service | Credential Type |
+|---------|-----------------|
+| GitHub | `githubApi` — Personal Access Token with `repo` scope |
+| Anthropic | `anthropicApi` — API key from [console.anthropic.com](https://console.anthropic.com) |
 
 ## Workflow Overview
 
