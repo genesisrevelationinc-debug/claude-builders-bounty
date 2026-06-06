@@ -1,0 +1,23 @@
+name: "Claude Code PR Review"
+description: "Analyzes a GitHub PR and posts a structured review comment"
+author: "Claude Builder"
+inputs:
+  pr-url:
+    description: "GitHub PR URL to review"
+    required: true
+  github-token:
+    description: "GitHub token for authentication"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Run Claude Review
+      run: |
+        pip3 install -r requirements.txt
+        python3 claude_review.py --pr "${{ inputs.pr-url }}" --token "${{ inputs.github-token }}"
+      shell: bash
+branding:
+  icon: "code"
+  color: "blue"
