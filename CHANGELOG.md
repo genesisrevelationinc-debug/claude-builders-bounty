@@ -8,16 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial project setup
-- Created bounty program for Claude Code builders
-
-### Fixed
-- Documentation typos in README
+- CHANGELOG.md file
+- Initial project structure
 
 ### Changed
-- Updated community links in README
+- Updated documentation
+
+### Fixed
+- Fixed a critical bug in processing
 
 ### Removed
-- None
+- Deprecated old API endpoints
+- Legacy configuration files
 
-[Unreleased]: https://github.com/claude-builders-bounty/claude-builders-bounty/compare/v1.0.0...HEAD
+## [1.0.0] - 2026-01-15
+
+### Added
+- Initial release
