@@ -50,13 +50,4 @@ You're in the right place.
 
 ---
 
-# Changelog Generator
-
-This tool automatically generates a structured `CHANGELOG.md` from your project's git history.
-
-## Setup
-
-1. Copy `changelog.sh` to your project root
-2. Make it executable: `chmod +x changelog.sh`
-3. Run: `./changelog.sh`
 *Started by the Claude builder community · March 2026 · MIT License*
