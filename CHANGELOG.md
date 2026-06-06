@@ -1,24 +1,23 @@
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-## [Unreleased]
+## [0.1.0] - 2026-03-01
 
 ### Added
-- New features and enhancements
-
-### Fixed
-- Bug fixes and patches
+- Initial project files
+- README with setup instructions
+- CHANGELOG generation script
 
 ### Changed
-- Changes to existing functionality
+- N/A
+
+### Fixed
+- N/A
 
 ### Removed
-- Deprecated features that have been removed
+- N/A
 
-## [1.0.0] - 2026-03-15
+## [0.0.1] - 2026-03-01
 
 ### Added
-- Initial release of the changelog generator
-- Support for automatic changelog generation from git history
-- Categorization of changes into Added, Fixed, Changed, and Removed sections
+- Initial release
+
+### Changed
+- N/A
