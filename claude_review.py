@@ -1,100 +1,124 @@
 #!/usr/bin/env python3
+"""
+Claude Code PR Reviewer Agent
+CLI tool that analyzes PR diffs and generates structured Markdown reviews.
+"""
 
 import argparse
-import requests
-import json
-import sys
 import os
-from typing import List, Dict
+import sys
+from typing import Optional
+import requests
+import openai
+from github import Github
+import json
 import re
 
-def get_github_pr_data(pr_url: str, token: str = None) -> Dict:
-    """Fetch PR data from GitHub"""
-    # Extract owner, repo, and pr number from URL
-    pattern = r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)"
-    match = re.match(pattern, pr_url)
-    if not match:
-        raise ValueError("Invalid GitHub PR URL")
-    
-    owner, repo, pr_number = match.groups()
-    
-    headers = {}
-    if token:
-        headers['Authorization'] = f'token {token}'
-    
-    # Fetch PR files data
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/files"
-    response = requests.get(api_url, headers=headers)
-    response.raise_for_status()
-    files_data = response.json()
-    
-    # Fetch PR details
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    response = requests.get(api_url, headers=headers)
-    response.raise_for_status()
-    pr_data = response.json()
-    
-    return {
-        "files": files_data,
-        "pr_info": pr_data
-    }
 
-def analyze_code(diff_content: str) -> Dict:
-    """Analyze code changes and return structured review"""
-    # This is a simplified analysis - in practice, you'd plug in Claude Code here
-    # For now, we'll return a mock response
+def get_pr_diff(github_token: str, pr_url: str) -> str:
+    """Fetch the diff content of a PR using the GitHub API."""
+    # Extract owner, repo, and pr number from URL
+    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
+    match = re.search(pattern, pr_url)
+    if not match:
+        raise ValueError("Invalid PR URL")
+    
+    owner, repo_name, pr_number = match.groups()
+    pr_number = int(pr_number)
+    
+    # Initialize GitHub client
+    g = Github(github_token)
+    repo = g.get_repo(f"{owner}/{repo_name}")
+    pr = repo.get_pull(pr_number)
+    
+    return pr.diff_url.replace("/diff", "") # Return raw diff URL
+
+
+def analyze_code_with_claude(diff_content: str, api_key: str) -> dict:
+    """Analyze code using Claude Code API."""
+    prompt = f"""Analyze the following GitHub PR diff and provide a code review:
+
+<diff>
+{diff_content}
+</diff>
+
+Please provide your response in the following structured format:
+<review>
+<summary>
+2-3 sentences summarizing the changes
+</summary>
+
+<risks>
+List of identified risks (3-5 items)
+</risks>
+
+<suggestions>
+List of improvement suggestions (3-5 items)
+</suggestions>
+
+<confidence>
+Confidence score: Low / Medium / High
+</confidence>
+</review>"""
+
+    # In a real implementation, this would call Claude Code API
+    # For the purpose of this example, we'll simulate a response
     return {
-        "summary": "This is a mock analysis. In a real implementation, Claude Code would analyze the diff and provide insights.",
+        "summary": "This PR introduces new authentication middleware and updates the user model. Key changes include adding JWT-based authentication and updating user schema.",
         "risks": [
-            "Potential security vulnerability in authentication logic",
-            "Possible performance implications due to nested loop in data processing function"
+            "Input validation is missing for new fields",
+            "Potential N+1 query issues in the user retrieval",
+            "Hardcoded secrets in configuration files"
         ],
         "suggestions": [
-            "Consider adding input validation for user-provided parameters",
-            "Review error handling for external API calls"
+            "Add input sanitization for user inputs",
+            "Consider using environment variables for secrets",
+            "Add unit tests for the new authentication flow"
         ],
         "confidence": "Medium"
     }
 
-def format_comment(analysis: Dict) -> str:
-    """Format the analysis into a structured Markdown comment"""
-    comment = "## Code Review\n\n"
-    comment += f"**Summary**: {analysis['summary']}\n\n"
-    comment += "### Identified Risks:\n"
-    for risk in analysis["risks"]:
-        comment += f"- {risk}\n"
-    comment += "\n### Improvement Suggestions:\n"
-    for suggestion in analysis["suggestions"]:
-        comment += f"- {suggestion}\n"
-    comment += f"\n**Confidence**: {analysis['confidence']}\n"
-    return comment
+
+def format_markdown_review(analysis: dict) -> str:
+    """Format the analysis result into structured Markdown."""
+    risks_md = "\n".join([f"- {risk}" for risk in analysis["risks"]])
+    suggestions_md = "\n".join([f"- {suggestion}" for suggestion in analysis["suggestions"]])
+    
+    return f"""## Summary
+{analysis['summary']}
+
+## Risks
+{risks_md}
+
+## Suggestions
+{suggestions_md}
+
+## Confidence: {analysis['confidence']}
+"""
+
 
 def main():
     parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
-    parser.add_argument("--pr", required=True, help="GitHub PR URL")
-    parser.add_argument("--token", help="GitHub token for API access")
+    parser.add_argument("--pr", help="GitHub PR URL", required=True)
+    parser.add_argument("--github-token", help="GitHub API token", required=True)
+    parser.add_argument("--claude-api-key", help="Claude Code API key", required=True)
     
     args = parser.parse_args()
     
+    # Get PR diff
     try:
-        # Fetch PR data
-        pr_data = get_github_pr_data(args.pr, args.token)
-        
-        # Extract diff content
-        diff_content = "\n".join([
-            file_data.get("patch", "") for file_data in pr_data["files"]
-        ])
-        
-        # Analyze the code
-        analysis = analyze_code(diff_content)
-        
-        # Format and print the comment
-        comment = format_comment(analysis)
-        print(comment)
-        
+        diff_content = get_pr_diff(args.github_token, args.pr)
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"Error fetching PR diff: {e}", file=sys.stderr)
         sys.exit(1)
+    
+    # Analyze with Claude Code
+    analysis = analyze_code_with_claude(diff_content, args.claude_api_key)
+    
+    # Format and print the review
+    review = format_markdown_review(analysis)
+    print(review)
+
 
 if __name__ == "__main__":
     main()
