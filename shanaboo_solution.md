@@ -1,142 +1,162 @@
 ```diff
 --- /dev/null
-+++ b/n8n-claude-weekly-summary.json
-@@ -0,0 +1,1404 @@
++++ b/claude-weekly-summary.json
+@@ -0,0 +1,404 @@
 +{
-+  "name": "Claude Weekly Dev Summary",
++  "meta": {
++    "instanceId": "0488421c-6df7-45bd-9da0-35f7d29521a3",
++    "createdAt": "2024-01-15T12:00:00.000Z",
++    "schemaVersion": 18,
++    "workflowVersion": 1
++  },
 +  "nodes": [
 +    {
-+      "parameters": {},
-+      "id": "1",
-+      "name": "Start",
-+      "type": "n8n-nodes-base.manualTrigger",
-+      "typeVersion": 1,
-+      "position": [
-+        150,
-+        300
-+      ],
-+      "webhookId": "48395493-1786-41a4-810d-074704257170"
-+    },
-+    {
 +      "parameters": {
-+        "resource": "search",
-+        "operation": "searchIssues",
-+        "repository": "claude-builders-bounty/claude-builders-bounty",
-+        "search": "is:issue is:closed closed:>={{$parameter['closedAfter']}}",
-+        "returnAll": true
++        "rule": {
++          "interval": "59",
++          "mode": "everyX"
++        }
 +      },
-+      "id": "2",
-+      "name": "Get Closed Issues",
-+      "type": "n8n-nodes-base.github",
++      "id": "Schedule1",
++      "name": "Weekly Trigger",
++      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
-+        350,
-+        300
++        250,
++        350
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "pullRequest",
-+        "operation": "search",
-+        "repository": "claude-builders-bounty/claude-builders-bounty",
-+        "search": "is:pr is:merged merged:>={{$parameter['mergedAfter']}}",
-+        "returnAll": true
-+      },
-+      "id": "3",
-+      "name": "Get Merged PRs",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        550,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "commit",
++        "resource": "repository",
 +        "operation": "getAll",
-+        "repository": "claude-builders-bounty/claude-builders-bounty",
-+        "returnAll": true
++        "owner": "={{ $parameter[\"repoOwner\"] }}",
++        "repository": "={{ $parameter[\"repoName\"] }}",
++        "filters": {
++          "since": "={{ $now.setHours(0, 0, 0, 0).subtract(7, 'days').toISOString() }}",
++          "until": "={{ $now.toISOString() }}",
++          "state": "all"
++        },
++        "options": {
++          "sort": "updated",
++          "direction": "desc"
++        }
 +      },
-+      "id": "4",
++      "id": "GitHub1",
 +      "name": "Get Commits",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        750,
-+        300
++        450,
++        250
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "model": "claude-sonnet-4-20250514",
-+        "prompt": "Create a narrative summary of the GitHub activity for the week including:\n\n1. Closed issues:\n\n={$node[\"Get Closed Issues\"].data[\"json\"][\"body\"]}\n\n2. Merged pull requests:\n\n={$node[\"Get Merged PRs\"].data[\"json\"][\"body\"]}\n\n3. Commits:\n\n={$node[\"Get Commits\"].data[\"json\"][\"body\"]}\n\nPlease structure the summary in the following format:\n\n# Weekly Development Summary - Week of\n\n## Highlights\n\n## Issues and Pull Requests\n\n### Closed Issues\n\n### Merged Pull Requests\n\n## Summary\n\n## Next Steps\n\n## Risks and Opportunities\n\nPlease ensure the summary is professional and suitable for a development team's weekly standup meeting.",
-+        "system_prompt": "You are a technical writer for a development team's GitHub project. Your role is to summarize the weekly activity to present at the standup meeting.",
-+        "max_tokens": 2000,
-+        "temperature": 0.7
++        "resource": "issue",
++        "operation": "getAll",
++        "owner": "={{ $parameter[\"repoOwner\"] }}",
++        "repository": "={{ $parameter[\"repoName\"] }}",
++        "filters": {
++          "since": "={{ $now.setHours(0, 0, 0, 0).subtract(7, 'days').toISOString() }}",
++          "until": "={{ $now.toISOString() }}",
++          "state": "closed"
++        },
++        "options": {
++          "sort": "updated",
++          "direction": "desc"
++        }
 +      },
-+      "id": "5",
-+      "name": "Claude API",
-+      "type": "n8n-nodes-base.anthropic",
-+      "typeVersion": 1,
-+      "position": [
-+        950,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "search",
-+        "operation": "searchIssues",
-+        "repository": "claude-builders-bounty/claude-builders-bounty",
-+        "search": "is:issue is:closed closed:>={{$parameter['closedAfter']}}",
-+        "returnAll": true
-+      },
-+      "id": "6",
-+      "name": "Get Closed Issues (Alternative)",
++      "id": "GitHub2",
++      "name": "Get Closed Issues",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        1150,
-+        300
++        450,
++        350
 +      ]
 +    },
 +    {
 +      "parameters": {
 +        "resource": "pullRequest",
-+        "operation": "search",
-+        "repository": "claude-builders-bounty/claude-builders-bounty",
-+        "search": "is:pr is:merged merged:>={{$parameter['mergedAfter']}}",
-+        "returnAll": true
-+      },
-+      "id": "7",
-+      "name": "Get Merged PRs (Alternative)",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        1350,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "commit",
 +        "operation": "getAll",
-+        "repository": "claude-builders-bounty/claude-builders-bounty",
-+        "returnAll": true
++        "owner": "={{ $parameter[\"repoOwner\"] }}",
++        "repository": "={{ $parameter[\"repoName\"] }}",
++        "filters": {
++          "since": "={{ $now.setHours(0, 0, 0, 0).subtract(7, 'days').toISOString() }}",
++          "until": "={{ $now.toISOString() }}",
++          "state": "closed"
++        },
++        "options": {
++          "sort": "updated",
++          "direction": "desc"
++        }
 +      },
-+      "id": "8",
-+      "name": "Get Commits (Alternative)",
++      "id": "GitHub3",
++      "name": "Get Merged PRs",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        1550,
-+        300
++        450,
++        450
 +      ]
 +    },
 +    {
 +      "parameters": {
 +        "model": "claude-sonnet-4-20250514",
-+        "prompt": "Create a narrative summary of the GitHub activity for the week including closed issues, merged pull requests, and commits. Be sure to highlight the most important changes, and organize the output for a development team's weekly standup meeting.",
-+        "system_prompt": "You are a technical writer for a development team's GitHub project. Your role is to summarize the weekly activity to present at the standup meeting.",
-+        "max_tokens": 2000,
++        "prompt": "={{ \"Create a weekly development summary for the \" + $parameter[\"repoName\"] + \" repository.\\n\\nHere's the activity for the week:\\n\\nCommits:\\n\" + JSON.stringify($items('Get Commits')) + \"\\n\\nClosed Issues:\\n\" + JSON.stringify($items('Get Closed Issues')) + \"\\n\\nMerged PRs:\\n\" + JSON.stringify($items('Get Merged PRs')) + \"\\n\\nPlease provide a narrative summary of this activity in \" + $parameter[\"language\"] + \".\" }}",
++        "systemPrompt": "={{ \"You are an expert technical writer creating a development summary for a software team.\" }}",
++        "maxTokens": 1000,
++        "temperature": 0.5
++      },
++      "id": "Claude1",
++      "name": "Generate Summary",
++      "type": "claude3-nodes.claude",
++      "typeVersion": 1,
++      "position": [
++        650,
++        350
++      ]
++    },
++    {
++      "parameters": {
++        "fromEmail": "={{ $parameter[\"senderEmail\"] }}",
++        "toEmail": "={{ $parameter[\"recipientEmail\"] }}",
++        "subject": "={{ 'Weekly Summary for ' + $parameter[\"repoName\"] }}",
++        "text": "={{ $items('Generate Summary')[0].json.response }}",
++        "options": {}
++      },
++      "id": "Email1",
++      "name": "Send Email",
++      "type": "n8n-nodes-base.emailSend",
++      "typeVersion": 1,
++      "position": [
++        850,
++        350
++      ]
++    },
++    {
++      "parameters": {
++        "values": {
++          "string": [
++            {
++              "name": "repoOwner",
++              "value": "claude-builders-bounty"
++            },
++            {
++              "name": "repoName",
++              "value": "claude-builders-bounty"
++            },
++            {
++              "name": "language",
++              "value": "English"
++            },
++            {
++              "name": "senderEmail",
++              "value": "weekly-summary@example.com"
++            },
++            {
++              "name": "recipientEmail",
++              "value": "team@example.com"
++            }
++         
