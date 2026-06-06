@@ -1,85 +1,61 @@
 #!/usr/bin/env python3
 """
-Claude Code pre-tool-use hook to block destructive bash commands.
-
-Installation:
-    mkdir -p ~/.claude/hooks
-    cp pre-tool-use ~/.claude/hooks/pre-tool-use
-    chmod +x ~/.claude/hooks/pre-tool-use
+Claude Code pre-tool-use hook that blocks destructive bash commands.
 """
 
-import json
+import sys
 import os
 import re
-import sys
-from datetime import datetime
-
-LOG_FILE = os.path.expanduser("~/.claude/hooks/blocked.log")
-
-# Patterns that are always blocked
-BLOCKED_PATTERNS = [
-    # rm -rf (and variants like rm -rf /, rm -rf ., etc.)
-    r"rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+",
-    r"rm\s+-[a-zA-Z]*\s+.*\s+-[a-zA-Z]*r[a-zA-Z]*\s+.*\s+-[a-zA-Z]*f",
-    # git push --force
-    r"git\s+push\s+.*--force",
-    r"git\s+push\s+-f\b",
-    # SQL destructive commands
-    r"(?i)DROP\s+TABLE",
-    r"(?i)TRUNCATE\s+",
-    r"(?i)DELETE\s+FROM\s+[^W]*(?!.*WHERE)",
-]
-
-# Compiled patterns for efficiency
-COMPILED_PATTERNS = [re.compile(p) for p in BLOCKED_PATTERNS]
-
-
-def log_blocked(command: str, reason: str):
-    """Log a blocked command attempt."""
-    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-    timestamp = datetime.now().isoformat()
-    project_path = os.getcwd()
-    
-    log_entry = f"{timestamp} | BLOCKED: {reason} | Command: {command} | Project: {project_path}\n"
-    
-    with open(LOG_FILE, "a") as f:
-        f.write(log_entry)
-
-
-def is_destructive(command: str) -> tuple[bool, str]:
-    """Check if a command matches any destructive pattern."""
-    for pattern in COMPILED_PATTERNS:
-        if pattern.search(command):
-            return True, pattern.pattern
-    return False, ""
-
+import datetime
 
 def main():
-    # Claude Code hooks receive JSON on stdin
-    try:
-        hook_input = json.loads(sys.stdin.read())
-    except json.JSONDecodeError:
-        # Not a valid JSON input, pass through
+    if len(sys.argv) < 3:
+        # If not enough arguments, this is probably not a tool call
         sys.exit(0)
     
-    # Only intercept bash tool usage
-    tool_name = hook_input.get("tool_name", "")
-    if tool_name != "bash":
+    tool_name = sys.argv[1]
+    tool_args = sys.argv[2:]
+    
+    # Only check bash tools
+    if tool_name != 'bash':
         sys.exit(0)
     
-    command = hook_input.get("tool_input", {}).get("command", "")
-    if not command:
-        sys.exit(0)
+    # Join the command for checking
+    command = ' '.join(tool_args)
     
-    is_blocked, pattern = is_destructive(command)
-    if is_blocked:
-        log_blocked(command, pattern)
-        print(f"🚫 BLOCKED: This command was prevented from running for safety reasons.", file=sys.stderr)
-        print(f"   Command: {command}", file=sys.stderr)
-        print(f"   Reason: Destructive operation detected (matches pattern: {pattern})", file=sys.stderr)
-        print(f"   If you need to run this, please do so manually outside of Claude Code.", file=sys.stderr)
-        sys.exit(1)
+    # Destructive patterns to block
+    destructive_patterns = [
+        r'rm\s+-rf',
+        r'DROP\s+TABLE',
+        r'git\s+push\s+--force',
+        r'TRUNCATE',
+        r'DELETE\s+FROM\s+\w+\s*$',  # DELETE without WHERE
+    ]
+    
+    # Check if command matches any destructive pattern
+    for pattern in destructive_patterns:
+        if re.search(pattern, command, re.IGNORECASE):
+            # Log the blocked command
+            log_entry = f"[{datetime.datetime.now().isoformat()}] Blocked command: {command}"
+            if 'PROJECT_PATH' in os.environ:
+                log_entry += f" in project {os.environ['PROJECT_PATH']}"
+            log_entry += "\n"
+            
+            # Ensure log directory exists
+            log_file = os.path.expanduser('~/.claude/hooks/blocked.log')
+            os.makedirs(os.path.dirname(log_file), exist_ok=True)
+            
+            # Write to log
+            with open(log_file, 'a') as f:
+                f.write(log_entry)
+            
+            # Print explanation and exit with error
+            print(f"❌ Blocked potentially destructive command: {command}")
+            print("Reason: This command was blocked for safety.")
+            sys.exit(1)
+    
+    # If we get here, the command is safe to proceed
+    sys.exit(0)
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
