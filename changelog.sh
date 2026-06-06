@@ -1,67 +1,49 @@
 #!/bin/bash
 
-# Exit on any error
-set -e
+# changelog.sh - Generate a structured CHANGELOG.md from git history
 
-# Get the latest tag
-latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+# Get the last tag or initial commit if no tags exist
+LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
 
-# If no tags exist, get all commits
-if [ -z "$latest_tag" ]; then
-    echo "No tags found. Using initial commit as reference."
-    commits_since=$(git rev-list --max-parents=0 HEAD)
-    commit_range="$commits_since..HEAD"
-else
-    echo "Latest tag: $latest_tag"
-    commit_range="$latest_tag..HEAD"
-fi
+# Get commit messages since last tag
+COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s" --no-merges 2>/dev/null || git log --pretty=format:"%s" --no-merges)
 
-# Get commits in the specified range
-commits=$(git log --no-merges "$commit_range" --pretty=format:"%s" --reverse)
-
-if [ -z "$commits" ]; then
-    echo "# Changelog" > CHANGELOG.md
-    echo "No commits found since $latest_tag" > /dev/null
-    exit 0
-fi
-
-# Create or clear the changelog file
+# Create or clear CHANGELOG.md
 echo "# Changelog" > CHANGELOG.md
 echo "" >> CHANGELOG.md
 
-# Add the tag name as the new version
-echo "## [$(git describe --tags --abbrev=0)] - $(date +'%Y-%m-%d')" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
+# Function to categorize commits
+categorize_commits() {
+    local commits="$1"
+    local added=""
+    local changed=""
+    local fixed=""
+    local removed=""
+    
+    while IFS= read -r commit; do
+        # Convert to lowercase for case-insensitive matching
+        local lower_commit=$(echo "$commit" | tr '[:upper:]' '[:lower:]')
+        
+        if [[ $lower_commit == *"add"* ]] || [[ $lower_commit == *"new"* ]] || [[ $lower_commit == *"feature"* ]]; then
+            added+="- $commit"$'\n'
+        elif [[ $lower_commit == *"change"* ]] || [[ $lower_commit == *"update"* ]] || [[ $lower_commit == *"modify"* ]]; then
+            changed+="- $commit"$'\n'
+        elif [[ $lower_commit == *"fix"* ]] || [[ $lower_comment == *"bug"* ]] || [[ $lower_commit == *"correct"* ]]; then
+            fixed+="- $commit"$'\n'
+        elif [[ $lower_commit == *"remove"* ]] || [[ $lower_commit == *"delete"* ]] || [[ $lower_commit == *"deprecated"* ]]; then
+            removed+="- $commit"$'\n'
+        else
+            # Default to "Changed" if no keywords match
+            changed+="- $commit"$'\n'
+        fi
+    done <<< "$commits"
+    
+    echo "## [Unreleased]" >> CHANGELOG.md
+    echo "" >> CHANGELOG.md
+    [[ -n "$added" ]] && echo "### Added" >> CHANGELOG.md && echo "$added" >> CHANGELOG.md
+    [[ -n "$fixed" ]] && echo "### Fixed" >> CHANGELOG.md && echo "$fixed" >> CHANGELOG.md
+    [[ -n "$changed" ]] && echo "### Changed" >> CHANGELOG.md && echo "$changed" >> CHANGELOG.md
+    [[ -n "$removed" ]] && echo "### Removed" >> CHANGELOG.md && echo "$removed" >> CHANGELOG.md
+}
 
-# Categorize commits
-added=$(echo "$commits" | grep -E "^(add|feat|new)" | sed 's/^/ - /')
-fixed=$(echo "$commits" | grep -E "^(fix|fixed|fixes)" | sed 's/^/ - /')
-changed=$(echo "$commits" | grep -E "^(change|update|refactor|refactored)" | sed 's/^/ - /')
-removed=$(echo "$commits" | grep -E "^(remove|delete|rm)" | sed 's/^/ - /')
-
-# Write categorized commits to the changelog
-if [ -n "$added" ]; then
-    echo "### Added" >> CHANGELOG.md
-    echo "" >> CHANGELOG.md
-    echo "$added" >> CHANGELOG.md
-    echo "" >> CHANGELOG.md
-fi
-
-if [ -n "$fixed" ]; then
-    echo "### Fixed" >> CHANGELOG.md
-    echo "" >> CHANGELOG.md
-    echo "$fixed" >> CHANGELOG.md
-    echo "" >> CHANGELOG.md
-fi
-
-if [ -n "$changed" ]; then
-    echo "### Changed" >> CHANGELOG.md
-    echo "" >> CHANGELOG.md
-    echo "$changed" >> CHANGELOG.md
-    echo "" >> CHANGELOG.md
-fi
-
-if [ -n "$removed" ]; then
-    echo "### Removed" >> CHANGELOG.md
-    echo "$removed" >> CHANGELOG.md
-fi
+categorize_commits "$COMMITS"
