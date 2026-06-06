@@ -8,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
-| Runtime | Node.js 20+ | `next dev --turbo` requires Node 18+, 20 for native `fetch` stability |
-| Database | better-sqlite3 | Synchronous, fast, zero-config for single-node deploys. Switch to `@libsql/client` only if you need Turso/edge |
-| ORM/Query | Drizzle ORM | Type-safe SQL, migrations via `drizzle-kit`, no hidden queries |
-| Auth | Lucia (or custom session) | Session cookies in SQLite, no external auth service dependency |
-| Styling | Tailwind CSS 3.4 + shadcn/ui | Utility-first, no runtime CSS, components are copy-paste owned |
-| Validation | Zod | Same schemas for API, forms, and DB inserts |
-| Testing | Vitest + Playwright | Unit tests run in Node (fast), E2E in real browser |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable ESM |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia (or custom session) | Cookie-based sessions, works with SQLite out of the box |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, no CSS-in-JS runtime |
+| Validation | Zod | Same schemas for API, forms, and DB |
+| Testing | Vitest + Playwright | Unit + E2E without Jest's baggage |
 
-**Non-negotiable:** We do not use Prisma (heavy, slow startup, migration black box). We do not use MongoDB (schema drift, no joins). We do not use tRPC (unnecessary indirection with Server Actions).
+**Non-negotiable:** We do not use `next-auth` (too much magic, hard to debug) or Prisma (heavy binary, slow in serverless).
 
 ---
 
