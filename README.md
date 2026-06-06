@@ -51,17 +51,3 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
-
----
-
-## Hooks
-
-| Hook | Description | Path |
-|------|-------------|------|
-| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands in Claude Code | `~/.claude/hooks/pre-tool-use` |
-
----
-
-## Rules
-
-- Tasks must be related to Claude Code or AI tooling
