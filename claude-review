@@ -2,112 +2,142 @@
 
 import argparse
 import requests
-import json
-import os
 import sys
-from typing import Dict, List
+import os
+import re
+from typing import Dict, List, Tuple
 
-def get_github_token():
-    """Get GitHub token from environment variable or config"""
-    token = os.environ.get('GITHUB_TOKEN')
+
+def parse_pr_url(url: str) -> Tuple[str, str, int]:
+    """Parse GitHub PR URL to extract owner, repo, and PR number."""
+    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
+    match = re.search(pattern, url)
+    if not match:
+        raise ValueError("Invalid GitHub PR URL")
+    owner, repo, pr_number = match.groups()
+    return owner, repo, int(pr_number)
+
+
+def get_github_token() -> str:
+    """Get GitHub token from environment variable."""
+    token = os.environ.get("GITHUB_TOKEN")
     if not token:
-        print("Error: GITHUB_TOKEN environment variable not set")
-        sys.exit(1)
+        raise ValueError("GITHUB_TOKEN environment variable is required")
     return token
 
-def get_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
-    """Fetch PR diff from GitHub API"""
-    headers = {'Authorization': f'token {token}'}
-    url = f'https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}'
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        print(f"Error fetching PR: {response.status_code} {response.reason}")
-        return None
-        
-    data = response.json()
-    diff_url = data.get('diff_url')
-    if not diff_url:
-        return None
-        
-    # Fetch the actual diff content
-    diff_response = requests.get(diff_url, headers=headers)
-    if diff_response.status_code == 200:
-        return diff_response.text
-    else:
-        print(f"Error fetching diff: {diff_response.status_code} {diff_response.reason}")
-        return None
 
-def analyze_code_changes(diff: str) -> Dict:
-    """Analyze code changes and return structured feedback"""
-    # This is a mock implementation - in a real scenario, this would use Claude Code to analyze
-    # For this implementation, we'll return a template response
+def fetch_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
+    """Fetch the diff of a GitHub PR."""
+    headers = {"Authorization": f"token {token}"}
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    pr_data = response.json()
+    return pr_data["diff_url"]
+
+
+def fetch_diff_content(diff_url: str, token: str) -> str:
+    """Fetch the actual diff content."""
+    headers = {"Authorization": f"token {token}"}
+    response = requests.get(diff_url, headers=headers)
+    response.raise_for_status()
+    return response.text
+
+
+def analyze_diff(diff_content: str) -> Dict:
+    """Analyze the diff and return structured feedback."""
+    # This is a simplified analyzer - in a real implementation,
+    # this would contain more sophisticated analysis logic
+    changes = []
+    risks = []
+    suggestions = []
+    
+    # Split the diff into files and hunks
+    files = diff_content.split("diff --git")
+    for file in files[1:]:  # Skip the first empty split
+        lines = file.strip().split('\n')
+        if not lines:
+            continue
+            
+        # Extract file name
+        file_header = lines[0]
+        file_name_match = re.search(r" b/(.+)", file_header)
+        file_name = file_name_match.group(1) if file_name_match else "unknown"
+        
+        # Look for added/removed lines
+        added_lines = [line for line in lines if line.startswith("+") and not line.startswith("+++") and len(line) > 1]
+        removed_lines = [line for line in lines if line.startswith("-") and not line.startswith("---") and len(line) > 1]
+        
+        if added_lines or removed_lines:
+            changes.append(f"Changes in {file_name}")
+            
+        # Simple heuristics for risks and suggestions
+        for line in added_lines:
+            if "password" in line.lower() or "secret" in line.lower():
+                risks.append("Potential exposure of sensitive information")
+            if "TODO" in line:
+                suggestions.append("Consider removing TODO comments in production code")
+                
+    # Generate a simple summary
+    summary = "This pull request contains changes to multiple files with additions and deletions."
+    if len(files) > 2:
+        summary = f"This pull request modifies {len(files)-1} files with various additions and deletions."
+    
+    # Determine confidence based on diff size
+    changes_count = diff_content.count("\n+")
+    if changes_count > 100:
+        confidence = "Low"
+    elif changes_count > 20:
+        confidence = "Medium"
+    else:
+        confidence = "High"
+
     return {
-        "summary": "This PR introduces new API endpoints for user management and enhances the authentication system.",
-        "risks": [
-            "Potential SQL injection in the new user creation endpoint",
-            "Missing input validation on new endpoints",
-            "Authentication bypass possible in edge cases"
-        ],
-        "suggestions": [
-            "Add input sanitization to prevent injection attacks",
-            "Implement comprehensive input validation for all new endpoints",
-            "Add rate limiting to authentication endpoints"
-        ],
-        "confidence": "Medium"
+        "summary": summary,
+        "risks": risks if risks else ["No significant risks identified"],
+        "suggestions": suggestions if suggestions else ["No specific suggestions identified"],
+        "confidence": confidence
     }
 
-def format_comment(analysis: Dict) -> str:
-    """Format the analysis results into a markdown comment"""
-    comment = f"""## Code Review Summary
-{analysis['summary']}
 
-### Identified Risks
-"""
-    for risk in analysis['risks']:
-        comment += f"- {risk}\n"
-    
-    comment += "\n### Improvement Suggestions\n"
-    for suggestion in analysis['suggestions']:
-        comment += f"- {suggestion}\n"
-        
-    comment += f"\n### Confidence Score: {analysis['confidence']}\n"
-    
-    return comment
+def generate_markdown_report(analysis: Dict) -> str:
+    """Generate a structured Markdown report from the analysis."""
+    report = [
+        "## Code Review",
+        "",
+        f"### Summary",
+        f"{analysis['summary']}",
+        "",
+        "### Identified Risks",
+        *[f"- {risk}" for risk in analysis['risks']],
+        "",
+        "### Improvement Suggestions",
+        *[f"- {suggestion}" for suggestion in analysis['suggestions']],
+        "",
+        f"### Confidence Score: {analysis['confidence']}",
+        ""
+    ]
+    return "\n".join(report)
+
 
 def main():
-    parser = argparse.ArgumentParser(description='Claude Code PR Reviewer')
-    parser.add_argument('--pr', type=str, help='GitHub PR URL')
+    parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
+    parser.add_argument("--pr", required=True, help="GitHub PR URL")
+    
     args = parser.parse_args()
     
-    if not args.pr:
-        print("Error: --pr argument is required")
-        return
-        
-    # Parse the PR URL
-    parts = args.pr.strip('/').split('/')
-    if 'github.com' not in parts:
-        print("Invalid GitHub PR URL")
-        return
-        
-    owner = parts[parts.index('github.com') + 1]
-    repo = parts[parts.index('github.com') + 2] 
-    pr_number = parts[-1]
-    
-    # Get GitHub token
-    token = get_github_token()
-    
-    # Fetch PR diff
-    diff = get_pr_diff(owner, repo, pr_number, token)
-    if not diff:
-        print("Failed to fetch PR diff")
-        return
-        
-    # Analyze the code
-    analysis = analyze_code_changes(diff)
-    
-    # Format and print the comment
-    comment = format_comment(analysis)
-    print(comment)
-    
+    try:
+        owner, repo, pr_number = parse_pr_url(args.pr)
+        token = get_github_token()
+        diff_url = fetch_pr_diff_diff(owner, repo, pr_number, token)
+        diff_content = fetch_diff_content(diff_url, token)
+        analysis = analyze_diff(diff_content)
+        report = generate_markdown_report(analysis)
+        print(report)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()
