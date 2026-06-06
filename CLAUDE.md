@@ -1,15 +1,15 @@
-# CLAUDE.md — Next.js + SQLite SaaS Project Template
+# CLAUDE.md - Next.js + SQLite SaaS Project Template
+
+This document serves as a comprehensive guide for Claude Code to understand and contribute to our Next.js 15 + SQLite SaaS project. It defines our stack, conventions, and development patterns.
 
 ## Stack & Versions
 
 - **Next.js 15** with App Router
-- **SQLite** (using `better-sqlite3` or Turso)
-- **TypeScript** (strict mode)
+- **SQLite** (via `better-sqlite3` or Turso)
+- **TypeScript** for type safety
 - **Tailwind CSS** for styling
-- **drizzle** for ORM and migrations
-- **Zod** for validation
-- **React Server Components** for data fetching
-- **Vercel** for deployment
+- **Zod** for schema validation
+- **React Server Components** as the primary paradigm
 
 ## Folder Structure
 
