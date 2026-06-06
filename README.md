@@ -50,14 +50,24 @@ You're in the right place.
 
 ---
 
-# Destructive Command Blocker
+# Claude Code Pre-tool-use Hook
 
-This Claude Code hook prevents potentially destructive bash commands from being executed.
+This hook blocks destructive bash commands before they are executed by Claude Code.
 
 ## Installation
 
-1. Create the hook directory: `mkdir -p ~/.claude/hooks/pre-tool-use`
-2. Copy the hook script: `cp block_destructive_bash.sh ~/.claude/hooks/pre-tool-use/`
+1. Copy the `pre-tool-use` script to `~/.claude/hooks/pre-tool-use`
+2. Make it executable: `chmod +x ~/.claude/hooks/pre-tool-use`
 
-The hook will automatically run before each tool use and block dangerous commands like `rm -rf`, `DROP TABLE`, etc.
+## Blocked Commands
+
+- `rm -rf` commands
+- `DROP TABLE` statements
+- `git push --force` commands
+- `TRUNCATE` statements
+- `DELETE FROM` statements without a WHERE clause
+
+## Logs
+
+All blocked attempts are logged to `~/.claude/hooks/blocked.log` with timestamp, attempted command, and project path.
 *Started by the Claude builder community · March 2026 · MIT License*
