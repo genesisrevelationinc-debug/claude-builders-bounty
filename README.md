@@ -1,3 +1,4 @@
+<a href="https://github.com/claude-builders-bounty/claude-builders-bounty/actions/workflow/n8n-claude-weekly-summary.json"><img src="https://img.shields.io/badge/Download-Workflow-blue" alt="Download Workflow"></a>
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -45,20 +46,13 @@ You're in the right place.
 
 ## Community
 
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
-
 
 ---
 
-## Completed Work
+## Weekly Dev Summary Workflow
 
-### Weekly Dev Summary Workflow
+## How it works
 
-| # | Task | Amount | Status |
-|---|------|--------|--------|
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🔵 Complete |
-
----
-
-## Rules
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
+2. Comment `/op
