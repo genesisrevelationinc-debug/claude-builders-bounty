@@ -1,60 +1,114 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Function to display usage
-usage() {
-  echo "Usage: bash changelog.sh [OPTIONS]"
-  echo "Generate a changelog from git history."
-  echo ""
-  echo "Options:"
-  echo "  -h, --help     Display this help message"
-  echo "  -t, --tag      Specify the previous tag (default: latest tag)"
-  echo "  -o, --output    Output file (default: CHANGELOG.md)"
-  exit 1
+# changelog.sh — Generate a structured CHANGELOG.md from git history
+# Usage: bash changelog.sh
+
+CHANGELOG_FILE="CHANGELOG.md"
+
+# Get the latest git tag, or empty if none
+get_latest_tag() {
+    git describe --tags --abbrev=0 2>/dev/null || echo ""
 }
 
-# Default values
-OUTPUT_FILE="CHANGELOG.md"
+# Get commits since the last tag (or all commits if no tag)
+get_commits() {
+    local tag="$1"
+    if [ -n "$tag" ]; then
+        git log "$tag"..HEAD --pretty=format:"%s" --no-merges
+    else
+        git log --pretty=format:"%s" --no-merges
+    fi
+}
 
-# Parse command line arguments
-while [[ "$#" -gt 0 ]]; do
-  case $1 in
-    -h|--help) usage ;;
-    -t|--tag) PREV_TAG="$2"; shift ;;
-    -o|--output) OUTPUT_FILE="$2"; shift ;;
-    *) echo "Unknown parameter: $1"; usage ;;
-  esac
-  shift
-done
+# Categorize a single commit message
+categorize() {
+    local msg="$1"
+    local lower
+    lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
 
-# Get the previous tag if not specified
-if [ -z "$PREV_TAG" ]; then
-  PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
-  if [ $? -ne 0 ]; then
-    echo "Error: No tags found in the repository. Please create a tag first."
-    exit 1
-  fi
-fi
+    case "$lower" in
+        *"fix"* | *"bugfix"* | *"hotfix"* | *"patch"*)
+            echo "Fixed"
+            ;;
+        *"add"* | *"feat"* | *"feature"* | *"introduce"* | *"implement"*)
+            echo "Added"
+            ;;
+        *"remove"* | *"delete"* | *"drop"* | *"deprecate"*)
+            echo "Removed"
+            ;;
+        *"update"* | *"change"* | *"refactor"* | *"improve"* | *"optimize"* | *"rework"*)
+            echo "Changed"
+            ;;
+        *)
+            # Default based on conventional commit prefixes
+            if echo "$msg" | grep -qiE "^feat(\(.+\))?:"; then
+                echo "Added"
+            elif echo "$msg" | grep -qiE "^fix(\(.+\))?:"; then
+                echo "Fixed"
+            elif echo "$msg" | grep -qiE "^refactor(\(.+\))?:"; then
+                echo "Changed"
+            elif echo "$msg" | grep -qiE "^remove(\(.+\))?:"; then
+                echo "Removed"
+            else
+                echo "Changed"
+            fi
+            ;;
+    esac
+}
 
-# Get commit hash for the previous tag
-PREV_TAG_COMMIT=$(git rev-list -n 1 "$PREV_TAG" 2>/dev/null)
+# Main
+main() {
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        echo "Error: Not a git repository." >&2
+        exit 1
+    fi
 
-if [ -z "$PREV_TAG_COMMIT" ]; then
-  echo "Error: Could not find commit for tag $PREV_TAG"
-  exit 1
-fi
+    local tag
+    tag=$(get_latest_tag)
 
-# Get commits since the last tag
-COMMITS=$(git log --no-merges --pretty=format:"%s" "$PREV_TAG..HEAD")
+    local commits
+    commits=$(get_commits "$tag")
 
-# Generate the changelog
-echo "# Changelog" > "$OUTPUT_FILE"
-echo "" >> "$OUTPUT_FILE"
-echo "## [Unreleased]" >> "$OUTPUT_FILE"
-echo "$COMMITS" | awk '
-  /^feat/ { print "### Added\n\n" $0 "\n" }
-  /^fix/ { print "### Fixed\n\n" $0 "\n" }
-  /^refactor/ { print "### Changed\n\n" $0 "\n" }
-  /^remove/ { print "### Removed\n\n" $0 "\n" }
-' >> "$OUTPUT_FILE"
+    if [ -z "$commits" ]; then
+        echo "No commits found since the last tag."
+        exit 0
+    fi
 
-echo "Generated changelog saved to $OUTPUT_FILE"
+    local added=""
+    local fixed=""
+    local changed=""
+    local removed=""
+
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        cat=$(categorize "$line")
+        case "$cat" in
+            Added)   added="${added}- ${line}"$'\n' ;;
+            Fixed)   fixed="${fixed}- ${line}"$'\n' ;;
+            Changed) changed="${changed}- ${line}"$'\n' ;;
+            Removed) removed="${removed}- ${line}"$'\n' ;;
+        esac
+    done <<< "$commits"
+
+    {
+        echo "# Changelog"
+        echo ""
+        echo "## $(date +%Y-%m-%d)"
+        echo ""
+        [ -n "$added" ]   && echo "### Added"$'\n'"$added"
+        [ -n "$fixed" ]   && echo "### Fixed"$'\n'"$fixed"
+        [ -n "$changed" ] && echo "### Changed"$'\n'"$changed"
+        [ -n "$removed" ] && echo "### Removed"$'\n'"$removed"
+    } > "$CHANGELOG_FILE"
+
+    echo "Generated $CHANGELOG_FILE"
+}
+
+main "$@"
+# /generate-changelog
+
+Generate a structured `CHANGELOG.md` from the project's git history.
+
+## Usage
+
