@@ -1,11 +1,4 @@
-# claude-pr-reviewer
-
-> A Claude Code agent that reviews PRs and generates structured feedback
-
-## Setup
-
-
-# Claude Builders Bounty 🤖
+# Claude Code PR Reviewer Agent 🤖
 
 > A community bounty board for Claude Code builders.
 
