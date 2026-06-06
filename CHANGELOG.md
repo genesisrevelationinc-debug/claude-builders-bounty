@@ -1,6 +1,3 @@
-# Changelog Generator
+# Changelog
 
-## Usage
-
-Run the following command to generate a changelog:
-
+All notable changes to this project will be documented in this file.
