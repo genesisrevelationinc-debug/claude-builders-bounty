@@ -1,85 +1,60 @@
 #!/bin/bash
 
-# Exit on any error
-set -e
-
-# Function to print usage
+# Function to display usage
 usage() {
-  echo "Usage: $0 [OPTIONS]"
-  echo "  --help     Show this message"
-  echo "  --since    Starting tag (default: latest tag)"
-  echo "  --until    Ending tag (default: HEAD)"
+  echo "Usage: bash changelog.sh [OPTIONS]"
+  echo "Generate a changelog from git history."
+  echo ""
+  echo "Options:"
+  echo "  -h, --help     Display this help message"
+  echo "  -t, --tag      Specify the previous tag (default: latest tag)"
+  echo "  -o, --output    Output file (default: CHANGELOG.md)"
   exit 1
 }
 
-# Parse arguments
-SINCE=""
-UNTIL="HEAD"
+# Default values
+OUTPUT_FILE="CHANGELOG.md"
 
-while [[ $# -gt 0 ]]; do
+# Parse command line arguments
+while [[ "$#" -gt 0 ]]; do
   case $1 in
-    --help)
-      usage
-      ;;
-    --since)
-      SINCE="$2"
-      shift 2
-      ;;
-    --until)
-      UNTIL="$2"
-      shift 2
-      ;;
-    *)
-      echo "Unknown option $1"
-      usage
-      ;;
+    -h|--help) usage ;;
+    -t|--tag) PREV_TAG="$2"; shift ;;
+    -o|--output) OUTPUT_FILE="$2"; shift ;;
+    *) echo "Unknown parameter: $1"; usage ;;
   esac
+  shift
 done
 
-# Get latest tag if not specified
-if [ -z "$SINCE" ]; then
-  SINCE=$(git describe --tags --abbrev=0 2>/dev/null)
-  if [ -z "$SINCE" ]; then
-    echo "No git tags found. Please create at least one tag or specify --since."
+# Get the previous tag if not specified
+if [ -z "$PREV_TAG" ]; then
+  PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+  if [ $? -ne 0 ]; then
+    echo "Error: No tags found in the repository. Please create a tag first."
     exit 1
   fi
 fi
 
-# Create temporary file for commit messages
-TEMP_FILE=$(mktemp)
-trap 'rm -f "$TEMP_FILE"' EXIT
+# Get commit hash for the previous tag
+PREV_TAG_COMMIT=$(git rev-list -n 1 "$PREV_TAG" 2>/dev/null)
 
-# Get commit messages
-git log "$SINCE..$UNTIL" --no-merges --pretty=format:"- %s" > "$TEMP_FILE"
-
-# Initialize CHANGELOG.md
-cat > CHANGELOG.md << EOF
-# Changelog
-
-## [Unreleased]
-EOF
-
-# Categorize commits
-ADDED=$(grep -i 'add\|feat' "$TEMP_FILE" | sed 's/^- //')
-FIXED=$(grep -i 'fix\|patch' "$TEMP_FILE" | sed 's/^- //')
-CHANGED=$(grep -i 'change\|update\|modify' "$TEMP_FILE" | sed 's/^- //')
-REMOVED=$(grep -i 'remove\|delete' "$TEMP_FILE" | sed 's/^- //')
-
-# Write categories to changelog if they have content
-if [ -n "$ADDED" ]; then
-  echo -e "\n### Added\n$ADDED" >> CHANGELOG.md
+if [ -z "$PREV_TAG_COMMIT" ]; then
+  echo "Error: Could not find commit for tag $PREV_TAG"
+  exit 1
 fi
 
-if [ -n "$FIXED" ]; then
-  echo -e "\n### Fixed\n$FIXED" >> CHANGELOG.md
-fi
+# Get commits since the last tag
+COMMITS=$(git log --no-merges --pretty=format:"%s" "$PREV_TAG..HEAD")
 
-if [ -n "$CHANGED" ]; then
-  echo -e "\n### Changed\n$CHANGED" >> CHANGELOG.md
-fi
+# Generate the changelog
+echo "# Changelog" > "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "## [Unreleased]" >> "$OUTPUT_FILE"
+echo "$COMMITS" | awk '
+  /^feat/ { print "### Added\n\n" $0 "\n" }
+  /^fix/ { print "### Fixed\n\n" $0 "\n" }
+  /^refactor/ { print "### Changed\n\n" $0 "\n" }
+  /^remove/ { print "### Removed\n\n" $0 "\n" }
+' >> "$OUTPUT_FILE"
 
-if [ -n "$REMOVED" ]; then
-  echo -e "\n### Removed\n$REMOVED" >> CHANGELOG.md
-fi
-
-echo "CHANGELOG.md generated successfully!"
+echo "Generated changelog saved to $OUTPUT_FILE"
