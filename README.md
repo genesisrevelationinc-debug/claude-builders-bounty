@@ -1,5 +1,3 @@
-# Claude PR Reviewer
-
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -33,10 +31,10 @@ You're in the right place.
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
 
-## Rules
 
 - Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
@@ -45,23 +43,17 @@ You're in the right place.
 
 ---
 
-## Community
+
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
+- 💬 Discord: [Join our community](https://discord.gg/claude-builders)
+- 📚 Docs: [claude-docs.vercel.app](https://claude-docs.vercel.app)
 
 ---
+
+
 
 *Started by the Claude builder community · March 2026 · MIT License*
-## Community
 
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
-
----
-
-## Setup
-
-1. Install the tool: `npm install -g claude-review`
-2. Get an Anthropic API key and set it as an environment variable:
-   
+*Started by the Claude builder community · March 2026 · MIT License*
