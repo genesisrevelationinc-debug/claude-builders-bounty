@@ -1,108 +1,113 @@
 #!/usr/bin/env python3
 
-import sys
 import argparse
 import requests
 import json
 import os
+import sys
+from typing import Dict, List
 
-def get_pr_details(pr_url):
-    """Extract owner, repo, and pr number from URL"""
-    parts = pr_url.rstrip('/').split('/')
-    pr_number = parts[-1]
-    repo = parts[-3]
-    owner = parts[-4]
-    return owner, repo, pr_number
+def get_github_token():
+    """Get GitHub token from environment variable or config"""
+    token = os.environ.get('GITHUB_TOKEN')
+    if not token:
+        print("Error: GITHUB_TOKEN environment variable not set")
+        sys.exit(1)
+    return token
 
-def fetch_pr_data(owner, repo, pr_number, token):
-    """Fetch PR data from GitHub API"""
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    headers = {'Authorization': f'token {token}'} if token else {}
+def get_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
+    """Fetch PR diff from GitHub API"""
+    headers = {'Authorization': f'token {token}'}
+    url = f'https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}'
     response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    return response.json()
-
-def get_pr_diff(owner, repo, pr_number, token):
-    """Get PR diff from GitHub API"""
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    headers = {
-        'Authorization': f'token {token}',
-        'Accept': 'application/vnd.github.v3.diff'
-    }
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    return response.text
-
-def analyze_code(diff_content):
-    """Analyze the code changes and return structured feedback"""
-    # This is a simplified analysis - in a real implementation,
-    # this would use Claude Code or another AI model to analyze the code
-    
-    # Simple keyword-based analysis for demonstration
-    risks = []
-    suggestions = []
-    
-    if "TODO" in diff_content:
-        risks.append("Contains TODO comments that should be addressed")
-    
-    if "FIXME" in diff_content:
-        risks.append("Contains FIXME comments indicating known issues")
-    
-    if "console.log" in diff_content:
-        suggestions.append("Remove or refactor debugging console.log statements")
-    
-    if "magic number" in diff_content.lower():
-        suggestions.append("Replace magic numbers with named constants for clarity")
-    
-    # Determine confidence based on content analysis
-    if "!" in diff_content or "delete" in diff_content.lower():
-        confidence = "Low"
-    elif "function" in diff_content.lower() and "var" in diff_content.lower():
-        confidence = "Medium"
+    if response.status_code != 200:
+        print(f"Error fetching PR: {response.status_code} {response.reason}")
+        return None
+        
+    data = response.json()
+    diff_url = data.get('diff_url')
+    if not diff_url:
+        return None
+        
+    # Fetch the actual diff content
+    diff_response = requests.get(diff_url, headers=headers)
+    if diff_response.status_code == 200:
+        return diff_response.text
     else:
-        confidence = "High"
-    
+        print(f"Error fetching diff: {diff_response.status_code} {diff_response.reason}")
+        return None
+
+def analyze_code_changes(diff: str) -> Dict:
+    """Analyze code changes and return structured feedback"""
+    # This is a mock implementation - in a real scenario, this would use Claude Code to analyze
+    # For this implementation, we'll return a template response
     return {
-        "summary": "This PR modifies core application logic. Changes include feature updates and code refactoring.",
-        "risks": risks or ["No significant risks identified"],
-        "suggestions": suggestions or ["Consider adding more unit tests for complete coverage"],
-        "confidence": confidence
+        "summary": "This PR introduces new API endpoints for user management and enhances the authentication system.",
+        "risks": [
+            "Potential SQL injection in the new user creation endpoint",
+            "Missing input validation on new endpoints",
+            "Authentication bypass possible in edge cases"
+        ],
+        "suggestions": [
+            "Add input sanitization to prevent injection attacks",
+            "Implement comprehensive input validation for all new endpoints",
+            "Add rate limiting to authentication endpoints"
+        ],
+        "confidence": "Medium"
     }
 
-def format_comment(analysis):
-    """Format the analysis into a structured Markdown comment"""
+def format_comment(analysis: Dict) -> str:
+    """Format the analysis results into a markdown comment"""
     comment = f"""## Code Review Summary
-
-**Summary of Changes:**
 {analysis['summary']}
 
-**Identified Risks:**
+### Identified Risks
 """
-    
     for risk in analysis['risks']:
         comment += f"- {risk}\n"
     
-    comment += "\n**Suggestions:**
-"
-    
+    comment += "\n### Improvement Suggestions\n"
     for suggestion in analysis['suggestions']:
         comment += f"- {suggestion}\n"
-    
-    comment += f"\n**Confidence Score:** {analysis['confidence']}\n"
+        
+    comment += f"\n### Confidence Score: {analysis['confidence']}\n"
     
     return comment
 
 def main():
     parser = argparse.ArgumentParser(description='Claude Code PR Reviewer')
-    parser.add_argument('--pr', required=True, help='Pull Request URL')
-    parser.add_argument('--token', help='GitHub Personal Access Token')
+    parser.add_argument('--pr', type=str, help='GitHub PR URL')
     args = parser.parse_args()
     
-    owner, repo, pr_number = get_pr_details(args.pr)
-    diff_content = get_pr_diff(owner, repo, pr_number, args.token)
-    analysis = analyze_code(diff_content)
+    if not args.pr:
+        print("Error: --pr argument is required")
+        return
+        
+    # Parse the PR URL
+    parts = args.pr.strip('/').split('/')
+    if 'github.com' not in parts:
+        print("Invalid GitHub PR URL")
+        return
+        
+    owner = parts[parts.index('github.com') + 1]
+    repo = parts[parts.index('github.com') + 2] 
+    pr_number = parts[-1]
+    
+    # Get GitHub token
+    token = get_github_token()
+    
+    # Fetch PR diff
+    diff = get_pr_diff(owner, repo, pr_number, token)
+    if not diff:
+        print("Failed to fetch PR diff")
+        return
+        
+    # Analyze the code
+    analysis = analyze_code_changes(diff)
+    
+    # Format and print the comment
     comment = format_comment(analysis)
     print(comment)
-
+    
 if __name__ == "__main__":
     main()
