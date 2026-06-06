@@ -1,203 +1,189 @@
-```diff
+ ```diff
 --- /dev/null
-+++ b/claude-weekly-dev-summary.json
-@@ -0,0 +1,1456 @@
++++ b/workflows/n8n-claude-weekly-summary/README.md
+@@ -0,0 +0,0 @@
++# n8n + Claude — Weekly Dev Summary Workflow
++
++Auto-generates a narrative weekly summary of GitHub repo activity via n8n and Claude API.
++
++## Setup (5 steps)
++
++1. **Import** `workflow.json` into your n8n instance (Settings → Import)
++2. **Set credentials**: Add your GitHub Personal Access Token, Claude API Key, and Email (or Webhook) in n8n Credentials
++3. **Configure variables**: Open the "Set Config" node and set `repo`, `channel` (or email), and `language` (`EN` or `FR`)
++4. **Activate** the workflow and ensure the Cron trigger is enabled
++5. **Test** manually by clicking "Execute Workflow" — check your destination for the summary
++
++## Delivery Options
++
++- **Email**: Uses n8n's built-in Email node (SMTP or SendGrid)
++- **Discord/Slack**: Replace the Email node with an HTTP Request node pointing to your webhook URL
++
++## Required Variables
++
++| Variable | Description | Example |
++|----------|-------------|---------|
++| `repo` | GitHub owner/repo | `claude-builders-bounty/claude-builders-bounty` |
++| `channel` | Email address or webhook URL | `dev-updates@company.com` |
++| `language` | Output language | `EN` or `FR` |
++
++## Screenshot
++
++> Add a screenshot of a successful execution here: `assets/success-screenshot.png`
++
++## License
++
++MIT
+--- /dev/null
++++ b/workflows/n8n-claude-weekly-summary/workflow.json
+@@ -0,0 +1,0 @@
 +{
-+  "name": "Claude Weekly Dev Summary",
++  "name": "Weekly Dev Summary - Claude + n8n",
 +  "nodes": [
-+    {
-+      "parameters": {},
-+      "id": "1",
-+      "name": "Start",
-+      "type": "n8n-nodes-base.cron",
-+      "typeVersion": 1,
-+      "position": [
-+        250,
-+        300
-+      ]
-+    },
 +    {
 +      "parameters": {
 +        "rule": {
 +          "interval": [
 +            {
 +              "field": "weeks",
-+              "weeks": 1
++              "triggerAtHour": 17,
++              "triggerAtDay": 5
++            }
++          ]
++        }
++      },
++      "id": "trigger-cron-weekly",
++      "name": "Weekly Cron Trigger",
++      "type": "n8n-nodes-base.scheduleTrigger",
++      "typeVersion": 1,
++      "position": [250, 300]
++    },
++    {
++      "parameters": {
++        "values": {
++          "string": [
++            {
++              "name": "repo",
++              "value": "={{ $env.GITHUB_REPO || \"claude-builders-bounty/claude-builders-bounty\" }}"
++            },
++            {
++              "name": "channel",
++              "value": "={{ $env.DESTINATION_CHANNEL || \"dev-updates@example.com\" }}"
++            },
++            {
++              "name": "language",
++              "value": "={{ $env.LANGUAGE || \"EN\" }}"
++            },
++            {
++              "name": "since",
++              "value": "={{ DateTime.now().minus({ days: 7 }).toISO() }}"
++            }
++          ]
++        }
++      },
++      "id": "set-config",
++      "name": "Set Config",
++      "type": "n8n-nodes-base.set",
++      "typeVersion": 2,
++      "position": [450, 300]
++    },
++    {
++      "parameters": {
++        "url": "=https://api.github.com/repos/{{ $json.repo }}/commits",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "since",
++              "value": "={{ $json.since }}"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
 +            }
 +          ]
 +        },
-+        "timezone": "America/New_York",
-+        "cronExpression": "0 17 * * 5"
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth"
 +      },
-+      "id": "2",
-+      "name": "Weekly Trigger",
-+      "type": "n8n-nodes-base.cron",
-+      "typeVersion": 1,
-+      "position": [
-+        250,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "commit",
-+        "operation": "getAll",
-+        "owner": "={{ $parameter[\"repoOwner\"] }}",
-+        "repository": "={{ $parameter[\"repoName\"] }}",
-+        "filters": {
-+          "since": "={{ new Date(new Date().setDate(new Date().getDate() - 7)).toISOString() }}",
-+          "until": "={{ new Date().toISOString() }}"
-+        }
-+      },
-+      "id": "3",
-+      "name": "Get Commits",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        500,
-+        200
-+      ],
++      "id": "github-commits",
++      "name": "GitHub Commits",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 4.1,
++      "position": [650, 200],
 +      "credentials": {
-+        "githubApi": "GitHub"
++        "httpHeaderAuth": {
++          "id": "github-token",
++          "name": "GitHub API Token"
++        }
 +      }
 +    },
 +    {
 +      "parameters": {
-+        "resource": "issue",
-+        "operation": "getAll",
-+        "owner": "={{ $parameter[\"repoOwner\"] }}",
-+        "repository": "={{ $parameter[\"repoName\"] }}",
-+        "state": "closed",
-+        "filters": {
-+          "since": "={{ new Date(new Date().setDate(new Date().getDate() - 7)).toISOString() }}"
-+        }
++        "url": "=https://api.github.com/repos/{{ $json.repo }}/issues",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "state",
++              "value": "closed"
++            },
++            {
++              "name": "since",
++              "value": "={{ $json.since }}"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
++            }
++          ]
++        },
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth"
 +      },
-+      "id": "4",
-+      "name": "Get Closed Issues",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        500,
-+        350
-+      ],
++      "id": "github-issues",
++      "name": "GitHub Closed Issues",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 4.1,
++      "position": [650, 400],
 +      "credentials": {
-+        "githubApi": "GitHub"
++        "httpHeaderAuth": {
++          "id": "github-token",
++          "name": "GitHub API Token"
++        }
 +      }
 +    },
 +    {
 +      "parameters": {
-+        "resource": "pullRequest",
-+        "operation": "getAll",
-+        "owner": "={{ $parameter[\"repoOwner\"] }}",
-+        "repository": "={{ $parameter[\"repoName\"] }}",
-+        "state": "closed",
-+        "filters": {
-+          "sort": "updated",
-+          "direction": "desc"
-+        }
++        "url": "=https://api.github.com/repos/{{ $json.repo }}/pulls",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "state",
++              "value": "closed"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
++            }
++          ]
++        },
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth"
 +      },
-+      "id": "5",
-+      "name": "Get Pull Requests",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        500,
-+        500
-+      ],
++      "id": "github-prs",
++      "name": "GitHub Merged PRs",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 4.1,
++      "position": [650, 600],
 +      "credentials": {
-+        "githubApi": "GitHub"
++        "httpHeaderAuth": {
++          "id": "github-token",
++          "name": "GitHub API Token"
++        }
 +      }
 +    },
 +    {
 +      "parameters": {
-+        "model": "claude-sonnet-4-20250514",
-+        "prompt": "={{ $json[\"prompt\"] }}",
-+        "system": "={{ $json[\"system\"] }}",
-+        "maxTokens": 1024,
-+        "temperature": 0.7
-+      },
-+      "id": "6",
-+      "name": "Call Claude API",
-+      "type": "n8n-nodes-base.anthropic",
-+      "typeVersion": 1,
-+      "position": [
-+        1000,
-+        300
-+      ],
-+      "credentials": {
-+        "anthropicApi": "Anthropic"
-+      }
-+    },
-+    {
-+      "parameters": {
-+        "keepOnlySet": true,
-+        "fields": [
-+          {
-+            "name": "commits",
-+            "value": "={{ $json[\"commits\"] }}"
-+          },
-+          {
-+            "name": "issues",
-+            "value": "={{ $json[\"issues\"] }}"
-+          },
-+          {
-+            "name": "pullRequests",
-+            "value": "={{ $json[\"pullRequests\"] }}"
-+          }
-+        ]
-+      },
-+      "id": "7",
-+      "name": "Prepare Data",
-+      "type": "n8n-nodes-base.set",
-+      "typeVersion": 1,
-+      "position": [
-+        750,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "mode": "combine",
-+        "combine": {
-+          "mergeBy": "index",
-+          "join": "inner"
-+        }
-+      },
-+      "id": "8",
-+      "name": "Combine Data",
-+      "type": "n8n-nodes-base.combine",
-+      "typeVersion": 1,
-+      "position": [
-+        850,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "mode": "combine",
-+        "combine": {
-+          "mergeBy": "index",
-+          "join": "inner"
-+        }
-+      },
-+      "id": "9",
-+      "name": "Combine Data1",
-+      "type": "n8n-nodes-base.combine",
-+      "typeVersion": 1,
-+      "position": [
-+        850,
-+        400
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "mode": "combine",
-+        "combine": {
-+          "mergeBy": "index",
-+          "join": "inner"
-+        }
-+      },
-+      "id": "10",
-+      "name": "Combine Data2",
-+      "type": "n8n-nodes-base.combine",
-+
++       
