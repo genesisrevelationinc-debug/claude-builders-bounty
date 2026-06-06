@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project conventions. Read this before writing code.  
+> Goal: eliminate decision fatigue, ship faster, maintain forever.
 
 ---
 
@@ -9,16 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `next` CLI requires 18+, 20+ for stable fetch/streams |
-| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-node deploys. Use `libsql` client only if you need Turso/edge |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | Lucia + `better-sqlite3` adapter | Session-based, works without edge, no JWT in cookies |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste components |
-| Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical flows |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS |
+| Runtime | Node.js 20+ | `crypto` global, native fetch, stable |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, migrations in code, no magic |
+| Auth | Lucia + `oslo` | Session-based, works with SQLite, no OAuth lock-in |
+| Styling | Tailwind CSS + `cn()` | Utility-first, zero runtime, `clsx` + `tailwind-merge` |
+| Forms | Server Actions + `zod` | No API routes needed, validation co-located |
+| Testing | Vitest + Playwright | Unit + E2E, fast, same config syntax |
 
-**Lock these versions in `package.json`. Do not upgrade major versions without a migration plan.**
+**Non-negotiable:** We do not use `turso` or any remote SQLite. The whole point of SQLite is zero network latency. If you need multi-node, switch to Postgres. Don't pretend SQLite is distributed.
 
 ---
 
