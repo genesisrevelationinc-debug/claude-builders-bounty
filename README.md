@@ -50,18 +50,11 @@ You're in the right place.
 
 ---
 
+# Claude Destructive Command Blocker
+
+This hook blocks dangerous bash commands from being executed in Claude Code.
+
+## Installation
+
+
 *Started by the Claude builder community · March 2026 · MIT License*
-
----
-
-## Hooks
-
-| Hook | Description | Path |
-|------|-------------|------|
-| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands before execution | `~/.claude/hooks/pre-tool-use` |
-
----
-
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
