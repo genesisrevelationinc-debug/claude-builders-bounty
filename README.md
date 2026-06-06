@@ -50,14 +50,12 @@ You're in the right place.
 
 ---
 
-# SafeBash Hook
+# Block Destructive Commands Hook
 
-## Description
-This Claude Code hook blocks dangerous bash commands before they are executed.
+This is a Claude Code `pre-tool-use` hook that blocks dangerous bash commands before they are executed.
 
 ## Installation
-1. Create a `pre_tool_use` file in `~/.claude/hooks/`
-2. Make it executable: `chmod +x ~/.claude/hooks/pre_tool_use`
 
-That's it! The hook will now automatically block destructive commands.
+1. Copy the hook script to your Claude hooks directory:
+   
 *Started by the Claude builder community · March 2026 · MIT License*
