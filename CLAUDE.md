@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code.  
-> Goal: eliminate decision fatigue, ship faster, maintain forever.
+> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your conventions without asking.
 
 ---
 
@@ -9,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS |
-| Runtime | Node.js 20+ | `crypto` global, native fetch, stable |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Drizzle ORM | Type-safe SQL, migrations in code, no magic |
-| Auth | Lucia + `oslo` | Session-based, works with SQLite, no OAuth lock-in |
-| Styling | Tailwind CSS + `cn()` | Utility-first, zero runtime, `clsx` + `tailwind-merge` |
-| Forms | Server Actions + `zod` | No API routes needed, validation co-located |
-| Testing | Vitest + Playwright | Unit + E2E, fast, same config syntax |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable since 15.1 |
+| Runtime | Node.js 20+ | `next dev` requires 18+, 20 for native `fetch` stability |
+| Database | `better-sqlite3` | Synchronous, fast, zero network latency. Use Turso only if you need multi-region |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly. No Prisma (heavy, slow startup) |
+| Auth | Lucia + `better-sqlite3` adapter | Session-based, no JWT bloat, works with OAuth providers |
+| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
+| Validation | Zod | Same schemas for API + forms, no duplication |
+| Testing | Vitest + Playwright | Unit tests in Vitest, E2E in Playwright |
 
-**Non-negotiable:** We do not use `turso` or any remote SQLite. The whole point of SQLite is zero network latency. If you need multi-node, switch to Postgres. Don't pretend SQLite is distributed.
+**Lock versions in `package.json`.** We do not use `^` or `~`. Upgrades are intentional PRs.
 
 ---
 
