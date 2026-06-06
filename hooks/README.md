@@ -1,7 +1,6 @@
-# Claude Code Pre-tool-use Hook: Block Destructive Commands
-
-This hook intercepts and blocks dangerous bash commands before they are executed.
+# Destructive Command Blocker Hook
 
 ## Installation
 
-1. Create the hooks directory and copy the hook:
+1. Create the hooks directory:
+   
