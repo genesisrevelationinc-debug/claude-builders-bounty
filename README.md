@@ -2,6 +2,19 @@
 
 > A community bounty board for Claude Code builders.
 
+## Claude Code PR Reviewer Agent
+
+This is a CLI tool and GitHub Action that uses Claude Code to review pull requests and generate structured feedback.
+
+### Features
+
+- Analyzes PR diffs using Claude Code AI
+- Generates structured Markdown review comments
+- Can be used via CLI or as a GitHub Action
+
+### Installation
+
+
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
@@ -31,10 +44,10 @@ You're in the right place.
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
 
+## Rules
 
 - Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
@@ -43,17 +56,11 @@ You're in the right place.
 
 ---
 
-
+## Community
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
-- 💬 Discord: [Join our community](https://discord.gg/claude-builders)
-- 📚 Docs: [claude-docs.vercel.app](https://claude-docs.vercel.app)
 
 ---
-
-
-
-*Started by the Claude builder community · March 2026 · MIT License*
 
 *Started by the Claude builder community · March 2026 · MIT License*
