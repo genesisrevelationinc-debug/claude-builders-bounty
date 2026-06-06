@@ -2,31 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [Unreleased]
 
 ### Added
-
-### Changed
-
-### Fixed
-
-### Removed
-
-## [1.0.0] - 2024-03-01
-
-### Added
 - Initial project setup
-- README with bounty board information
-- License file
-
-### Changed
-- N/A
+- Basic repository structure
 
 ### Fixed
-- N/A
+- Minor bug fixes in initial commits
+
+### Changed
+- Updated README with comprehensive instructions
+- Improved overall project documentation
 
 ### Removed
-- N/A
+- Outdated example files
+- Unnecessary configuration entries
+
+## [1.0.0] - 2023-01-01
+
+- Initial release
+- Basic project structure and setup
