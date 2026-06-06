@@ -1,63 +1,70 @@
 #!/bin/bash
 
 # Claude Code pre-tool-use hook to block destructive bash commands
-# Blocks: rm -rf, DROP TABLE, git push --force, TRUNCATE, DELETE FROM without WHERE
-
-set -euo pipefail
-
-# Get the command being executed
-command_input="$1"
-
-# Get project path from Claude environment variable or default to current directory
-project_path="${CLAUDE_PROJECT_PATH:-$(pwd)}"
-
-# Log file location
-log_file="$HOME/.claude/hooks/blocked.log"
+# 
+# This hook checks bash commands for destructive patterns and blocks them
+# Patterns blocked:
+# - rm -rf
+# - DROP TABLE
+# - git push --force
+# - TRUNCATE
+# - DELETE FROM (without WHERE clause)
+#
+# Logs blocked attempts to ~/.claude/hooks/blocked.log
 
 # Function to log blocked commands
-log_blocked() {
-    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    echo "[$timestamp] BLOCKED: $command_input | PROJECT: $project_path" >> "$log_file"
+log_blocked_command() {
+    local timestamp=$(date -Iseconds)
+    local project_path=$(pwd)
+    local log_file="$HOME/.claude/hooks/blocked.log"
+    
+    # Create log directory if it doesn't exist
+    mkdir -p "$(dirname "$log_file")"
+    
+    echo "[$timestamp] BLOCKED: $ORIGINAL_COMMAND" >> "$log_file"
+    echo "  Project Path: $project_path" >> "$log_file"
+    echo "  Reason: $1" >> "$log_file"
+    echo "----------------------------------------" >> "$log_file"
 }
 
-# Function to check for destructive patterns
-is_destructive() {
-    local cmd="$1"
+# Check if this is a bash command
+if [ "$TOOL_NAME" = "bash" ]; then
+    # Get the command being executed
+    command_to_check="$1"
     
-    # Check for rm -rf
-    if [[ "$cmd" == *"rm -rf"* ]]; then
-        return 0
+    # Check for destructive patterns
+    if [[ "$command_to_check" == *"rm -rf"* ]]; then
+        log_blocked_command "rm -rf command detected"
+        echo "❌ BLOCKED: Destructive 'rm -rf' command detected"
+        echo "   This command was prevented for your safety."
+        echo "   See ~/.claude/hooks/blocked.log for details."
+        exit 1
+    elif [[ "$command_to_check" == *"DROP TABLE"* ]]; then
+        log_blocked_command "DROP TABLE command detected"
+        echo "❌ BLOCKED: Destructive 'DROP TABLE' command detected"
+        echo "   This command was prevented for your safety."
+        echo "   See ~/.claude/hooks/blocked.log for details."
+        exit 1
+    elif [[ "$command_to_check" == *"git push --force"* ]]; then
+        log_blocked_command "git push --force command detected"
+        echo "❌ BLOCKED: Destructive 'git push --force' command detected"
+        echo "   This command was prevented for your safety."
+        echo "   See ~/.claude/hooks/blocked.log for details."
+        exit 1
+    elif [[ "$command_to_check" == *"TRUNCATE"* ]]; then
+        log_blocked_command "TRUNCATE command detected"
+        echo "❌ BLOCKED: Destructive 'TRUNCATE' command detected"
+        echo "   This command was prevented for your safety."
+        echo "   See ~/.claude/hooks/blocked.log for details."
+        exit 1
+    elif [[ "$command_to_check" == *"DELETE FROM"* ]] && [[ ! "$command_to_check" == *"WHERE"* ]]; then
+        log_blocked_command "DELETE FROM without WHERE clause detected"
+        echo "❌ BLOCKED: Destructive 'DELETE FROM' without WHERE clause detected"
+        echo "   This command was prevented for your safety."
+        echo "   See ~/.claude/hooks/blocked.log for details."
+        exit 1
     fi
-    
-    # Check for SQL DROP TABLE
-    if [[ "$cmd" == *"DROP TABLE"* ]]; then
-        return 0
-    fi
-    
-    # Check for git push --force
-    if [[ "$cmd" == *"git push --force"* ]] || [[ "$cmd" == *"git push -f"* ]]; then
-        return 0
-    fi
-    
-    # Check for TRUNCATE
-    if [[ "$cmd" == *"TRUNCATE"* ]] || [[ "$cmd" == *"truncate"* ]]; then
-        return 0
-    fi
-    
-    # Check for DELETE FROM without WHERE clause
-    if echo "$cmd" | grep -Eiq "delete from [a-zA-Z_][a-zA-Z0-9_]* *[;]*$"; then
-        return 0
-    fi
-    
-    return 1
-}
-
-# Check if command is destructive
-if is_destructive "$command_input"; then
-    log_blocked
-    echo "BLOCKED: Dangerous command detected. This command has been prevented for your safety."
-    exit 1
 fi
 
-# If we get here, the command is safe to execute
+# Allow the command to proceed if not blocked
 exit 0
