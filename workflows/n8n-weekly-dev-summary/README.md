@@ -1,30 +1,46 @@
 # n8n Weekly Dev Summary Workflow
 
-Automated weekly narrative summary of GitHub repo activity using n8n + Claude API.
+Automated weekly narrative summary of a GitHub repo's activity, powered by n8n and Claude API.
 
 ## Setup (5 steps)
 
-1. **Import workflow**: In n8n, click "Import" → "From File" → select `weekly-dev-summary.json`
-2. **Set credentials**: Add your GitHub token, Claude API key, and email/SMTP or webhook credentials in n8n "Credentials"
-3. **Configure variables**: Open the "Set Variables" node and set your repo, destination, and language (EN/FR)
-4. **Activate**: Toggle the workflow to "Active" — it runs Fridays at 5pm
-5. **Test**: Click "Execute Workflow" to run manually and verify output
+1. **Import the workflow**: In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`.
 
-## Required Credentials
+2. **Set credentials**: Add your **Claude API** and **GitHub** credentials in n8n *Settings → Credentials*.
 
-- **GitHub API**: Personal access token with `repo` scope
-- **Claude API**: Anthropic API key (https://console.anthropic.com)
-- **Delivery**: One of:
-  - SMTP credentials for email, OR
-  - Webhook URL for Discord/Slack
+3. **Configure variables**: Open the workflow and edit the *Set Variables* node:
+   - `githubRepo` — e.g. `owner/repo`
+   - `destinationWebhook` — your Discord/Slack webhook URL
+   - `language` — `EN` or `FR`
 
-## Configurable Variables
+4. **Activate the workflow**: Toggle the workflow to *Active* in the top-right corner.
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `githubRepo` | Full repo path | `claude-builders-bounty/claude-builders-bounty` |
-| `destinationChannel` | Email or webhook URL | `dev-updates@company.com` |
-| `language` | Summary language | `EN` or `FR` |
+5. **Test it**: Click *Execute Workflow* or wait for the next Friday at 5 PM.
 
-## Workflow Overview
+---
 
+## What It Does
+
+- **Trigger**: Weekly cron (Fridays at 5 PM)
+- **Fetches**: Commits, closed issues, and merged PRs from the past 7 days
+- **Summarizes**: Sends data to Claude API (`claude-sonnet-4-20250514`) for a narrative summary
+- **Delivers**: Posts the summary to a Discord or Slack webhook
+
+## Required Environment / Credentials
+
+| Credential | Where to Get |
+|------------|-------------|
+| Claude API | https://console.anthropic.com/settings/keys |
+| GitHub Token | https://github.com/settings/tokens (needs `repo` scope) |
+
+## Output Example
+
+> 📅 **Weekly Dev Summary for `owner/repo`** (May 12 – May 19)
+>
+> This week saw 12 commits, 3 closed issues, and 2 merged PRs. The team focused on refactoring the authentication layer and fixing critical bugs in the payment flow...
+
+---
+
+## License
+
+MIT
