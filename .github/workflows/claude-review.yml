@@ -1,44 +1,40 @@
-name: Claude Code Review
+name: Claude PR Review
 
 on:
   pull_request:
     types: [opened, synchronize]
-    
-permissions:
-  pull-requests: write
-  contents: read
 
 jobs:
-  claude-review:
+  review:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/checkout@v4
         with:
-          python-version: '3.9'
-
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
       - name: Install dependencies
         run: |
-          pip install requests
-
-      - name: Run Claude Code Review
-        run: |
-          python claude_pr_reviewer.py --pr ${{ github.event.pull_request.html_url }} > review_output.md
+          pip install -e .
+      
+      - name: Run Claude PR Review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Post comment to PR
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const fs = require('fs');
-            const reviewContent = fs.readFileSync('review_output.md', 'utf8');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '# Claude Code Review\n\n' + reviewContent
-            });
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude-review --pr "${{ github.event.pull_request.html_url }}" --output review.md
+      
+      - name: Post review comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.html_url }}" --body-file review.md
