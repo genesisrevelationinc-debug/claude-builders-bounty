@@ -50,29 +50,9 @@ You're in the right place.
 
 ---
 
-# Claude Builders Bounty 🤖
+# Pre-tool-use Hook for Blocking Destructive Bash Commands
 
-> A community bounty board for Claude Code builders.
+## Installation
 
-Building with Claude Code? Have tasks to delegate?
-Want to get paid for contributing to AI projects?
-You're in the right place.
 
----
-
-## How it works
-
-**To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
-3. Share the link — contributors will find it
-
-**To claim a bounty**
-1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
-3. Submit a PR — payment is automatic on merge ✅
-
----
-
-*Started by the Claude builder community · March 2026 · MIT License*
 *Started by the Claude builder community · March 2026 · MIT License*
