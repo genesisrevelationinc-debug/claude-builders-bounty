@@ -1,96 +1,177 @@
-#!/usr/bin/env python3
+#!/usr/bin/env node
 
-import argparse
-import json
-import requests
-import sys
-import os
+const { Octokit } = require('@octokit/rest');
+const { execSync } = require('child_process');
+const { Configuration, OpenAIApi } = require('openai');
+const fs = require('fs');
+const path = require('path');
+const yaml = require('js-yaml');
 
-def get_pr_diff(owner, repo, pr_number, token):
-    """Fetch the diff of a pull request from GitHub API."""
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    return response.json().get("diff_url", "")
-
-def analyze_diff(diff_content):
-    """Analyze the diff content and return a structured review."""
-    # This is a simplified implementation - in a real agent, this would be replaced with
-    # Claude Code analysis
-    summary = "This PR modifies the authentication logic and updates dependencies. The changes affect user login functionality and library versions."
-    risks = [
-        "Changes to authentication logic may introduce security vulnerabilities",
-        "Dependency updates might bring breaking changes or new security issues",
-        "Login flow error handling may not be comprehensive"
-    ]
-    suggestions = [
-        "Add unit tests for the new authentication logic",
-        "Verify all error cases are handled in the login flow",
-        "Check that updated dependencies don't introduce compatibility issues"
-    ]
-    confidence = "Medium"
+class ClaudePRReviewer {
+  constructor() {
+    this.octokit = new Octokit({
+      auth: process.env.GITHUB_TOKEN
+    });
     
+    const configuration = new Configuration({
+      apiKey: process.env.OPENAI_API_KEY || process.env.CLAUDE_API_KEY,
+    });
+    this.openai = new OpenAIApi(configuration);
+  }
+
+  async getPRDiff(owner, repo, prNumber) {
+    try {
+      const { data } = await this.octokit.pulls.get({
+        owner,
+        repo,
+        pull_number: prNumber,
+        mediaType: {
+          format: "diff",
+        }
+      });
+      
+      return data;
+    } catch (error) {
+      throw new Error(`Failed to fetch PR: ${error.message}`);
+    }
+  }
+
+  async analyzeCode(diffText) {
+    const prompt = `
+You are a senior software engineer reviewing a pull request. Analyze the code changes and provide a review in the following structured format:
+
+## Summary of Changes
+<2-3 sentences summarizing the main changes>
+
+## Risks
+- <List of potential risks or issues>
+
+## Suggestions
+- <List of improvement suggestions>
+
+## Confidence
+<Low/Medium/High>
+
+## Code Changes:
+${diffText}
+    `;
+
+    try {
+      const completion = await this.openai.createChatCompletion({
+        model: "gpt-4",
+        messages: [{role: "user", content: prompt}],
+        temperature: 0.7
+      });
+
+      return completion.data.choices[0].message.content;
+    } catch (error) {
+      console.error('Error generating review:', error);
+      return 'Error generating review.';
+    }
+  }
+
+  parseReview(reviewText) {
+    // This is a simple parser - in practice you'd want something more robust
+    const summaryMatch = reviewText.match(/## Summary of Changes\n(.*?)(?=\n##)/s);
+    const risksMatch = reviewText.match(/## Risks\n(.*?)(?=\n##)/s);
+    const suggestionsMatch = reviewText.match(/## Suggestions\n(.*?)(?=\n##)/s);
+    const confidenceMatch = reviewText.match(/## Confidence\n(Low|Medium|High)/);
+
     return {
-        "summary": summary,
-        "risks": risks,
-        "suggestions": suggestions,
-        "confidence": confidence
+      summary: summaryMatch ? summaryMatch[1].trim() : '',
+      risks: risksMatch ? risksMatch[1].trim() : '',
+      suggestions: suggestionsMatch ? suggestionsMatch[1].trim() : '',
+      confidence: confidenceMatch ? confidenceMatch[1] : 'Low'
+    };
+  }
+
+  formatComment(parsed) {
+    return `## Code Review
+
+### Summary of Changes
+${parsed.summary}
+
+### Potential Risks
+${parsed.risks}
+
+### Improvement Suggestions
+${parsed.suggestions}
+
+### Confidence: ${parsed.confidence}
+`;
+  }
+
+  async postReviewComment(owner, repo, prNumber, comment) {
+    try {
+      await this.octokit.issues.createComment({
+        owner,
+        repo,
+        issue_number: prNumber,
+        body: comment
+      });
+      console.log('Posted review as comment to PR');
+    } catch (error) {
+      console.error('Error posting comment to PR:', error.message);
+    }
+  }
+
+  async run(url) {
+    // Parse GitHub URL
+    const urlParts = url.split('/');
+    const owner = urlParts[3];
+    const repo = urlParts[4];
+    const prNumber = parseInt(urlParts[6]);
+
+    if (!owner || !repo || !prNumber) {
+      throw new Error('Invalid GitHub PR URL');
     }
 
-def format_comment(analysis):
-    """Format the analysis into a structured Markdown comment."""
-    comment = f"""## Code Review
-### Summary of Changes
-{analysis['summary']}
-### Identified Risks
-"""
-    
-    for risk in analysis['risks']:
-        comment += f"- {risk}
-"
-    
-    comment += """
-### Improvement Suggestions
-"""
-    
-    for suggestion in analysis['suggestions']:
-        comment += f"- {suggestion}
-"
-    
-    comment += f"""
-### Confidence
-{analysis['confidence']}
-"""
-    
-    return comment
+    // Fetch PR
+    const prData = await this.getPRDiff(owner, repo, prNumber);
+    const diff = prData.data;
 
-def main():
-    parser = argparse.ArgumentParser(description='Claude Code PR Reviewer')
-    parser.add_argument('--pr', required=True, help='GitHub PR URL')
-    parser.add_argument('--token', help='GitHub token for API access')
+    // Generate review
+    const review = await this.analyzeCode(diff);
+    const parsed = this.parseReview(review);
+    const comment = this.formatComment(parsed);
     
-    args = parser.parse_args()
+    // Post as comment
+    await this.postReviewComment(owner, repo, prNumber, comment);
     
-    # Parse the PR URL
-    parts = args.pr.rstrip('/').split('/')
-    if len(parts) < 5 or parts[-2] != 'pull':
-        print("Invalid PR URL format", file=sys.stderr)
-        sys.exit(1)
-        
-    repo_full_name = '/'.join(parts[-4:-2])
-    pr_number = parts[-1]
-    
-    # In a real implementation, we would fetch the actual diff content
-    # For now, we're using a placeholder
-    diff_content = "placeholder"
-    
-    # Analyze the diff
-    analysis = analyze_diff(diff_content)
-    
-    # Format and print the comment
-    comment = format_comment(analysis)
-    print(comment)
+    return comment;
+  }
+}
 
-if __name__ == "__main__":
-    main()
+// CLI handling
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  if (args.length < 1) {
+    console.log('Usage: claude-review --pr <pr_url>');
+    process.exit(1);
+  }
+
+  const prFlagIndex = args.indexOf('--pr');
+  if (prFlagIndex === -1 || prFlagIndex + 1 >= args.length) {
+    console.log('Usage: claude-review --pr <pr_url>');
+    process.exit(1);
+  }
+
+  const prUrl = args[prFlagIndex + 1];
+  if (!prUrl) {
+    console.log('Please provide a valid PR URL');
+    process.exit(1);
+  }
+
+  const reviewer = new ClaudePRReviewer();
+  reviewer.run(prUrl)
+    .then((comment) => {
+      console.log('Review posted to PR');
+      console.log(comment);
+    })
+    .catch(err => {
+      console.error('Error:', err.message);
+      process.exit(1);
+    });
+}
+
+module.exports = { ClaudePRReviewer };
