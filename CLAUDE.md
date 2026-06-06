@@ -1,15 +1,26 @@
-# CLAUDE.md — Next.js + SQLite SaaS Project Guide
+# CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> **Purpose**: This document defines our team's conventions and expectations for AI-assisted development using Claude Code. It ensures consistency, quality, and maintainability across our codebase.
+> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your conventions without asking.
+
+---
 
 ## Stack & Versions
 
-- **Next.js**: 15.x (App Router)
-- **Database**: SQLite via [libSQL (Turso)](https://turso.tech)
-- **ORM**: [Drizzle ORM](https://github.com/drizzle-team/drizzle-orm)
-- **Styling**: Tailwind CSS 3.x
-- **Deployment**: Vercel
-- **TypeScript**: 5.x
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
+| Runtime | Node.js 20+ | `crypto` global, native fetch, stable ESM |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
+| Auth | Lucia (or custom session) | Cookie-based sessions, works with SQLite natively |
+| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS |
+| UI Components | shadcn/ui | Copy-paste, fully customizable, no npm dependency |
+| Validation | Zod | Schema validation shared between server and client |
+| Testing | Vitest + Playwright | Unit + E2E without conflicting configs |
+
+**Non-negotiable:** We do NOT use `pg`, `mysql2`, or any other database driver. SQLite is the database. If you need to scale past a single node, use LiteFS or migrate later. Premature distributed data is the root of all evil.
+
+---
 
 ## Folder Structure
 
