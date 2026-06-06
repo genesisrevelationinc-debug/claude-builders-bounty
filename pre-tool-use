@@ -1,63 +1,86 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-# Pre-tool-use hook that blocks destructive bash commands
-# Logs blocked attempts to ~/.claude/hooks/blocked.log
+import sys
+import os
+import json
+import re
+from datetime import datetime
+from pathlib import Path
 
-BLOCKED_LOG="$HOME/.claude/hooks/blocked.log"
-PROJECT_PATH="$(pwd)"
+# Read the tool use request from stdin
+tool_use_request = json.loads(sys.stdin.read())
 
-# Function to log blocked commands
-log_blocked() {
-    local command="$1"
-    local timestamp=$(date -Iseconds)
-    echo "[$timestamp] Blocked command: $command (in project: $PROJECT_PATH)" >> "$BLOCKED_LOG"
-}
+# Extract command and project path
+command = tool_use_request.get('tool', {}).get('bash', {}).get('command', '')
+project_path = tool_use_request.get('project', {}).get('path', 'Unknown')
 
-# Check if the command is bash
-if [ "$TOOL_NAME" = "bash" ]; then
-    # List of destructive patterns to check
-    declare -a patterns=(
-        "rm -rf"
-        "DROP TABLE"
-        "git push --force"
-        "TRUNCATE"
-        "DELETE FROM"
-    )
+# Define destructive patterns to block
+DESTRUCTIVE_PATTERNS = [
+    r'rm\s+-rf',
+    r'DROP\s+TABLE',
+    r'git\s+push\s+.*--force',
+    r'TRUNCATE',
+    r'DELETE\s+FROM(?!\s+\w+\s+WHERE\b)'
+]
+
+# Check if command matches any destructive pattern
+def is_destructive(cmd):
+    for pattern in DESTRUCTIVE_PATTERNS:
+        if re.search(pattern, cmd, re.IGNORECASE):
+            return True
+    return False
+
+# Function to log blocked attempts
+def log_blocked_attempt(command, project_path):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"{timestamp} | {command} | {project_path}\n"
     
-    # Check each pattern
-    for pattern in "${patterns[@]}"; do
-        if [[ "$INPUT" == *"$pattern"* ]]; then
-            # Special handling for DELETE FROM to check for WHERE clause
-            if [[ "$pattern" == "DELETE FROM" ]]; then
-                # Check if DELETE FROM has a WHERE clause
-                if [[ ! "$INPUT" =~ DELETE[[:space:]]+FROM[[:space:]]+.*WHERE[[:space:]]+.* ]]; then
-                    log_blocked "$INPUT"
-                    echo "ERROR: Blocked destructive command: $INPUT"
-                    echo "REASON: DELETE statements without WHERE clause are not allowed"
-                    exit 1
-                fi
-            else
-                # For all other patterns, block them
-                log_blocked "$INPUT"
-                echo "ERROR: Blocked destructive command: $INPUT"
-                case "$pattern" in
-                    "DROP TABLE")
-                        echo "REASON: DROP TABLE commands are not allowed"
-                        ;;
-                    "git push --force")
-                        echo "REASON: Force pushes are not allowed"
-                        ;;
-                    "TRUNCATE")
-                        echo "REASON: TRUNCATE commands are not allowed"
-                        ;;
-                    "rm -rf")
-                        echo "REASON: rm -rf commands are not allowed"
-                        ;;
-                esac
-                exit 1
-            fi
-        fi
-    done
-fi
+    # Ensure the hooks directory exists
+    hooks_dir = Path.home() / '.claude' / 'hooks'
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Write to blocked.log
+    log_file = hooks_dir / 'blocked.log'
+    with open(log_file, 'a') as f:
+        f.write(log_entry)
+    
+    # Also print to stdout for Claude to see
+    print(log_entry.strip())
 
-exit 0
+# Main blocking logic
+if is_destructive(command):
+    # Log the blocked attempt
+    log_blocked_attempt(command, project_path)
+    
+    # Determine which pattern was matched for the explanation
+    explanation = "This command has been blocked for security reasons:\n"
+    if re.search(r'rm\s+-rf', command, re.IGNORECASE):
+        explanation += "- 'rm -rf' commands are blocked to prevent accidental deletion of files"
+    elif re.search(r'DROP\s+TABLE', command, re.IGNORECASE):
+        explanation += "\n- 'DROP TABLE' commands are blocked to prevent data loss"
+    elif re.search(r'git\s+push\s+.*--force', command, re.IGNORECASE):
+        explanation += "\n- 'git push --force' commands are blocked to prevent forced overwrites"
+    elif re.search(r'TRUNCATE', command, re.IGNORECASE):
+        explanation += "\n- 'TRUNCATE' commands are blocked to prevent data loss"
+    elif re.search(r'DELETE\s+FROM(?!\s+\w+\s+WHERE\b)', command, re.IGNORECASE):
+        explanation += "\n- 'DELETE FROM' without WHERE clause is blocked to prevent accidental full table deletion"
+    else:
+        explanation += "- Contains destructive patterns that are blocked"
+    
+    # Print explanation to Claude
+    print(explanation)
+    
+    # Exit with error code so Claude knows the tool use was blocked
+    sys.exit(1)
+else:
+    # If not destructive, allow the command to proceed by printing the original request
+    print(json.dumps(tool_use_request))
+    sys.exit(0)
+
+"""
+To install:
+1. Save this file as `pre-tool-use` in `~/.claude/hooks/`
+2. Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
+
+This script blocks destructive commands and logs them to ~/.claude/hooks/blocked.log
+"""
