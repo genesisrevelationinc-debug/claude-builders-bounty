@@ -1,74 +1,65 @@
 #!/bin/bash
 
-# changelog.sh - A script to generate a structured CHANGELOG.md from git history
+# Script to generate a structured CHANGELOG.md from git history
 
-# Get the latest git tag
-latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
+set -e
 
-# If no tags are found, use the initial commit
-if [ -z "$latest_tag" ]; then
-    latest_tag=$(git rev-list --max-parents=0 HEAD)
+# Check if CHANGELOG.md exists, if not create it
+if [ ! -f "CHANGELOG.md" ]; then
+    echo "# Changelog" > CHANGELOG.md
+    echo "" >> CHANGELOG.md
 fi
 
-# Get commit history since the latest tag
-if [ -z "$latest_tag" ]; then
-    commit_history=$(git log --pretty=format:"%s" --reverse)
+# Get the last tag or default to first commit
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "$(git rev-list --max-parents=0 HEAD)")
+
+# Get commit hash for the last tag
+if [ "$LAST_TAG" != "" ]; then
+    LAST_TAG_COMMIT=$(git rev-list -n 1 $LAST_TAG 2>/dev/null)
 else
-    commit_history=$(git log --pretty=format:"%s" $latest_tag..HEAD --reverse)
+    # Fallback if no tags exist, get first commit
+    LAST_TAG_COMMIT=$(git rev-list --max-parents=0 HEAD)
 fi
 
-# Create a temporary file for commit messages
-temp_file=$(mktemp)
-echo "$commit_history" > "$temp_file"
+# Get commits since last tag
+COMMITS_SINCE_TAG=$(git log $LAST_TAG_COMMIT..HEAD --reverse --pretty=format:"%s" --no-merges 2>/dev/null | grep -v "Merge branch" | grep -v "Merge pull request")
 
-# Initialize sections
-added_items=""
-fixed_items=""
-changed_items=""
-removed_items=""
+# If no new commits since last tag, exit
+if [ -z "$COMMITS_SINCE_TAG" ]; then
+    echo "No new commits since last tag. Exiting."
+    exit 0
+fi
 
-# Process each commit message
-while IFS= read -r line; do
-    # Categorize based on commit message prefix
-    if [[ $line == "Merge pull request"* ]] || [[ $line == "Merge branch"* ]]; then
-        # Skip merge commits
-        continue
-    elif [[ $line == "Add"* ]] || [[ $line == "add"* ]] || [[ $line == *"add"* ]]; then
-        added_items+="- $line"$'\n'
-    elif [[ $line == "Fix"* ]] || [[ $line == "fix"* ]] || [[ $line == *"fix"* ]]; then
-        fixed_items+="- $line"$'\n'
-    elif [[ $line == "Change"* ]] || [[ $line == "change"* ]] || [[ $line == *"change"* ]] || [[ $line == "Update"* ]] || [[ $line == "update"* ]]; then
-        changed_items+="- $line"$'\n'
-    elif [[ $line == "Remove"* ]] || [[ $line == "remove"* ]] || [[ $line == *"remove"* ]]; then
-        removed_items+="- $line"$'\n'
-    else
-        # Default to "Changed" if no specific category is found
-        changed_items+="- $line"$'\n'
+# Create a temporary file to store the new changelog entries
+TEMP_CHANGELOG=$(mktemp)
+
+# Write the changelog header
+echo "## [$(date +'%Y-%m-%d')] - $(git describe --tags --abbrev=0 2>/dev/null || echo "Unreleased")" > "$TEMP_CHANGELOG"
+echo "" >> "$TEMP_CHANGELOG"
+
+# Categorize commits
+echo "$COMMITS_SINCE_TAG" | while IFS= read -r commit; do
+    # Default to "Changed" if no match
+    category="Changed"
+    
+    # Categorize based on the prefix of the commit message
+    if [[ $commit == "feat:"* ]] || [[ $commit == "feature:"* ]]; then
+        category="Added"
+    elif [[ $commit == "fix:"* ]]; then
+        category="Fixed"
+    elif [[ $commit == "remove:"* ]] || [[ $commitITS_SINCE_TAG" ]]; then
+        category="Removed"
     fi
-done < "$temp_file"
+    
+    # Add to the appropriate category
+    echo "* $commit" >> "$TEMP_CHANGELOG"
+done
 
-# Write to CHANGELOG.md
-echo "# Changelog" > CHANGELOG.md
-echo "" >> CHANGELOG.md
+# Prepend the new content to the changelog file
+cat - CHANGELOG.md < "$TEMP_CHANGELOG" > temp_changelog.md
+mv temp_changelog.md CHANGELOG.md
 
-if [ -n "$added_items" ]; then
-    echo "## Added" >> CHANGELOG.md
-    echo "$added_items" >> CHANGELOG.md
-fi
+# Clean up
+rm "$TEMP_CHANGELOG"
 
-if [ -n "$fixed_items" ]; then
-    echo "## Fixed" >> CHANGELOG.md
-    echo "$fixed_items" >> CHANGELOG.md
-fi
-
-if [ -n "$changed_items" ]; then
-    echo "## Changed" >> CHANGELOG.md
-    echo "$changed_items" >> CHANGELOG.md
-fi
-
-if [ -n "$removed_items" ]; then
-    echo "## Removed" >> CHANGELOG.md
-    echo "$removed_items" >> CHANGELOG.md
-fi
-
-rm "$temp_file"
+echo "CHANGELOG.md has been updated."
