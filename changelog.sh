@@ -1,84 +1,108 @@
 #!/bin/bash
 
-# Get the latest tag
-LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null)
+# changelog.sh - Generate a structured CHANGELOG.md from git history
 
-# If no tag is found, use the initial commit as the starting point
-if [ -z "$LATEST_TAG" ]; then
-    LATEST_TAG=$(git rev-list --max-parents=0 HEAD)
-    echo "No tags found. Using initial commit."
-fi
+# Exit on error
+set -e
 
-# Get commits since the latest tag
-COMMITS=$(git log $LATEST_TAG..HEAD --pretty=format:"%s" --reverse)
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-# If no commits since last tag, exit
-if [ -z "$COMMITS" ]; then
-    echo "No commits since last tag. No changelog to generate."
-    exit 0
-fi
-
-# Initialize changelog content
-CHANGELOG_CONTENT=""
-
-# Categories
-ADDED=()
-FIXED=()
-CHANGED=()
-REMOVED=()
-OTHER=()
-
-# Process commits
-while IFS= read -r COMMIT; do
-    if [[ $COMMIT == *"add:"* ]] || [[ $COMMIT == *"feat:"* ]] || [[ $COMMIT == *"new:"* ]]; then
-        ADDED+=("$COMMIT")
-    elif [[ $COMMIT == *"fix:"* ]]; then
-        FIXED+=("$COMMIT")
-    elif [[ $COMMIT == *"change:"* ]] || [[ $COMCMIT == *"refactor:"* ]] || [[ $COMMIT == *"update:"* ]]; then
-        CHANGED+=("$COMMIT")
-    elif [[ $COMMIT == *"remove:"* ]] || [[ $COMMIT == *"delete:"* ]] || [[ $COMMIT == *"rm:"* ]]; then
-        REMOVED+=("$COMMIT")
-    else
-        OTHER+=("$COMMIT")
-    fi
-done <<< "$COMMITS"
-
-# Function to add section to changelog
-add_section() {
-    local section_name=$1
-    shift
-    local commits=("$@")
-    
-    if [ ${#commits[@]} -gt 0 ]; then
-        CHANGELOG_CONTENT+="## $section_name\n"
-        for commit in "${commits[@]}"; do
-            # Remove the prefix (e.g. "add: ", "fix: ") from the commit message
-            clean_message=$(echo "$commit" | sed -E 's/^(add:|feat:|new:|fix:|change:|refactor:|update:|remove:|delete:|rm:)//' | xargs)
-            if [ -n "$clean_message" ]; then
-                CHANGELOG_CONTENT+="* $clean_message\n"
-            fi
-        done
-        CHANGELOG_CONTENT+="\n"
-    fi
+# Function to print colored output
+print_color() {
+  color=$1
+  message=$2
+  echo -e "${color}${message}${NC}"
 }
 
-# Build changelog content
-CHANGELOG_CONTENT="# Changelog\n\n"
-CHANGELOG_CONTENT+="$(date +'%Y-%m-%d')\n\n"
-
-add_section "Added" "${ADDED[@]}"
-add_section "Fixed" "${FIXED[@]}"
-add_section "Changed" "${CHANGED[@]}"
-add_section "Removed" "${REMOVED[@]}"
-
-if [ ${#OTHER[@]} -gt 0 ]; then
-    CHANGELOG_CONTENT+="## Other\n"
-    for commit in "${OTHER[@]}"; do
-        CHANGELOG_CONTENT+="* $commit\n"
-    done
+# Check if in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+  print_color $RED "Error: Not in a git repository"
+  exit 1
 fi
 
-# Write to file
-echo -e "$CHANGELOG_CONTENT" > CHANGELOG.md
+# Get the latest tag
+LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
 
-echo "Changelog generated in CHANGELOG.md"
+if [ -z "$LATEST_TAG" ]; then
+  print_color $YELLOW "No tags found. Using initial commit as starting point."
+  COMMITS_SINCE=$(git rev-list --max-parents=0 HEAD)
+else
+  print_color $BLUE "Generating changelog since tag: $LATEST_TAG"
+  COMMITS_SINCE=$LATEST_TAG
+fi
+
+# Create temporary file for changelog content
+TMP_FILE=$(mktemp)
+
+# Get commit messages and categorize them
+{
+  if [ -z "$LATEST_TAG" ]; then
+    # If no tags, get all commits since initial commit
+    git log --oneline --no-merges --reverse $COMMITS_SINCE..HEAD
+  else
+    # Get commits since the last tag
+    git log --oneline --no-merges --reverse $LATEST_TAG..HEAD
+  fi
+} > "$TMP_FILE"
+
+# Initialize changelog sections
+ADDED=""
+FIXED=""
+CHANGED=""
+REMOVED=""
+
+# Categorize commits based on keywords in subject line
+while IFS= read -r commit; do
+  # Skip empty lines
+  [ -z "$commit" ] && continue
+  
+  # Extract the commit message (skip the commit hash)
+  message=$(echo "$commit" | sed 's/^[0-9a-f]* *//')
+  
+  # Categorize based on keywords
+  if [[ "$message" == *"add:"* ]] || [[ "$message" == *"Add:"* ]] || [[ "$message" == *"new:"* ]] || [[ "$message" == *"New:"* ]]; then
+    ADDED+="- $message"$'\n'
+  elif [[ "$message" == *"fix:"* ]] || [[ "$message" == *"Fix:"* ]] || [[ "$message" == *"fix "* ]] || [[ "$message" == *"Fix "* ]]; then
+    FIXED+="- $message"$'\n'
+  elif [[ "$message" == *"remove:"* ]] || [[ "$message" == *"Remove:"* ]] || [[ "$message" == *"delete:"* ]] || [[ "$message" == *"Delete:"* ]]; then
+    REMOVED+="- $message"$'\n'
+  else
+    # Default to "Changed" category
+    CHANGED+="- $message"$'\n'
+  fi
+done < "$TMP_FILE"
+
+# Write changelog to file
+{
+  echo "# Changelog"
+  echo ""
+  if [ -n "$LATEST_TAG" ]; then
+    echo "## Changes since $LATEST_TAG"
+  else
+    echo "## Initial release"
+  fi
+  echo ""
+  if [ -n "$ADDED" ]; then
+    echo "### Added"
+    echo "$ADDED"
+  fi
+  if [ -n "$FIXED" ]; then
+    echo "### Fixed"
+    echo "$FIXED"
+  fi
+  if [ -n "$CHANGED" ]; then
+    echo "### Changed"
+    echo "$CHANGED"
+  fi
+  if [ -n "$REMOVED" ]; then
+    echo "### Removed"
+    echo "$REMOVED"
+  fi
+} > CHANGELOG.md
+
+print_color $GREEN "CHANGELOG.md generated successfully!"
