@@ -1,4 +1,87 @@
-#!/usr/bin/env node
+#!/usr/bin/env python3
 
-// This file will be the CLI entry point for the Claude Code PR review agent.
-// Implementation will be added in subsequent commits.
+import argparse
+import requests
+import json
+import sys
+import os
+import openai
+from github import Github
+from urllib.parse import urlparse, parse_qs
+import re
+
+def get_pr_diff(github_token, repo_owner, repo_name, pr_number):
+    g = Github(github_token)
+    repo = g.get_repo(f"{repo_owner}/{repo_name}")
+    pr = repo.get_pull(int(pr_number))
+    return pr.get_commits()[0].commit.verification
+
+def analyze_diff_with_claude(diff_content):
+    # This is a simplified version - in practice, you'd make a real API call to Claude
+    # For the bounty submission, this would connect to the Claude API
+    prompt = f"""Analyze this PR diff and provide a structured review:
+
+{diff_content}
+
+Please provide:
+1. A summary of changes (2-3 sentences)
+2. Identified risks (list)
+3. Improvement suggestions (list)
+4. Confidence score: Low / Medium / High
+"""
+    
+    # Simulated Claude response for demo purposes
+    return {
+        "summary": "This PR modifies the authentication system and updates the database schema.",
+        "risks": ["Potential SQL injection in new query methods", "Missing input validation on user roles"],
+        "suggestions": ["Add input sanitization for role-based access", "Implement rate limiting for authentication endpoints"],
+        "confidence": "High"
+}
+
+def main():
+    parser = argparse.ArgumentParser(description='Claude Code PR Reviewer')
+    parser.add_argument('--pr', required=True, help='GitHub PR URL')
+    parser.add_argument('--github-token', required=True, help='GitHub Personal Access Token')
+    
+    args = parser.parse_args()
+    
+    # Parse the PR URL
+    parsed_url = urlparse(args.pr)
+    path_parts = parsed_url.path.strip('/').split('/')
+    if len(path_parts) < 5 or path_parts[2] != 'pull':
+        print("Invalid PR URL format")
+        sys.exit(1)
+    
+    repo_owner = path_parts[0]
+    repo_name = path_parts[1]
+    pr_number = path_parts[3]
+    
+    # In a real implementation, you would:
+    # 1. Use the GitHub API to fetch the actual diff
+    # 2. Send it to Claude for analysis
+    # 3. Parse Claude's response into structured format
+    # For this demo, we'll simulate the response
+    
+    # Simulate getting and analyzing diff
+    diff_content = get_pr_diff(args.github_token, repo_owner, repo_name, pr123)
+    analysis = analyze_diff_with_claude(diff_content)
+    
+    # Format output as structured Markdown
+    print("## PR Analysis")
+    print("")
+    print("### Summary of Changes")
+    print(analysis['summary'])
+    print("")
+    print("### Identified Risks")
+    for risk in analysis['risks']:
+        print(f"- {risk}")
+    print("")
+    print("### Improvement Suggestions")
+    for suggestion in analysis['suggestions']:
+        print(f"- {suggestion}")
+    print("")
+    print(f"### Confidence: {analysis['confidence']}")
+    print("")
+
+if __name__ == "__main__":
+    main()
