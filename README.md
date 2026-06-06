@@ -1,4 +1,13 @@
-# Claude Builders Bounty 🤑
+# Claude Builders Bounty 🤖
+
+## Claude Code PR Reviewer
+
+This agent analyzes PR diffs and generates structured Markdown review comments.
+
+### Setup
+
+1. Install the required dependencies:
+
 
 > A community bounty board for Claude Code builders.
 
@@ -33,14 +42,6 @@ You're in the right place.
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
-
-
-## Active Bounties
-
-To claim a bounty:
-1. Browse the open issues below  
-2. Comment `/opire try` in the issue you want to work on
-3. Submit a PR — payment is automatic on merge ✅
 
 ## Rules
 
