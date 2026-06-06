@@ -3,7 +3,7 @@
 Claude Code pre-tool-use hook to block destructive bash commands.
 
 This hook intercepts dangerous bash commands before they are executed
-by Claude Code, preventing accidental data loss.
+by Claude Code, preventing accidental data loss or destructive operations.
 """
 
 import json
@@ -13,80 +13,125 @@ import sys
 from datetime import datetime
 
 
-BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
+# Patterns that should be blocked (case-insensitive for SQL, case-sensitive for shell)
+DANGEROUS_PATTERNS = [
+    # rm -rf (recursive force delete)
+    (r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-?[a-zA-Z]*\s+-?rf?\b', 'rm -rf: Recursive force deletion'),
+    (r'\brm\s+.*\s+-rf\b', 'rm -rf: Recursive force deletion'),
+    (r'\brm\s+-rf\s', 'rm -rf: Recursive force deletion'),
+    
+    # DROP TABLE
+    (r'\bDROP\s+TABLE\b', 'DROP TABLE: Destructive SQL operation'),
+    
+    # TRUNCATE
+    (r'\bTRUNCATE\b', 'TRUNCATE: Destructive SQL operation'),
+    
+    # DELETE FROM without WHERE
+    (r'\bDELETE\s+FROM\s+\w+\s*(?!.*\bWHERE\b)', 'DELETE FROM without WHERE: Unqualified deletion'),
+    
+    # git push --force
+    (r'\bgit\s+push\s+.*--force\b', 'git push --force: Force push can overwrite history'),
+    (r'\bgit\s+push\s+.*-f\b', 'git push --force: Force push can overwrite history'),
+]
 
 
-def log_blocked_attempt(command: str, project_path: str):
-    """Log a blocked command attempt to the log file."""
-    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
+def get_log_path():
+    """Get the path to the blocked log file."""
+    hooks_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(hooks_dir, 'blocked.log')
+
+
+def log_blocked_attempt(command, reason, project_path):
+    """Log a blocked attempt to the log file."""
+    log_path = get_log_path()
     timestamp = datetime.now().isoformat()
-    log_entry = f"[{timestamp}] BLOCKED: {command} | Project: {project_path}\n"
-    with open(BLOCKED_LOG, "a") as f:
-        f.write(log_entry)
+    
+    log_entry = f"{timestamp} | {reason} | Command: {command} | Project: {project_path}\n"
+    
+    try:
+        with open(log_path, 'a') as f:
+            f.write(log_entry)
+    except Exception as e:
+        print(f"Warning: Could not write to log file {log_path}: {e}", file=sys.stderr)
 
 
-def is_destructive(command: str) -> tuple[bool, str]:
-    """
-    Check if a command matches destructive patterns.
-    Returns (is_blocked, reason).
-    """
-    upper = command.upper()
-
-    # Pattern: rm -rf (remove recursively and force)
-    if re.search(r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s', command) or \
-       re.search(r'\brm\s+.*-[a-zA-Z]*[rf][a-zA-Z]*', command):
-        if re.search(r'\brm\s+', command):
-            return True, "Blocked: `rm -rf` can recursively and forcefully delete files. Use safer alternatives or manual review."
-
-    # Pattern: DROP TABLE
-    if re.search(r'\bDROP\s+TABLE\b', upper):
-        return True, "Blocked: `DROP TABLE` permanently deletes a database table and its data."
-
-    # Pattern: git push --force
-    if re.search(r'\bgit\s+push\s+.*--force\b', command) or \
-       re.search(r'\bgit\s+push\s+.*-f\b', command):
-        return True, "Blocked: `git push --force` can overwrite remote history and cause data loss."
-
-    # Pattern: TRUNCATE
-    if re.search(r'\bTRUNCATE\b', upper):
-        return True, "Blocked: `TRUNCATE` quickly removes all rows from a table and cannot be rolled back in some contexts."
-
-    # Pattern: DELETE FROM without WHERE
-    if re.search(r'\bDELETE\s+FROM\b', upper):
-        if not re.search(r'\bWHERE\b', upper):
-            return True, "Blocked: `DELETE FROM` without a WHERE clause would delete all rows in the table."
-
-    return False, ""
+def check_command(command):
+    """Check if a command contains dangerous patterns."""
+    command_upper = command.upper()
+    
+    for pattern, reason in DANGEROUS_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            # Special check for DELETE FROM without WHERE
+            if 'DELETE FROM' in command_upper and 'WHERE' not in command_upper:
+                return reason
+            elif 'DELETE FROM' not in reason:
+                return reason
+    
+    return None
 
 
 def main():
-    # Read the tool use JSON from stdin
+    """Main entry point for the hook."""
+    # Read the tool use request from stdin (JSON format expected from Claude Code)
     try:
-        data = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        # If not valid JSON, allow the tool use
+        input_data = sys.stdin.read()
+        if not input_data:
+            sys.exit(0)
+        
+        # Parse the input - Claude Code passes tool information
+        # The hook receives the tool call details and can inspect/modify
+        
+        # For bash tool, check the command
+        if '"tool_name": "Bash"' in input_data or '"tool_name": "bash"' in input_data:
+            # Extract the command from the input
+            command_match = re.search(r'"command"\s*:\s*"([^"]+)"', input_data)
+            if command_match:
+                command = command_match.group(1)
+                block_reason = check_command(command)
+                
+                if block_reason:
+                    # Get project path from environment or default
+                    project_path = os.getcwd()
+                    
+                    # Log the blocked attempt
+                    log_blocked_attempt(command, block_reason, project_path)
+                    
+                    # Output clear message to Claude
+                    print(f"\n🚫 BLOCKED: This command has been prevented from executing.\n", file=sys.stderr)
+                    print(f"Reason: {block_reason}\n", file=sys.stderr)
+                    print(f"Command: {command}\n", file=sys.stderr)
+                    print("If you need to run this command, please ask the user for explicit permission.\n", file=sys.stderr)
+                    
+                    # Exit with non-zero to block the tool use
+                    sys.exit(1)
+        
+        # Also check for direct command input (fallback)
+        if input_data.strip().startswith('{'):
+            try:
+                data = json.loads(input_data)
+                if data.get('tool_name') in ('Bash', 'bash'):
+                    command = data.get('command', '')
+                    if command:
+                        block_reason = check_command(command)
+                        if block_reason:
+                            project_path = os.getcwd()
+                            log_blocked_attempt(command, block_reason, project_path)
+                            print(f"\n🚫 BLOCKED: This command has been prevented from executing.\n", file=sys.stderr)
+                            print(f"Reason: {block_reason}\n", file=sys.stderr)
+                            print(f"Command: {command}\n", file=sys.stderr)
+                            print("If you need to run this command, please ask the user for explicit permission.\n", file=sys.stderr)
+                            sys.exit(1)
+            except json.JSONDecodeError:
+                pass
+    
+    except Exception as e:
+        print(f"Error in pre-tool-use hook: {e}", file=sys.stderr)
+        # Don't block on hook errors - fail open
         sys.exit(0)
-
-    tool_name = data.get("tool_name", "")
-    tool_input = data.get("tool_input", {})
-
-    # Only intercept bash tool
-    if tool_name != "bash":
-        sys.exit(0)
-
-    command = tool_input.get("command", "")
-    project_path = data.get("project_path", os.getcwd())
-
-    blocked, reason = is_destructive(command)
-    if blocked:
-        log_blocked_attempt(command, project_path)
-        print(f"🛡️  SECURITY HOOK: {reason}", file=sys.stderr)
-        print(f"   Command: {command}", file=sys.stderr)
-        print(f"   To override, temporarily disable the hook or modify ~/.claude/hooks/pre-tool-use", file=sys.stderr)
-        sys.exit(1)
-
+    
+    # Allow the tool use to proceed
     sys.exit(0)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
