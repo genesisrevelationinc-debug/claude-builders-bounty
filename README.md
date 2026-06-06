@@ -27,12 +27,22 @@ You're in the right place.
 | # | Task | Amount | Status |
 |---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
+
+## Quick Setup
+
+1. Clone this repository
+2. Make the script executable: `chmod +x changelog.sh`
+3. Run the script: `bash changelog.sh`
+
+The script will generate a `CHANGELOG.md` file in your current directory based on your git history.
+
+---
+
+## How it works
+
+**To post a bounty**
 
 ## Rules
 
@@ -50,14 +60,4 @@ You're in the right place.
 
 ---
 
-# Generate Changelog
-
-This skill generates a structured `CHANGELOG.md` from the project's git history.
-
-## Usage
-
-1. Make the script executable: `chmod +x changelog.sh`
-2. Run the script: `./changelog.sh`
-3. Check the generated `CHANGELOG.md` file
-Alternatively, you can use it via the `/generate-changelog` command in Claude Code.
 *Started by the Claude builder community · March 2026 · MIT License*
