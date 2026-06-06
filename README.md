@@ -10,10 +10,18 @@ You're in the right place.
 
 ## How it works
 
-**To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
-3. Share the link — contributors will find it
+
+---
+
+## How it works
+
+**To contribute to a bounty**
+1. Browse the open issues below
+2. Comment `/opire try` in the issue you want to work on
+3. Submit a PR — payment is automatic on merge ✅
+
+## Active Bounties
+
 
 **To claim a bounty**
 1. Browse the open issues below
@@ -49,19 +57,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# Claude Code PR Reviewer
-
-This agent analyzes GitHub PRs and generates structured code reviews using Claude Code.
-
-## Features
-
-- **CLI Tool**: Run code reviews from your terminal
-- **GitHub Action**: Automatically review PRs in your workflow
-- **Structured Markdown Output**: Clean, readable review comments
-- **Risk Analysis**: AI-powered code quality checks
-
-## Installation
-
 
 *Started by the Claude builder community · March 2026 · MIT License*
