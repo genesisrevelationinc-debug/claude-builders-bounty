@@ -1,98 +1,149 @@
 #!/usr/bin/env python3
+"""
+Claude Code PR Review Agent
+
+A CLI tool that analyzes GitHub PRs and provides structured Markdown reviews.
+"""
 
 import argparse
-import os
-import sys
-import requests
 import json
+import os
 import re
-from github import Github
-from openai import OpenAI
+import sys
+import urllib.parse
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+
+import requests
 
 
-def get_pr_diff(repo_url, pr_number):
-    # Extract owner/repo from URL
-    # Simple regex to get owner and repo from GitHub URL
-    # This is a simplified approach - in practice you'd use the GitHub API or parse the URL more robustly
-    return "Sample diff content for PR"
+@dataclass
+class ReviewComment:
+    summary: str
+    risks: List[str]
+    suggestions: List[str]
+    confidence: str  # Low, Medium, High
 
 
-def analyze_code_changes(diff_content):
-    # In a real implementation, this would use the LLM to analyze the code
-    # For this example, we're returning mock data
-    return {
-        "summary": "This PR introduces new authentication methods and refactors the database connection layer. The changes improve security and reduce database connection overhead.",
-        "risks": [
-            "The new authentication method lacks proper input validation which may lead to security vulnerabilities.",
-            "Database connection changes may introduce breaking changes in production if connection pooling isn't properly configured."
-        ],
-        "suggestions": [
-            "Add input sanitization to the new authentication methods to prevent injection attacks.",
-           "Ensure the database connection pooling is properly configured in production environments."
-        ],
-        "confidence": "MEDIUM"
-    }
+def extract_pr_info(pr_url: str) -> Tuple[str, str, str, int]:
+    """Extract owner, repo, and PR number from GitHub URL"""
+    # Parse URL like: https://github.com/owner/repo/pull/123
+    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
+    match = re.search(pattern, pr_url)
+    if not match:
+        raise ValueError("Invalid GitHub PR URL format")
+    
+    owner, repo, pr_number = match.groups()
+    return owner, repo, int(pr_number)
 
 
-def format_comment(analysis):
-    comment = f"""## Code Review Summary
+def get_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
+    """Get PR diff using GitHub API"""
+    headers = {"Authorization": f"token {token}"} if token else {}
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    
+    pr_data = response.json()
+    return pr_data.get("diff_url", "")
 
-{analysis['summary']}
 
-### Identified Risks
-"""
-    for risk in analysis['risks']:
-        comment += f"- {risk}\n"
-    comment += "\n### Improvement Suggestions\n"
-    for suggestion in analysis['suggestions']:
-        comment += f"- {suggestion}\n"
-    comment += f"\n### Confidence Level\n{analysis['confidence']}\n"
-    return comment
+def analyze_diff(diff_content: str) -> ReviewComment:
+    """Analyze the diff content and generate a review"""
+    # This is a simplified analyzer - in practice, this would use Claude Code
+    # to analyze the diff and generate meaningful insights
+    
+    # Simple heuristics for demonstration
+    lines = diff_content.split('\n')
+    changes = [line for line in lines if line.startswith('+') or line.startswith('-')]
+    
+    summary = f"This PR modifies {len(changes)} lines of code. "
+    if any("security" in line.lower() or "auth" in line.lower() for line in changes):
+        summary += "Security-related code was detected."
+    else:
+        summary += "No critical security concerns found."
+    
+    risks = []
+    suggestions = []
+    
+    # Simple risk detection
+    if any("TODO" in line for line in changes):
+ risk.append("TODO comments found in code that should be addressed")
+    
+    if any("console.log" in line or "print(" in line for line in changes):
+ suggestions.append("Consider removing debug statements before merging")
+    
+    if len(changes) > 100:
+ risks.append("Large PR detected - consider breaking into smaller commits")
+    
+    # Confidence based on analysis depth
+    if len(changes) > 50:
+ confidence = "Medium"
+    else:
+ confidence = "High"
+    
+    if not risks:
+ risks.append("No significant risks identified in the changes")
+    
+    if not suggestions:
+ suggestions.append("Code follows general best practices")
+    
+    return ReviewComment(
+        summary=summary,
+        risks=risks or ["No significant risks identified in the changes"],
+        suggestions=suggestions or ["Code follows general best practices"],
+        confidence=confidence
+    )
+
+
+def format_markdown_review(review: ReviewComment) -> str:
+    """Format the review as structured Markdown"""
+    md = []
+    md.append("## Code Review Summary")
+    md.append(review.summary)
+ md.append("")
+    
+    md.append("### Identified Risks")
+    for risk in review.risks:
+ md.append(f"- {risk}")
+ md.append("")
+    
+    md.append("### Improvement Suggestions")
+    for suggestion in review.suggestions:
+ md.append(f"- {suggestion}")
+ md.append("")
+    
+    md.append(f"**Confidence Score: {review.confidence}**")
+    
+    return "\n".join(md)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
-    parser.add_argument('--pr', required=True, help='Pull Request URL')
+    parser.add_argument("--pr", required=True, help="GitHub PR URL")
+    
     args = parser.parse_args()
     
-    # In a real implementation, you would:
-    # 1. Parse the PR URL to get owner/repo and PR number
-    # 2. Use the GitHub API token to fetch the PR
-    # 3. Get the diff of the PR
-    # 4. Pass the diff to Claude Code for analysis
-    # 5. Format and output the structured review
-    
-    # Mock implementation for now
-    pr_url = args.pr
-    pr_number = pr_url.split('/')[-1]  # Simple extraction, would need more robust parsing
-    
-    # This is where we would fetch the actual PR data in a real implementation
-    diff_content = get_pr_diff(pr_url, pr_number)
-    
-    # This is where we would call Claude Code for analysis
-    analysis = analyze_code_changes(diff_content)
-    
-    # Format the comment
-    comment = format_comment(analysis)
-    print(comment)
-
-
-if __name__ == '__main__':
-    main()
     try:
-        main()
+        owner, repo, pr_number = extract_pr_info(args.pr)
+        
+        # Get GitHub token from environment for API access
+        token = os.environ.get("GITHUB_TOKEN", "")
+        
+        # In a real implementation, we would fetch the actual diff
+        # For this demo, we'll simulate a response
+        diff_content = f"--- a/file.py\n+++ b/file.py\n@@ -1,2 +1,3 @@\n print('hello')\n+// TODO: add input validation\n+console.log('debug')"
+        
+        review = analyze_diff(diff_content)
+        markdown_review = format_markdown_review(review)
+        
+        print(markdown_review)
+        
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Sample output for demonstration
-    print("\n### Sample Output ###\n")
-    print("## Code Review Summary\n")
-    print("This PR introduces new authentication methods and refactors the database connection layer. The changes improve security and reduce database connection overhead.\n")
-    print("### Identified Risks\n")
-    print("- The new authentication method lacks proper input validation which may lead to security vulnerabilities.")
-    print("- Database connection changes may introduce breaking changes in production if connection pooling isn't properly configured.\n")
-    print("### Improvement Suggestions\n")
-    print("- Add input sanitization to the new authentication methods to prevent injection attacks.")
-    print("- Ensure the database connection pooling is properly configured in production environments.\n")
-    print("### Confidence Level\nMEDIUM")
+
+if __name__ == "__main__":
+    main()
