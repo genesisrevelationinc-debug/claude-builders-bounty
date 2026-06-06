@@ -1,167 +1,189 @@
-Based on the issue, I need to create a Claude Code sub-agent that reviews PRs and posts structured Markdown comments. Since the repo only contains README.md and LICENSE, I'll create the necessary files for the agent.
-
-```diff
+ ```diff
 --- /dev/null
-+++ b/claude-review
-@@ -0,0 +1,186 @@
-+#!/usr/bin/env bash
-+# Claude Code PR Review Agent
-+# Usage: claude-review --pr https://github.com/owner/repo/pull/123
-+#        claude-review --diff <file.diff>
++++ b/.github/workflows/claude-review.yml
+@@ -0,0 +1,42 @@
++name: Claude PR Review
 +
-+set -euo pipefail
++on:
++  pull_request:
++    types: [opened, synchronize]
 +
-+# Colors for output
-+RED='\033[0;31m'
-+GREEN='\033[0;32m'
-+YELLOW='\033[1;33m'
-+BLUE='\033[0;34m'
-+NC='\033[0m' # No Color
++jobs:
++  review:
++    runs-on: ubuntu-latest
++    permissions:
++      pull-requests: write
++    steps:
++      - name: Checkout code
++        uses: actions/checkout@v4
 +
-+print_usage() {
-+    cat << EOF
-+Usage: claude-review [OPTIONS]
++      - name: Set up Python
++        uses: actions/setup-python@v5
++        with:
++          python-version: '3.11'
 +
-+Options:
-+  --pr <URL>        GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-+  --diff <FILE>     Path to a local diff file
-+  --output <FILE>   Write review to file instead of stdout
-+  --post-comment    Post the review as a PR comment (requires GITHUB_TOKEN)
-+  --help            Show this help message
++      - name: Install dependencies
++        run: |
++          pip install requests
 +
-+Examples:
-+  claude-review --pr https://github.com/owner/repo/pull/123
-+  claude-review --diff changes.diff --output review.md
-+  claude-review --pr https://github.com/owner/repo/pull/123 --post-comment
-+EOF
-+}
++      - name: Run Claude PR Review
++        env:
++          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
++          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
++          PR_NUMBER: ${{ github.event.pull_request.number }}
++          REPO: ${{ github.repository }}
++        run: |
++          python .github/scripts/claude_review.py
 +
-+# Parse arguments
-+PR_URL=""
-+DIFF_FILE=""
-+OUTPUT_FILE=""
-+POST_COMMENT=false
++      - name: Post review comment
++        env:
++          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
++          PR_NUMBER: ${{ github.event.pull_request.number }}
++          REPO: ${{ github.repository }}
++        run: |
++          REVIEW=$(cat review_output.md)
++          gh api repos/$REPO/issues/$PR_NUMBER/comments \
++            -f body="$REVIEW"
++        shell: bash
+--- /dev/null
++++ b.claude-review
+@@ -0,0 +1,5 @@
++[tool.poetry]
++name = "claude-review"
++version = "0.1.0"
++description = "Claude Code PR reviewer with structured Markdown output"
++authors = ["Claude Builders Bounty"]
+--- /dev/null
++++ b.claude-review
+@@ -0,0 +1,2 @@
++[tool.poetry.dependencies]
++python = "^3.11"
+--- /dev/null
++++ b.claude-review
+@@ -0,0 +1,2 @@
++[build-system]
++requires = ["poetry-core"]
+--- /dev/null
++++ b.claude-review
+@@ -0,0 +1,2 @@
++build-backend = "poetry.core.masonry.api"
++--- /dev/null
++++ b.claude-review
+@@ -0,0 +1,2 @@
++[tool.poetry.scripts]
++claude-review = "claude_review.cli:main"
+--- /dev/null
++++ b.claude-review
+@@ -0,0 +1,2 @@
++[tool.poetry.packages]
++include = [{include = "claude_review"}]
+--- /dev/null
++++ b/claude_review/__init__.py
+@@ -0,0 +1,3 @@
++"""Claude PR Reviewer - Structured Markdown code review agent."""
 +
-+while [[ $# -gt 0 ]]; do
-+    case $1 in
-+        --pr)
-+            PR_URL="$2"
-+            shift 2
-+            ;;
-+        --diff)
-+            DIFF_FILE="$2"
-+            shift 2
-+            ;;
-+        --output)
-+            OUTPUT_FILE="$2"
-+            shift 2
-+            ;;
-+        --post-comment)
-+            POST_COMMENT=true
-+            shift
-+            ;;
-+        --help)
-+            print_usage
-+            exit 0
-+            ;;
-+        *)
-+            echo -e "${RED}Error: Unknown option $1${NC}"
-+            print_usage
-+            exit 1
-+            ;;
-+    esac
-+done
++__version__ = "0.1.0"
+--- /dev/null
++++ b/claude_review/cli.py
+@@ -0,0 +1,67 @@
++#!/usr/bin/env python3
++"""CLI entry point for claude-review."""
 +
-+# Validate inputs
-+if [[ -z "$PR_URL" && -z "$DIFF_FILE" ]]; then
-+    echo -e "${RED}Error: Either --pr or --diff must be specified${NC}"
-+    print_usage
-+    exit 1
-+fi
++import argparse
++import sys
++import os
 +
-+if [[ -n "$PR_URL" && -n "$DIFF_FILE" ]]; then
-+    echo -e "${RED}Error: Cannot specify both --pr and --diff${NC}"
-+    print_usage
-+    exit 1
-+fi
++from .reviewer import ClaudeReviewer
++from .github_client import GitHubClient
 +
-+# Fetch diff from PR URL
-+if [[ -n "$PR_URL" ]]; then
-+    echo -e "${BLUE}Fetching PR diff from: $PR_URL${NC}" >&2
++
++def parse_pr_url(url: str) -> tuple[str, str, int]:
++    """Parse a GitHub PR URL into (owner, repo, pr_number)."""
++    # Handle formats like:
++    # https://github.com/owner/repo/pull/123
++    # https://github.com/owner/repo/pull/123/files
++    parts = url.rstrip('/').split('/')
++    if 'github.com' not in url:
++        raise ValueError(f"Invalid GitHub URL: {url}")
 +    
-+    # Extract owner, repo, and PR number from URL
-+    if [[ "$PR_URL" =~ github\.com/([^/]+)/([^/]+)/pull/([0-9]+) ]]; then
-+        OWNER="${BASH_REMATCH[1]}"
-+        REPO="${BASH_REMATCH[2]}"
-+        PR_NUMBER="${BASH_REMATCH[3]}"
-+    else
-+        echo -e "${RED}Error: Invalid GitHub PR URL format${NC}"
-+        echo "Expected: https://github.com/owner/repo/pull/123"
-+        exit 1
-+    fi
++    # Find the position of 'github.com'
++    idx = parts.index('github.com')
++    owner = parts[idx + 1]
++    repo = parts[idx + 2]
++    pr_number = int(parts[idx + 4].split('?')[0].split('#')[0])
++    return owner, repo, pr_number
++
++
++def main():
++    parser = argparse.ArgumentParser(
++        description="Claude Code PR Reviewer - Analyze PRs with structured Markdown output"
++    )
++    parser.add_argument(
++        "--pr", 
++        required=True, 
++        help="GitHub PR URL to review"
++    )
++    parser.add_argument(
++        "--api-key",
++        help="Anthropic API key (or set ANTHROPIC_API_KEY env var)"
++    )
++    parser.add_argument(
++        "--github-token",
++        help="GitHub token (or set GITHUB_TOKEN env var)"
++    )
 +    
-+    # Fetch the diff using GitHub API
-+    DIFF_CONTENT=$(curl -sL -H "Accept: application/vnd.github.v3.diff" \
-+        "https://api.github.com/repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}" 2>/dev/null || true)
++    args = parser.parse_args()
 +    
-+    if [[ -z "$DIFF_CONTENT" ]]; then
-+        echo -e "${RED}Error: Failed to fetch PR diff. The PR may not exist or is private.${NC}"
-+        echo "If the repo is private, set GITHUB_TOKEN environment variable."
-+        exit 1
-+    fi
++    api_key = args.api_key or os.environ.get("ANTHROPIC_API_KEY")
++    if not api_key:
++        print("Error: ANTHROPIC_API_KEY required", file=sys.stderr)
++        sys.exit(1)
 +    
-+    # Save to temp file
-+    TEMP_DIFF=$(mktemp)
-+    echo "$DIFF_CONTENT" > "$TEMP_DIFF"
-+    DIFF_FILE="$TEMP_DIFF"
-+    trap "rm -f $TEMP_DIFF" EXIT
-+fi
++    github_token = args.github_token or os.environ.get("GITHUB_TOKEN")
++    
++    owner, repo, pr_number = parse_pr_url(args.pr)
++    
++    github = GitHubClient(token=github_token)
++    reviewer = ClaudeReviewer(api_key=api_key)
++    
++    diff = github.get_pr_diff(owner, repo, pr_number)
++    review = reviewer.review(diff, owner=owner, repo=repo, pr_number=pr_number)
++    
++    print(review)
 +
-+# Check if diff file exists
-+if [[ ! -f "$DIFF_FILE" ]]; then
-+    echo -e "${RED}Error: Diff file not found: $DIFF_FILE${NC}"
-+    exit 1
-+fi
 +
-+echo -e "${GREEN}Analyzing diff...${NC}" >&2
++if __name__ == "__main__':
++    main()
+--- /dev/null
++++ b/claude_review/github_client.py
+@@ -0,0 +1,50 @@
++"""GitHub API client for fetching PR diffs."""
 +
-+# Generate the review using Claude
-+REVIEW=$(claude --print -p "$(cat << PROMPT
-+You are a senior code reviewer. Analyze the following git diff and produce a structured Markdown review.
++import urllib.request
++import urllib.error
++from typing import Optional
 +
-+## Review Format
 +
-+### Summary
-+[2-3 sentences summarizing what this PR changes and its overall impact]
-+
-+### Identified Risks
-+- [Risk 1: specific concern with file/line reference]
-+- [Risk 2: specific concern with file/line reference]
-+
-+### Improvement Suggestions
-+- [Suggestion 1: actionable improvement]
-+- [Suggestion 2: actionable improvement]
-+
-+### Confidence Score
-+**Confidence: [Low/Medium/High]** — [Brief justification]
-+
-+## Guidelines
-+- Be specific — reference actual files and changes from the diff
-+- Focus on logic errors, security issues, performance problems, and code quality
-+- If the diff is small/simple, say so and adjust confidence accordingly
-+- If there are no obvious issues, say so honestly
-+- Do NOT comment on formatting unless it's a real problem
-+- Keep the tone professional and constructive
-+
-+Here is the diff to review:
-+
-+\`\`\`diff
-+$(cat "$DIFF_FILE")
-+\`\`\`
-+PROMPT
-+)")
-+
-+# Output the review
-+if [[ -n "$OUTPUT_FILE" ]]; then
-+    echo "$REVIEW" > "$OUTPUT_FILE"
-+    echo -e "${GREEN}Review saved to: $OUTPUT_FILE${
++class GitHubClient:
++    """Simple GitHub API client for PR operations."""
++    
++    def __init__(self, token: Optional[str] = None):
++        self.token = token
++        self.base_url = "https://api.github.com"
++    
++    def _get_headers(self) -> dict:
++        """Build request headers with optional auth."""
++        headers = {
++            "Accept": "application/vnd.github.v3.diff",
++            "User-Agent": "claude-review/0.1.0"
++        }
++        if self.token:
++            headers["Authorization"] = f"token {self.token}"
++        return headers
++    
++    def get_pr_diff(self, owner: str, repo: str, pr_number: int) -> str:
++        """Fetch the diff for a pull request."""
++        url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
++        headers = self._get_headers()
++        
++        req = urllib.request.Request(url, headers
