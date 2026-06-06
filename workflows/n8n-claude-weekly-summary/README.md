@@ -1,34 +1,33 @@
 # n8n + Claude Weekly Dev Summary Workflow
 
-Automatically generate and deliver a weekly narrative summary of your GitHub repo's activity using n8n and Claude API.
+Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
 
 ## Setup (5 steps)
 
-1. **Import workflow**: In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`
-2. **Set credentials**: Add your GitHub API token and Claude API key in *Settings → Credentials*
-3. **Configure variables**: Open the `Configuration` node and set your repo, destination, and language
-4. **Activate**: Toggle the workflow to *Active* in the top-right corner
-5. **Test run**: Click *Execute Workflow* to verify — check your email/Discord for the summary
+1. **Import the workflow**: In n8n, go to *Workflows* → *Import from File* → select `workflow.json`
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in n8n *Settings* → *Credentials*
+3. **Configure variables**: Open the workflow and edit the *Set Variables* node with your repo, destination, and language
+4. **Activate the schedule**: Toggle the workflow *Active* — it runs Fridays at 5pm automatically
+5. **Test manually**: Click *Execute Workflow* to verify, then check your email/Discord for the summary
 
 ## Required Credentials
 
-- `githubApi` — GitHub personal access token (classic or fine-grained)
-- `claudeApi` — Anthropic API key (starts with `sk-ant-`)
+- **GitHub Personal Access Token** (classic or fine-grained with `repo` scope)
+- **Anthropic API Key** (from [console.anthropic.com](https://console.anthropic.com))
 
 ## Configurable Variables
 
-| Variable | Description | Default |
+| Variable | Description | Example |
 |----------|-------------|---------|
-| `githubRepo` | Target repository (`owner/repo`) | `claude-builders-bounty/claude-builders-bounty` |
-| `destination` | Email address or webhook URL | — |
-| `language` | Summary language (`EN` or `FR`) | `EN` |
-| `weeksAgo` | How many weeks back to summarize | `1` |
+| `githubRepo` | Full GitHub repo path | `claude-builders-bounty/claude-builders-bounty` |
+| `destinationChannel` | Email or webhook URL | `https://hooks.discord.com/...` |
+| `language` | Summary language | `EN` or `FR` |
+| `summaryStyle` | Narrative style | `executive`, `detailed`, or `bullet` |
 
 ## Delivery Options
 
-- **Email**: Set `destination` to your email address (uses n8n built-in email node)
-- **Discord**: Set `destination` to a Discord webhook URL
-- **Slack**: Set `destination` to a Slack incoming webhook URL
+- **Email**: Set `destinationChannel` to an email address; configure SMTP credentials in n8n
+- **Discord/Slack**: Set `destinationChannel` to a webhook URL; the workflow auto-detects the format
 
 ## Workflow Overview
 
