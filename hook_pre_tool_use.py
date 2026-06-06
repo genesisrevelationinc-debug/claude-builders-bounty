@@ -1,100 +1,75 @@
 #!/usr/bin/env python3
 
 import sys
-import re
-import os
 import json
-import time
+import re
+from datetime import datetime
+import os
+import logging
 
-def log_blocked_command(command, project_path, timestamp):
-    log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    with open(log_file, "a") as f:
-        log_entry = {
-            "timestamp": timestamp,
-            "command": command,
-            "project_path": project_path
-        }
-        f.write(json.dumps(log_entry) + "\n")
+# Set up logging
+log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
+os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+logging.basicConfig(
+    filename=log_file,
+    level=logging.INFO,
+    format='%(asctime)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 def block_destructive_commands():
-    # Commands to block
-    blocked_patterns = [
-        r'rm\s+-rf',
-        r'DROP\s+TABLE',
-        r'git\s+push\s+--force',
-        r'TRUNCATE',
-        r'DELETE\s+FROM\s+\w+\s*;',  # DELETE FROM table;
+    try:
+        # Read the tool use request from stdin
+        tool_use = json.load(sys.stdin)
+    except json.JSONDecodeError:
+        print("Error: Invalid JSON input")
+        sys.exit(1)
+
+    # Check if this is a bash tool use request
+    if tool_use.get("tool") != "bash" or not tool_use.get("command"):
+        # If not a bash command, allow it to proceed
+        json.dump(tool_use, sys.stdout)
+        sys.exit(0)
+
+    command = tool_use["command"]
+    project_path = tool_use.get("project_path", "Unknown")
+
+    # Define destructive patterns
+    destructive_patterns = [
+        r"rm\s+-rf",
+        r"DROP\s+TABLE",
+        r"git\s+push\s+--force",
+        r"TRUNCATE",
+        r"DELETE\s+FROM(?!\s+\w+\s+WHERE).*(?=;|$",  # DELETE FROM without WHERE clause
     ]
-    
-    input_command = sys.argv[1] if len(sys.argv) > 1 else ""
-    
-    # Check if command matches any blocked pattern
-    for pattern in blocked_patterns:
-        if re.search(pattern, input_command, re.IGNORECASE):
-            project_path = os.getcwd()
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            log_blocked_command(input_command, project_path, timestamp)
-            print(f"❌ BLOCKED: Dangerous command detected and prevented: {input_command}")
-            print("📝 Blocked commands are logged in ~/.claude/hooks/blocked.log")
+
+    # Check for destructive patterns
+    for pattern in destructive_patterns:
+        if re.search(pattern, command, re.IGNORECASE):
+            # Log the blocked attempt
+            logging.info(f"Blocked command: {command} | Project path: {project_path}")
+            
+            # Print explanation to Claude
+            print(f"❌ Blocked execution of destructive command: {command}")
+            print("This command has been blocked for safety.")
+            if "rm -rf" in command:
+                print("Use 'rm' with specific files only, not 'rm -rf /'")
+            elif "DROP TABLE" in command:
+                print("Database table drops require manual confirmation")
+            elif "git push --force" in command:
+                print("Destructive git pushes are blocked. Use '--force-with-lease' instead")
+            elif "TRUNCATE" in command:
+                print("TRUNCATE operations are not allowed")
+            elif "DELETE FROM" in command:
+                print("DELETE operations without WHERE clauses are not allowed")
+            print("\nTo execute this command, remove the pre-tool-use hook or whitelist it manually.")
+            
+            # Exit with error code to prevent command execution
             sys.exit(1)
-    
-    # If no dangerous patterns detected, allow command to proceed
-    print("✅ Command is safe. Allowing execution.")
-    return 0
+
+    # If no destructive patterns found, allow the command
+    json.dump(tool_use, sys.stdout)
 
 if __name__ == "__main__":
     block_destructive_commands()
-
-"""
-Claude Code Hook: Pre-tool-use
-Blocks destructive bash commands
-"""
-
-# Add to ~/.claude/hooks/pre-tool-use
-
-import sys
-import re
-import os
-import json
-import time
-from datetime import datetime
-
-def log_blocked_command(command, project_path):
-    log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(log_file, "a") as f:
-        log_entry = {
-            "timestamp": timestamp,
-            "command": command,
-            "project_path": project_path
-        }
-        f.write(json.dumps(log_entry) + "\n")
-
-def main():
-    blocked_patterns = [
-        r'rm\s+-rf',
-        r'DROP\s+TABLE',
-        r'git\s+push\s+--force',
-        r'TRUNCATE',
-        r'DELETE\s+FROM\s+\w+\s*;'  # DELETE FROM table;
-    ]
-    
-    input_command = sys.argv[1] if len(sys.argv) > 1 else ""
-    
-    for pattern in blocked_patterns:
-        if re.search(pattern, input_command, re.IGNORECASE):
-            project_path = os.getcwd()
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            log_blocked_command(input_command, project_path)
-            print(f"❌ BLOCKED: Dangerous command detected and prevented: {input_command}")
-            print("📝 Blocked commands are logged in ~/.claude/hooks/blocked.log")
-            sys.exit(1)
-    
-    # If no dangerous patterns detected, allow command to proceed
-    print("✅ Command is safe. Allowing execution.")
-    sys.exit(0)
-
-if __name__ == "__main__":
-    main()
