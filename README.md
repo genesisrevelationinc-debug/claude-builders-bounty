@@ -1,11 +1,10 @@
 # Claude PR Reviewer
 
-An AI-powered code reviewer that analyzes PR diffs and generates structured feedback.
-
 ## Setup
 
-1. Install the required dependencies:
-
+1. Clone this repository
+2. Install the required dependencies:
+   
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
