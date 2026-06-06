@@ -1,4 +1,4 @@
-name: Claude Code Review
+name: Claude Code PR Review
 
 on:
   pull_request:
@@ -8,23 +8,40 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install dependencies
-        run: |
-          pip install requests
-
-      - name: Run Claude Code Review
-        run: |
-          python claude-review --pr ${{ github.event.pull_request.html_url }} --token ${{ secrets.GITHUB_TOKEN }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Add PR comment
-        run: echo "Review complete"
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+        
+    - name: Get PR diff
+      run: |
+        # Get the PR diff from GitHub API
+        PR_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER"
+        curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+             -H "Accept: application/vnd.github.v3.diff" \
+             $PR_URL > pr.diff
+      env:
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        
+    - name: Run Claude Code Analysis
+      run: |
+        # Analyze the code changes
+        python3 -c "
+        import sys
+        sys.path.append('.')
+        import claude_review
+        # Read the diff
+        with open('pr.diff', 'r') as f:
+            diff = f.read()
+        # Analyze the code
+        analysis = claude_review.analyze_code(diff)
+        print(claude_review.format_comment(analysis))
+        "
