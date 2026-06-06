@@ -1,8 +1,8 @@
-# Claude Builders Bounty 🤖
-> A community bounty board for Claude Code builders.
+# Claude Code PR Reviewer 🤖
 
 > A community bounty board for Claude Code builders.
 
+Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
@@ -31,9 +31,17 @@ You're in the right place.
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
-| [#6](../../issues/6) | AGENT: Claude Code sub-agent that reviews a PR and posts a structured comment | $150 | 🟢 Open |
 
----
+## Rules
+
+- Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
+
+## Setup
+
+
 
 ## Rules
 
