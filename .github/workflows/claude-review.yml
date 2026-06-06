@@ -10,9 +10,9 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -24,17 +24,26 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r claude-review/requirements.txt
+          pip install -e .
 
-      - name: Run Claude Review
+      - name: Get PR diff
+        id: get-diff
+        run: |
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3.diff" \
+            "${{ github.event.pull_request.diff_url }}" > pr.diff
+          echo "diff_path=pr.diff" >> $GITHUB_OUTPUT
+
+      - name: Run Claude PR Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          python -m claude-review --pr "$PR_URL" --output review.md
+          claude-review --pr "${{ github.event.pull_request.html_url }}" \
+            --diff "${{ steps.get-diff.outputs.diff_path }}" \
+            --output review.md
 
-      - name: Post Review Comment
+      - name: Post review comment
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           path: review.md
