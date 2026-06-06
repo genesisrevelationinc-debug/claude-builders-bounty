@@ -5,30 +5,40 @@ on:
     types: [opened, synchronize]
     
 permissions:
-  contents: read
   pull-requests: write
+  contents: read
 
 jobs:
-  review:
+  claude-review:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        
-    - name: Install dependencies
-      run: |
-        pip install PyGithub
-        
-    - name: Run Claude Review
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      run: |
-        # Note: This would run the actual claude-review script
-        echo "Claude Code Review would run here"
-        exit 0  # Placeholder
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Run Claude Code Review
+        run: |
+          python claude_pr_reviewer.py --pr ${{ github.event.pull_request.html_url }} > review_output.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post comment to PR
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const reviewContent = fs.readFileSync('review_output.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '# Claude Code Review\n\n' + reviewContent
+            });
