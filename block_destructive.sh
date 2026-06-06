@@ -1,65 +1,36 @@
 #!/bin/bash
 
-# Claude Code pre-tool-use hook to block destructive bash commands
-# Usage: Place in ~/.claude/hooks/ and make executable
+# Block destructive bash commands hook for Claude Code
 
-set -euo pipefail
+HOOKS_DIR="$HOME/.claude/hooks"
+LOG_FILE="$HOOKS_DIR/blocked.log"
 
-# Log file location
-LOG_FILE="$HOME/.claude/hooks/blocked.log"
-
-# Ensure log directory exists
-mkdir -p "$(dirname "$LOG_FILE")"
+# Create log file if it doesn't exist
+touch "$LOG_FILE"
 
 # Function to log blocked commands
 log_blocked() {
-    local timestamp=$(date -Iseconds)
-    local command="$1"
-    local project_path="${PWD}"
-    echo "[$timestamp] Blocked: $command (Project: $project_path)" >> "$LOG_FILE"
+    echo "$(date): $1 [Project: $2]" >> "$LOG_FILE"
 }
 
-# Function to block destructive commands
-block_destructive_commands() {
-    local cmd="$1"
-    
-    # Check for rm -rf
-    if [[ "$cmd" == "rm -rf "* || "$cmd" == "rm -rf" ]]; then
-        log_blocked "$cmd"
-        echo "BLOCKED: Dangerous 'rm -rf' command detected. This command has been blocked for your safety."
-        exit 1
-    fi
-    
-    # Check for DROP TABLE
-    if [[ "$cmd" == *"DROP TABLE"* ]]; then
-        log_blocked "$cmd"
-        echo "BLOCKED: Dangerous 'DROP TABLE' command detected. This command has been blocked for your safety."
-        exit 1
-    fi
-    
-    # Check for git push --force
-    if [[ "$cmd" == "git push --force"* || "$cmd" == *" git push --force "* ]]; then
-        log_blocked "$cmd"
-        echo "BLOCKED: Dangerous 'git push --force' command detected. This command has been blocked for your safety."
-        exit 1
-    fi
-    
-    # Check for TRUNCATE
-    if [[ "$cmd" == *"TRUNCATE"* ]]; then
-        log_blocked "$cmd"
-        echo "BLOCKED: Dangerous 'TRUNCATE' command detected. This command has been blocked for your safety."
-        exit 1
-    fi
-    
-    # Check for DELETE FROM without WHERE
-    if [[ "$cmd" == *"DELETE FROM"* && ! "$cmd" == *"WHERE"* ]]; then
-        log_blocked "$cmd"
-        echo "BLOCKED: Dangerous 'DELETE FROM' without WHERE clause detected. This command has been blocked for your safety."
-        exit 1
-    fi
-}
+# Read from stdin (the command being executed)
+read COMMAND
 
-# Main execution
-if [[ "${1:-}" == "pre-tool-use" ]]; then
-    block_destructive_commands "$2"
+# Check for destructive patterns
+if [[ "$COMMAND" =~ ^.*"rm -rf".*$ ]] || \
+   [[ "$COMMAND" =~ ^.*"DROP TABLE".*$ ]] || \
+   [[ "$COMMAND" =~ ^.*"git push --force".*$ ]] || \
+   [[ "$COMMAND" =~ ^.*"TRUNCATE".*$ ]] || \
+   [[ "$COMMAND" =~ DELETE\ FROM\ .*[^(WHERE).*] ]] || \
+   [[ "$COMMAND" =~ DELETE\ FROM\ [^ ]*$', Project: '.*$ ]]; then
+    log_blocked "$COMMAND" "$PROJECT_PATH"
+    echo "ERROR: Blocked destructive command: $COMMAND"
+    echo "This command was blocked for security reasons."
+    echo "Check $LOG_FILE for details."
+    exit 1
 fi
+
+# If we get here, the command is safe to execute
+echo "$COMMAND"
+
+exit 0
