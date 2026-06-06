@@ -1,70 +1,63 @@
 #!/bin/bash
 
-# Claude Code pre-tool-use hook to block destructive bash commands
-# 
-# This hook checks bash commands for destructive patterns and blocks them
-# Patterns blocked:
-# - rm -rf
-# - DROP TABLE
-# - git push --force
-# - TRUNCATE
-# - DELETE FROM (without WHERE clause)
-#
+# Pre-tool-use hook that blocks destructive bash commands
 # Logs blocked attempts to ~/.claude/hooks/blocked.log
 
+BLOCKED_LOG="$HOME/.claude/hooks/blocked.log"
+PROJECT_PATH="$(pwd)"
+
 # Function to log blocked commands
-log_blocked_command() {
+log_blocked() {
+    local command="$1"
     local timestamp=$(date -Iseconds)
-    local project_path=$(pwd)
-    local log_file="$HOME/.claude/hooks/blocked.log"
-    
-    # Create log directory if it doesn't exist
-    mkdir -p "$(dirname "$log_file")"
-    
-    echo "[$timestamp] BLOCKED: $ORIGINAL_COMMAND" >> "$log_file"
-    echo "  Project Path: $project_path" >> "$log_file"
-    echo "  Reason: $1" >> "$log_file"
-    echo "----------------------------------------" >> "$log_file"
+    echo "[$timestamp] Blocked command: $command (in project: $PROJECT_PATH)" >> "$BLOCKED_LOG"
 }
 
-# Check if this is a bash command
+# Check if the command is bash
 if [ "$TOOL_NAME" = "bash" ]; then
-    # Get the command being executed
-    command_to_check="$1"
+    # List of destructive patterns to check
+    declare -a patterns=(
+        "rm -rf"
+        "DROP TABLE"
+        "git push --force"
+        "TRUNCATE"
+        "DELETE FROM"
+    )
     
-    # Check for destructive patterns
-    if [[ "$command_to_check" == *"rm -rf"* ]]; then
-        log_blocked_command "rm -rf command detected"
-        echo "❌ BLOCKED: Destructive 'rm -rf' command detected"
-        echo "   This command was prevented for your safety."
-        echo "   See ~/.claude/hooks/blocked.log for details."
-        exit 1
-    elif [[ "$command_to_check" == *"DROP TABLE"* ]]; then
-        log_blocked_command "DROP TABLE command detected"
-        echo "❌ BLOCKED: Destructive 'DROP TABLE' command detected"
-        echo "   This command was prevented for your safety."
-        echo "   See ~/.claude/hooks/blocked.log for details."
-        exit 1
-    elif [[ "$command_to_check" == *"git push --force"* ]]; then
-        log_blocked_command "git push --force command detected"
-        echo "❌ BLOCKED: Destructive 'git push --force' command detected"
-        echo "   This command was prevented for your safety."
-        echo "   See ~/.claude/hooks/blocked.log for details."
-        exit 1
-    elif [[ "$command_to_check" == *"TRUNCATE"* ]]; then
-        log_blocked_command "TRUNCATE command detected"
-        echo "❌ BLOCKED: Destructive 'TRUNCATE' command detected"
-        echo "   This command was prevented for your safety."
-        echo "   See ~/.claude/hooks/blocked.log for details."
-        exit 1
-    elif [[ "$command_to_check" == *"DELETE FROM"* ]] && [[ ! "$command_to_check" == *"WHERE"* ]]; then
-        log_blocked_command "DELETE FROM without WHERE clause detected"
-        echo "❌ BLOCKED: Destructive 'DELETE FROM' without WHERE clause detected"
-        echo "   This command was prevented for your safety."
-        echo "   See ~/.claude/hooks/blocked.log for details."
-        exit 1
-    fi
+    # Check each pattern
+    for pattern in "${patterns[@]}"; do
+        if [[ "$INPUT" == *"$pattern"* ]]; then
+            # Special handling for DELETE FROM to check for WHERE clause
+            if [[ "$pattern" == "DELETE FROM" ]]; then
+                # Check if DELETE FROM has a WHERE clause
+                if [[ ! "$INPUT" =~ DELETE[[:space:]]+FROM[[:space:]]+.*WHERE[[:space:]]+.* ]]; then
+                    log_blocked "$INPUT"
+                    echo "ERROR: Blocked destructive command: $INPUT"
+                    echo "REASON: DELETE statements without WHERE clause are not allowed"
+                    exit 1
+                fi
+            else
+                # For all other patterns, block them
+                log_blocked "$INPUT"
+                echo "ERROR: Blocked destructive command: $INPUT"
+                case "$pattern" in
+                    "DROP TABLE")
+                        echo "REASON: DROP TABLE commands are not allowed"
+                        ;;
+                    "git push --force")
+                        echo "REASON: Force pushes are not allowed"
+                        ;;
+                    "TRUNCATE")
+                        echo "REASON: TRUNCATE commands are not allowed"
+                        ;;
+                    "rm -rf")
+                        echo "REASON: rm -rf commands are not allowed"
+                        ;;
+                esac
+                exit 1
+            fi
+        fi
+    done
 fi
 
-# Allow the command to proceed if not blocked
 exit 0
