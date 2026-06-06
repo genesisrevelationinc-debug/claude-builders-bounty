@@ -1,84 +1,62 @@
-#!/usr/bin/env python3
-"""
-Claude Code pre-tool-use hook to block destructive bash commands.
+#!/bin/bash
 
-Place this file at: ~/.claude/hooks/pre-tool-use
-Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
-"""
+# Pre-tool-use hook to block destructive bash commands
+# Blocks: rm -rf, DROP TABLE, git push --force, TRUNCATE, DELETE FROM (without WHERE)
 
-import json
-import os
-import re
-import sys
-from datetime import datetime
+set -euo pipefail
 
-BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
+# Log file for blocked commands
+LOG_FILE="$HOME/.claude/hooks/blocked.log"
 
-# Patterns to block with their descriptions
-DANGEROUS_PATTERNS = [
-    (
-        re.compile(r"\brm\s+(-[a-zA-Z]*f|--force)\s+(-[a-zA-Z]*r|--recursive)\b|\brm\s+(-[a-zA-Z]*r|--recursive)\s+(-[a-zA-Z]*f|--force)\b", re.IGNORECASE),
-        "rm -rf: Recursive force delete can destroy directories irreversibly"
-    ),
-    (
-        re.compile(r"\bDROP\s+TABLE\b", re.IGNORECASE),
-        "DROP TABLE: Permanently deletes database tables and all their data"
-    ),
-    (
-        re.compile(r"\bgit\s+push\s+.*(--force|-f)\b", re.IGNORECASE),
-        "git push --force: Can overwrite remote history and cause data loss"
-    ),
-    (
-        re.compile(r"\bTRUNCATE\b", re.IGNORECASE),
-        "TRUNCATE: Quickly removes all rows from a table without logging individual row deletions"
-    ),
-    (
-        re.compile(r"\bDELETE\s+FROM\b", re.IGNORECASE),
-        "DELETE FROM without WHERE: Deletes all rows from a table"
-    ),
-]
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")"
 
+# Get the command being executed
+TOOL_NAME="$1"
+shift
+COMMAND_ARGS=("$@")
 
-def log_blocked(command, reason, project_path):
-    """Log a blocked command to the blocked log file."""
-    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
-    timestamp = datetime.utcnow().isoformat() + "Z"
-    log_entry = f"{timestamp} | {project_path} | BLOCKED: {reason} | Command: {command}\n"
-    with open(BLOCKED_LOG, "a") as f:
-        f.write(log_entry)
+# Only check bash commands
+if [[ "$TOOL_NAME" != "bash" && "$TOOL_NAME" != "sh" ]]; function check_bash_command() {
+    local cmd="$1"
+    
+    # Check for destructive patterns
+    if [[ $cmd == *"rm -rf"* ]] || 
+       [[ $cmd == *"DROP TABLE"* ]] || 
+       [[ $cmd == *"git push --force"* ]] || 
+       [[ $cmd == *"TRUNCATE"* ]] || 
+       [[ $cmd == *"DELETE FROM"* && $cmd != *WHERE* ]] ; then
+        return 0  # Pattern found
+    fi
+    return 1  # No destructive pattern found
+}
 
+function log_blocked_command() {
+    local timestamp=$(date -Iseconds)
+    local project_path=$(pwd)
+    echo "[$timestamp] Blocked command: $TOOL_NAME ${COMMAND_ARGS[*]}" >> "$LOG_FILE"
+    echo "Project path: $project_path" >> "$LOG_FILE"
+}
 
-def check_command(command):
-    """Check if a command contains dangerous patterns."""
-    for pattern, description in DANGEROUS_PATTERNS:
-        if pattern.search(command):
-            return description
-    return None
+# Main execution
+if [ "$TOOL_NAME" = "bash" ] || [ "$TOOL_NAME" = "sh" ]; then
+    # Join all arguments into a single command string for pattern matching
+    FULL_COMMAND="$*"
+    
+    # Check if destructive command
+    if check_bash_command "$FULL_COMMAND"; then
+        # Log the blocked command
+        log_blocked_command
+        
+        # Output error message for Claude
+        echo "ERROR: Destructive command blocked by security hook" >&2
+        echo "Reason: Command contains destructive patterns" >&2
+        echo "Blocked command: $TOOL_NAME ${COMMAND_ARGS[*]}" >&2
+        echo "See ~/.claude/hooks/blocked.log for details" >&2
+        exit 1
+    fi
+fi
 
-
-def main():
-    # Read the hook payload from stdin
-    try:
-        payload = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        # If not valid JSON, allow the tool use to proceed
-        sys.exit(0)
-
-    tool_name = payload.get("tool_name", "")
-    tool_input = payload.get("tool_input", {})
-    project_path = payload.get("project_path", os.getcwd())
-
-    # Only intercept Bash tool
-    if tool_name == "Bash":
-        command = tool_input.get("command", "")
-        block_reason = check_command(command)
-        if block_reason:
-            log_blocked(command, block_reason, project_path)
-            print(f"\n🚫 BLOCKED: This command was prevented from running.\n   Reason: {block_reason}\n   Command: {command}\n", file=sys.stderr)
-            sys.exit(1)
-
-    sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()
+# If we get here, the command is safe to execute
+exit 0
+}
