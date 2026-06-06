@@ -31,9 +31,6 @@ You're in the right place.
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
-| [#6](workflows/weekly-dev-summary.json) | WORKFLOW: n8n + Claude Code — automated weekly dev summary | $200 | 🟢 Open |
-|   | [Download Workflow (JSON)](workflows/weekly-dev-summary.json) | $200 | 🟢 Open |
-|   | [Setup Instructions](workflows/weekly-dev-summary-setup.md) | Setup Guide | 🟢 Open |
 
 ---
 
@@ -44,24 +41,7 @@ You're in the right place.
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Quality over speed — a solid PR beats a fast one
 
-*Started by the Claude builder community · March 2026 · MIT License*
-
-## Setup Instructions
-
-1. Import the [weekly-dev-summary.json](workflows/weekly-dev-summary.json) workflow into your n8n instance
-2. Configure the GitHub credentials node with a Personal Access Token
-3. Set the repository owner/name in the "Set" node
-4. Configure the Claude API credentials with your API key
-5. Set up the webhook (Discord/Slack) or email node for delivery
-6. Test the workflow manually, then enable the cron trigger
-
-## Configuration Parameters
-
-- **GitHub Repository**: Set your target repository in the "Set" node
-- **Delivery Method**: Choose between Discord webhook, Slack webhook, or email
-- **Language**: Select summary language (English or French) in the "Set" node
-- **Schedule**: Weekly Friday at 5pm (configurable in Cron node)
-
+---
 
 ## Community
 
@@ -70,4 +50,32 @@ You're in the right place.
 
 ---
 
+# n8n + Claude Weekly Dev Summary
+
+This workflow automatically generates a weekly narrative summary of GitHub repository activity using Claude API.
+
+## Setup Instructions
+
+1. **Import Workflow**: In n8n, go to Workflows > Import and paste the JSON file.
+
+2. **Configure Credentials**:
+   - Add your GitHub Personal Access Token in the GitHub node
+   - Add your Claude API key in the Claude node
+   - Configure email credentials in the Email node (or use Discord/Slack)
+
+3. **Set Repository**: Update the GitHub node to point to your target repository.
+
+4. **Set Schedule**: The workflow is preconfigured to run weekly on Fridays at 5pm.
+
+5. **Set Delivery**: Update the final node to your preferred delivery method (email, Discord, or Slack).
+
+## Configuration Variables
+
+- **GitHub Repository**: Set in the GitHub node parameters
+- **Delivery Method**: Choose email, Discord, or Slack in the last node
+- **Language**: The summary will be generated in English by default (FR option available in code)
+
+## Screenshot
+
+![Successful execution screenshot](screenshot.png)
 *Started by the Claude builder community · March 2026 · MIT License*
