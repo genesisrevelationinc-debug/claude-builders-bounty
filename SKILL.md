@@ -1,10 +1,13 @@
-# CHANGELOG Generator
+# Changelog Generator
 
 ## Description
-
-This skill automatically generates a structured `CHANGELOG.md` from a project's git history. It analyzes commit messages since the last git tag and categorizes them into: Added, Fixed, Changed, and Removed.
+A script that generates a structured changelog from the project's git history.
 
 ## Usage
 
-To use this skill, simply run:
+### Method 1: Claude Code Command
+Use the `/generate-changelog` command in Claude Code.
+
+### Method 2: Bash Script
+Execute the bash script directly:
 
