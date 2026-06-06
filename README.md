@@ -43,15 +43,16 @@ You're in the right place.
 
 ---
 
-
----
-
-## Hooks
-
-- **[pre-tool-use](hooks/)** — Block destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.)
-
 ## Community
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+
+---
+
+# Block Destructive Commands Hook
+
+## Installation
+
 
 *Started by the Claude builder community · March 2026 · MIT License*
