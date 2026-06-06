@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project conventions. Read this before writing code. If a pattern isn't here, it doesn't belong.
 
 ---
 
@@ -9,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable ESM |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
-| Auth | NextAuth.js v5 (Auth.js) | Edge-compatible, JWT sessions, OAuth providers |
-| Styling | Tailwind CSS 3.4 + shadcn/ui | Utility-first, accessible primitives, no CSS-in-JS runtime |
-| Validation | Zod | Schema validation shared between server and client |
-| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network latency, works in Server Components |
+| ORM/Query | Raw SQL + `zod` | ORMs hide performance cliffs; Zod gives type safety without abstraction bloat |
+| Auth | `lucia` + `oslo` | Session-based, works with SQLite out of the box, no external auth service |
+| Styling | Tailwind CSS + `shadcn/ui` | Utility-first, no runtime CSS, copy-paste components = full control |
+| Validation | `zod` | Single source of truth for API, forms, and DB schemas |
+| Testing | `vitest` + `@testing-library/react` | Fast, native ESM, no Jest config hell |
 
-**Non-negotiable:** We use the App Router. Pages Router is not supported in this template.
+**Lockfile rule:** `package-lock.json` is source of truth. Never commit `yarn.lock` or `pnpm-lock.yaml`.
 
 ---
 
