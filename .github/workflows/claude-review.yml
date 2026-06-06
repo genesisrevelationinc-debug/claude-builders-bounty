@@ -1,4 +1,4 @@
-name: Claude PR Review
+name: Claude Code Review
 
 on:
   pull_request:
@@ -7,35 +7,24 @@ on:
 jobs:
   review:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      contents: read
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.x'
 
       - name: Install dependencies
         run: |
-          pip install -r claude-review/requirements.txt
+          pip install requests
 
-      - name: Run Claude PR Review
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
+      - name: Run Claude Code Review
         run: |
-          python -m claude-review.claude_review --pr "$PR_URL"
-
-      - name: Post review comment
+          python claude-review --pr ${{ github.event.pull_request.html_url }} --token ${{ secrets.GITHUB_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python -m claude-review.post_comment --pr "$PR_URL"
+
+      - name: Add PR comment
+        run: echo "Review complete"
