@@ -1,62 +1,90 @@
-#!/bin/bash
+#!/usr/bin/env python3
+"""
+Claude Code pre-tool-use hook to block destructive bash commands.
 
-# Pre-tool-use hook to block destructive bash commands
-# Blocks: rm -rf, DROP TABLE, git push --force, TRUNCATE, DELETE FROM (without WHERE)
+This hook intercepts dangerous bash commands before they are executed
+by Claude Code, preventing accidental data loss or damage.
+"""
 
-set -euo pipefail
+import json
+import os
+import re
+import sys
+from datetime import datetime
 
-# Log file for blocked commands
-LOG_FILE="$HOME/.claude/hooks/blocked.log"
 
-# Ensure log directory exists
-mkdir -p "$(dirname "$LOG_FILE")"
+BLOCKED_PATTERNS = [
+    # rm -rf / rm -r / rm -f with any path
+    (r'\brm\s+(?:-\S*\s+)?-[^\s]*[rf]', 'rm -rf: Recursive force delete'),
+    # DROP TABLE
+    (r'\bDROP\s+TABLE\b', 'DROP TABLE: Database table deletion'),
+    # git push --force
+    (r'\bgit\s+push\s+.*--force\b', 'git push --force: Force push to remote'),
+    # TRUNCATE
+    (r'\bTRUNCATE\b', 'TRUNCATE: Table data removal'),
+    # DELETE FROM without WHERE
+    (r'\bDELETE\s+FROM\s+\S+(?!.*\bWHERE\b)', 'DELETE FROM without WHERE: Unconditional row deletion'),
+]
 
-# Get the command being executed
-TOOL_NAME="$1"
-shift
-COMMAND_ARGS=("$@")
+LOG_FILE = os.path.expanduser('~/.claude/hooks/blocked.log')
 
-# Only check bash commands
-if [[ "$TOOL_NAME" != "bash" && "$TOOL_NAME" != "sh" ]]; function check_bash_command() {
-    local cmd="$1"
+
+def log_blocked_attempt(command: str, reason: str, project_path: str):
+    """Log a blocked command attempt to the log file."""
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+    timestamp = datetime.now().isoformat()
+    log_entry = f"{timestamp} | {project_path} | BLOCKED: {reason} | Command: {command}\n"
+    with open(LOG_FILE, 'a') as f:
+        f.write(log_entry)
+
+
+def check_command(command: str, project_path: str) -> tuple[bool, str]:
+    """
+    Check if a command matches any blocked pattern.
     
-    # Check for destructive patterns
-    if [[ $cmd == *"rm -rf"* ]] || 
-       [[ $cmd == *"DROP TABLE"* ]] || 
-       [[ $cmd == *"git push --force"* ]] || 
-       [[ $cmd == *"TRUNCATE"* ]] || 
-       [[ $cmd == *"DELETE FROM"* && $cmd != *WHERE* ]] ; then
-        return 0  # Pattern found
-    fi
-    return 1  # No destructive pattern found
-}
-
-function log_blocked_command() {
-    local timestamp=$(date -Iseconds)
-    local project_path=$(pwd)
-    echo "[$timestamp] Blocked command: $TOOL_NAME ${COMMAND_ARGS[*]}" >> "$LOG_FILE"
-    echo "Project path: $project_path" >> "$LOG_FILE"
-}
-
-# Main execution
-if [ "$TOOL_NAME" = "bash" ] || [ "$TOOL_NAME" = "sh" ]; then
-    # Join all arguments into a single command string for pattern matching
-    FULL_COMMAND="$*"
+    Returns:
+        tuple of (is_blocked, reason)
+    """
+    upper_command = command.upper()
     
-    # Check if destructive command
-    if check_bash_command "$FULL_COMMAND"; then
-        # Log the blocked command
-        log_blocked_command
-        
-        # Output error message for Claude
-        echo "ERROR: Destructive command blocked by security hook" >&2
-        echo "Reason: Command contains destructive patterns" >&2
-        echo "Blocked command: $TOOL_NAME ${COMMAND_ARGS[*]}" >&2
-        echo "See ~/.claude/hooks/blocked.log for details" >&2
-        exit 1
-    fi
-fi
+    for pattern, reason in BLOCKED_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, reason
+    
+    return False, ""
 
-# If we get here, the command is safe to execute
-exit 0
-}
+
+def main():
+    # Read the hook input from stdin (Claude Code passes tool use info as JSON)
+    try:
+        hook_input = json.loads(sys.stdin.read())
+    except json.JSONDecodeError:
+        # If not valid JSON, allow the command to proceed
+        sys.exit(0)
+    
+    # Extract tool name and command
+    tool_name = hook_input.get('tool_name', '')
+    tool_input = hook_input.get('tool_input', {})
+    
+    # Only check bash commands
+    if tool_name != 'bash':
+        sys.exit(0)
+    
+    command = tool_input.get('command', '')
+    project_path = hook_input.get('project_path', os.getcwd())
+    
+    is_blocked, reason = check_command(command, project_path)
+    
+    if is_blocked:
+        log_blocked_attempt(command, reason, project_path)
+        print(f"\n🛡️  SECURITY BLOCK: This command was prevented from running.\n", file=sys.stderr)
+        print(f"   Reason: {reason}\n", file=sys.stderr)
+        print(f"   Command: {command}\n", file=sys.stderr)
+        print(f"   If you need to run this command, please do so manually outside of Claude Code.\n", file=sys.stderr)
+        sys.exit(1)
+    
+    sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
