@@ -54,10 +54,6 @@ You're in the right place.
 
 ## Setup
 
-1. Make sure you have git installed
-2. Run the script with `bash changelog.sh`
-3. Check the generated `CHANGELOG.md` file
-
-## Features
-- Auto-categorizes commits since last tag into Added, Fixed, Changed, and Removed sections
+1. Make the script executable:
+   
 *Started by the Claude builder community · March 2026 · MIT License*
