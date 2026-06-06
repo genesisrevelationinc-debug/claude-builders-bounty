@@ -1,4 +1,3 @@
-<a name="bounty-4"></a>
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -22,46 +21,8 @@ You're in the right place.
 3. Submit a PR — payment is automatic on merge ✅
 
 ---
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
-## Sample Output for Bounty #4
-
-### Summary of Changes
-This PR introduces a new Claude Code agent that reviews GitHub PRs and provides structured feedback. The agent can be used via CLI or as a GitHub Action.
-
-### Identified Risks
-- The CLI version may require GitHub CLI to be installed
-- Rate limits on the Claude Code API if processing many PRs
-
-### Improvement Suggestions
-- Add support for commenting directly on the PR
-- Include code quality metrics in the review
-- Add configuration file support for customizing review criteria
-
-### Confidence: High
-
-## How to Use
-
-To claim this bounty, we have implemented a solution that includes both a CLI tool and a GitHub Action. See the implementation in `bounty-4/claude-pr-reviewer/` directory.
-
-## Features
-
-- Works via CLI: `claude-review --pr <PR_URL>`
-- Works via GitHub Action
-- Provides structured Markdown output with summary, risks, and suggestions
-- Includes a confidence score
-- Tested on multiple real PRs
-
-## Setup Instructions
-
-1. Install the package: `npm install -g claude-pr-reviewer`
-2. Set your `GITHUB_TOKEN` and `CLAUDE_API_KEY` environment variables
-3. Run: `claude-review --pr <PR_URL>`
-
-## GitHub Action Usage
-
+## Active Bounties
 
 | # | Task | Amount | Status |
 |---|------|--------|--------|
@@ -87,6 +48,13 @@ To claim this bounty, we have implemented a solution that includes both a CLI to
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
+
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
+## PR Review Agent
+
+The PR review agent is a tool that analyzes PR diffs and generates structured feedback.
+
+### Installation
+
+
