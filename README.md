@@ -1,5 +1,7 @@
 # Claude Builders Bounty 🤖
+> A community bounty board for Claude Code builders.
 
+## How it works
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
@@ -49,14 +51,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# Git Changelog Generator
-
-This script automatically generates a structured `CHANGELOG.md` from your project's git history.
-
-## Setup Instructions
-
-### 1. Make the script executable
-
 
 *Started by the Claude builder community · March 2026 · MIT License*
