@@ -1,4 +1,4 @@
-# Claude Builders Bounty 🤖
+# Claude PR Review Agent 🤖
 
 > A community bounty board for Claude Code builders.
 
@@ -31,30 +31,32 @@ You're in the right place.
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+| [#6](../../issues/6) | AGENT: Claude Code sub-agent that reviews a PR and posts a structured comment | $150 | 🔵 Claimed |
 
 ---
 
-## Rules
-
-- Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Quality over speed — a solid PR beats a fast one
 
----
+- Quality over speed — a solid PR beats a fast one
+- ## Claude PR Review Agent
+
+The Claude PR Review Agent is a tool that automatically reviews pull requests and provides structured feedback. It can be used either via CLI or as a GitHub Action.
+
+### Setup
+
+1. Install the required dependencies:
+   
 
 ## Community
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
-
 ---
 
-## PR Review Agent
-
-The PR review agent is a tool that analyzes PR diffs and generates structured feedback.
-
-### Installation
-
-
+*Started by the Claude builder community · March 2026 · MIT License*
