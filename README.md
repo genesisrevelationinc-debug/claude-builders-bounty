@@ -1,4 +1,4 @@
-# Claude Code PR Reviewer Agent 🤖
+
 
 > A community bounty board for Claude Code builders.
 
@@ -51,13 +51,3 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
-
-*Started by the Claude builder community · March 2026 · MIT License*
-
-## Claude Code PR Reviewer
-
-This agent takes a PR diff as input, analyzes it, and returns a structured Markdown review comment.
-
-### Installation
-
-
