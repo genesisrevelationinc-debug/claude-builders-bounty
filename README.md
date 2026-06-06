@@ -8,6 +8,14 @@ You're in the right place.
 
 ---
 
+## Security Hooks
+
+This repository includes a `pre-tool-use` hook for Claude Code that blocks destructive bash commands.
+
+**Quick install:**
+
+---
+
 ## How it works
 
 **To post a bounty**
@@ -45,15 +53,9 @@ You're in the right place.
 
 ## Community
 
----
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
 
-*Started by the Claude builder community · March 2026 · MIT License*
-
-## Hooks
-
-### [Pre-Tool-Use Hook: Block Destructive Bash Commands](hooks/)
-
-A security hook that intercepts dangerous bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute in Claude Code. See [hooks/README.md](hooks/README.md) for installation and details.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
