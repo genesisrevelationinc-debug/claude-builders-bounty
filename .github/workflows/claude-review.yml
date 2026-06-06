@@ -12,7 +12,7 @@ jobs:
       contents: read
     
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -24,17 +24,18 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install -e .
+          pip install -r claude-review/requirements.txt
       
       - name: Run Claude PR Review
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          claude-review --pr "${{ github.event.pull_request.html_url }}" --output review.md
+          python -m claude-review.claude_review --pr "$PR_URL"
       
       - name: Post review comment
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr comment "${{ github.event.pull_request.html_url }}" --body-file review.md
+          python -m claude-review.post_comment --pr "$PR_URL"
