@@ -1,4 +1,4 @@
-name: Claude PR Review
+name: Claude Code PR Review
 
 on:
   pull_request:
@@ -7,40 +7,28 @@ on:
 jobs:
   review:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      contents: read
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.9'
 
       - name: Install dependencies
         run: |
-          pip install -r claude-review/requirements.txt
-
-      - name: Get PR diff
-        id: get-diff
-        run: |
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.event.pull_request.diff_url }}" > /tmp/pr.diff
+          python -m pip install --upgrade pip
+          pip install requests
 
       - name: Run Claude Review
-        id: review
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python claude-review/claude_review.py --diff /tmp/pr.diff --output /tmp/review.md
+          python claude_review.py --pr "${{ github.event.pull_request.html_url }}" --token "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Post review comment
-        uses: marocchino/sticky-pull-request-comment@v2
+      - name: Save review as artifact
+        uses: actions/upload-artifact@v3
         with:
-          path: /tmp/review.md
-          header: claude-review
+          name: claude-review
+          path: claude-review-output.md
