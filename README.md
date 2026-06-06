@@ -27,9 +27,23 @@ You're in the right place.
 | # | Task | Amount | Status |
 |---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+
+---
+
+## CHANGELOG Generator
+
+To generate a structured changelog from git history:
+
+1. Make the script executable: `chmod +x changelog.sh`
+2. Run the script: `./changelog.sh`
+3. Find your CHANGELOG.md file in the project root
+
+### Requirements
+
+- Git tags for version detection
+- Conventional commit messages (optional but recommended for better categorization)
+
+
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
@@ -50,10 +64,4 @@ You're in the right place.
 
 ---
 
-# Changelog Generator
-
-## Setup
-
-1. Make the script executable:
-   
 *Started by the Claude builder community · March 2026 · MIT License*
