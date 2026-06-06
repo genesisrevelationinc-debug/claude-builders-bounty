@@ -1,5 +1,13 @@
-"""Core PR review logic using Claude API."""
+#!/usr/bin/env python3
+"""Claude Code PR Review Agent.
 
+Takes a PR diff as input, analyzes it with Claude, and returns a
+structured Markdown review comment.
+"""
+
+from __future__ import annotations
+
+import argparse
 import json
 import os
 import re
@@ -18,59 +26,77 @@ class ReviewResult:
     summary: str
     risks: list[str]
     suggestions: list[str]
-    confidence: str  # Low, Medium, High
-    raw_response: str
+    confidence: str
 
 
-class ClaudeReviewer:
-    """Claude Code PR Review Agent."""
+def get_pr_diff(pr_url: str, github_token: Optional[str] = None) -> str:
+    """Fetch the PR diff from GitHub."""
+    # Parse PR URL to get owner, repo, and PR number
+    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
+    if not match:
+        raise ValueError(f"Invalid PR URL: {pr_url}")
 
-    CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
+    owner, repo, pr_number = match.groups()
 
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not self.api_key:
-            raise ValueError(
-                "Anthropic API key required. Set ANTHROPIC_API_KEY env var."
-            )
+    # Use GitHub API to get the diff
+    headers = {
+        "Accept": "application/vnd.github.v3.diff",
+        "User-Agent": "claude-review/0.1.0",
+    }
 
-    def _build_prompt(self, diff: str, pr_url: Optional[str] = None) -> str:
-        """Build the prompt for Claude to analyze a PR diff."""
-        pr_context = f"\nPR URL: {pr_url}" if pr_url else ""
+    if github_token:
+        headers["Authorization"] = f"token {github_token}"
 
-        prompt = f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
 
-## Instructions
+    response = requests.get(api_url, headers=headers, timeout=30)
+    response.raise_for_status()
 
-Review the code changes carefully. Focus on:
-- Understanding what the PR is trying to accomplish
-- Identifying potential bugs, security issues, or edge cases
-- Suggesting improvements for code quality, performance, or maintainability
-- Assessing the overall quality and risk of the changes
+    return response.text
 
-## Output Format
 
-Respond with a JSON object in this exact format:
+def get_pr_info(pr_url: str, github_token: Optional[str] = None) -> dict:
+    """Fetch PR metadata from GitHub API."""
+    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
+    if not match:
+        raise ValueError(f"Invalid PR URL: {pr_url}")
 
-{{
-  "summary": "2-3 sentence summary of what the PR does and its overall quality",
-  "risks": [
-    "Risk 1 description",
-    "Risk 2 description"
-  ],
-  "suggestions": [
-    "Suggestion 1 description",
-    "Suggestion 2 description"
-  ],
-  "confidence": "High"
-}}
+    owner, repo, pr_number = match.groups()
 
-Confidence must be one of: "Low", "Medium", "High"
-- Low: Major concerns, significant risks, or the diff is too large/complex to review confidently
-- Medium: Some concerns or areas that need attention, but generally acceptable
-- High: Well-structured, clean code with minimal concerns
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "claude-review/0.1.0",
+    }
 
-If there are no risks or suggestions, use empty arrays [].
+    if github_token:
+        headers["Authorization"] = f"token {github_token}"
 
-## PR Diff{pr_context}
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+
+    response = requests.get(api_url, headers=headers, timeout=30)
+    response.raise_for_status()
+
+    return response.json()
+
+
+def call_claude_api(diff: str, pr_info: dict, api_key: Optional[str] = None) -> ReviewResult:
+    """Call Claude API to analyze the PR diff."""
+    api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY not set")
+
+    # Truncate diff if too long (Claude has context limits)
+    max_diff_chars = 100000
+    if len(diff) > max_diff_chars:
+        diff = diff[:max_diff_chars] + "\n\n[... diff truncated due to length ...]"
+
+    pr_title = pr_info.get("title", "Unknown")
+    pr_body = pr_info.get("body", "") or ""
+
+    prompt = f"""You are an expert code reviewer. Analyze the following pull request and provide a structured review.
+
+PR Title: {pr_title}
+PR Description: {pr_body}
+
+Here is the diff:
 
