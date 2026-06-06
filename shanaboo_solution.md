@@ -1,179 +1,218 @@
 ```diff
 --- /dev/null
-+++ b/claude-weekly-summary.json
-@@ -1,0 +1,1009 @@
++++ b/n8n-claude-weekly-summary.json
+@@ -0,0 +1,1 @@
 +{
-+  "name": "Claude Weekly Dev Summary",
++  "name": "Weekly Dev Summary",
 +  "nodes": [
 +    {
 +      "parameters": {},
-+      "id": "f881e248-270a-404d-b4ed-9d90d4e31c3c",
-+      "name": "Start",
++      "id": "1",
++      "name": "Cron",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
-+        250,
-+        300
++        0,
++        0
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "repository",
-+        "owner": "={{ $json[\"github_owner\"] }}",
-+        "repository": "={{ $json[\"github_repo\"] }}",
-+        "filePath": "={{ $json[\"github_token\"] }}",
-+        "branch": "={{ $json[\"github_branch\"] }}",
-+        "fileContent": "={{ $json[\"github_file_content\"] }}",
-+        "commitMessage": "={{ $json[\"github_commit_message\"] }}",
-+        "additionalFields": {
-+          "state": "all",
-+          "since": "={{ $json[\"since_date\"] }}",
-+          "until": "={{ $json[\"until_date\"] }}",
-+          "per_page": 100
++        "rule": {
++          "interval": [
++            {
++              "field": "cronExpression",
++              "value": "0 17 * * 5"
++            }
++          ]
 +        }
 +      },
-+      "id": "4f3b2c9f-8a1b-4c2d-9d8e-0a1b2c3d4e5f",
++      "id": "2",
++      "name": "Schedule Trigger",
++      "type": "n8n-nodes-base.cron",
++      "typeVersion": 1,
++      "position": [
++        0,
++        0
++      ]
++    },
++    {
++      "parameters": {
++        "resource": "search",
++      "options": {
++        "repo": "={{ $json.repo }}",
++        "sort": "updated",
++        "direction": "desc",
++        "perPage": "100",
++        "state": "all"
++      }
++      },
++      "id": "3",
 +      "name": "GitHub",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        450,
-+        300
++        0,
++        0
++      ]
++    },
++    {
++      "parameters": {
++        "options": {
++          "repo": "={{ $json.repo }}",
++          "sort": "updated",
++          "direction": "desc",
++          "perPage": "100",
++          "state": "all"
++        }
++      },
++      "id": "4",
++      "name": "Get Commits",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        0,
++        0
++      ]
++    },
++    {
++      "parameters": {
++        "options": {
++          "repo": "={{ $json.repo }}",
++          "sort": "updated",
++          "direction": "desc",
++          "perPage": "100",
++          "state": "all"
++        }
++      },
++      "id": "5",
++      "name": "Get Issues",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        0,
++        0
++      ]
++    },
++    {
++      "parameters": {
++        "options": {
++          "repo": "={{ $json.repo }}",
++          "sort": "updated",
++          "direction": "desc",
++          "perPage": "100",
++          "state": "all"
++        }
++      },
++      "id": "6",
++      "name": "Get Pull Requests",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        0,
++        0
 +      ]
 +    },
 +    {
 +      "parameters": {
 +        "model": "claude-sonnet-4-20250514",
-+        "prompt": "={{ $json[\"claude_prompt\"] }}",
-+        "maxTokens": 1024,
-+        "temperature": 0.7
++        "system": "You are a helpful assistant that summarizes GitHub activity.",
++        "messages": [
++          {
++            "role": "user",
++            "content": "Please summarize the following GitHub activity for the week:\n\nCommits:\n{{ $json.commits }}\n\nIssues:\n{{ $json.issues }}\n\nPull Requests:\n{{ $json.prs }}"
++          }
++        ],
++        "max_tokens": 1000
 +      },
-+      "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-+      "name": "Claude",
-+      "type": "n8n-nodes-base.claude",
++      "id": "7",
++      "name": "Claude API",
++      "type": "n8n-nodes-base.anthropic",
 +      "typeVersion": 1,
 +      "position": [
-+        850,
-+        300
++        0,
++        0
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "send": true,
-+        "email": "={{ $json[\"email\"] }}",
-+        "subject": "={{ $json[\"subject\"] }}",
-+        "text": "={{ $json[\"text\"] }}",
-+        "options": {
-+          "allowMissingCredentials": false
-+        }
++        "fromEmail": "={{ $json.fromEmail }}",
++        "toEmail": "={{ $json.toEmail }}",
++        "subject": "Weekly Development Summary",
++        "text": "={{ $json.summary }}"
 +      },
-+      "id": "b2c3d4e5-f6a7-8901-2345-678901abcdef",
-+      "name": "Email",
++      "id": "8",
++      "name": "Send Email",
 +      "type": "n8n-nodes-base.emailSend",
 +      "typeVersion": 1,
 +      "position": [
-+        1050,
-+        300
++        0,
++        0
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "mode": "runOnce",
-+        "options": {
-+          "responsePropertyName": "data"
-+        }
++        "url": "={{ $json.webhookUrl }}",
++        "text": "={{ $json.summary }}"
 +      },
-+      "id": "c3d4e5f6-7890-1234-5678-901234567890",
-+      "name": "Set",
-+      "type": "n8n-nodes-base.set",
-+      "typeVersion": 1,
-+      "position": [
-+        650,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "options": {
-+          "responsePropertyName": "data"
-+        }
-+      },
-+      "id": "d4e5f6a7-8901-2345-6789-012345678901",
-+      "name": "Function",
-+      "type": "n80n-nodes-base.function",
-+      "typeVersion": 1,
-+      "position": [
-+        750,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "url": "={{ $json[\"webhook_url\"] }}",
-+        "method": "POST",
-+        "fieldToCheck": "={{ $json[\"field_to_check\"] }}",
-+        "options": {
-+          "responsePropertyName": "data"
-+        }
-+      },
-+      "id": "e5f6a7b8-9012-3456-7890-123456789012",
-+      "name": "Webhook",
++      "id": "9",
++      "name": "Send to Webhook",
 +      "type": "n8n-nodes-base.webhook",
 +      "typeVersion": 1,
 +      "position": [
-+        950,
-+        300
++        0,
++        0
 +      ]
 +    }
 +  ],
-+  "pinData": {},
 +  "connections": {
-+    "Start": {
++    "Schedule Trigger": {
 +      "main": [
 +        [
 +          {
-+            "node": "GitHub",
-+            "type": "main",
++            "node": "Get Commits",
++            "type": "n8n-nodes-base.github",
 +            "index": 0
 +          }
 +        ]
 +      ]
 +    },
-+    "GitHub": {
++    "Get Commits": {
 +      "main": [
 +        [
 +          {
-+            "node": "Set",
-+            "type": "main",
++            "node": "Get Issues",
++            "type": "n8n-nodes-base.github",
 +            "index": 0
 +          }
 +        ]
 +      ]
 +    },
-+    "Set": {
++    "Get Issues": {
 +      "main": [
 +        [
 +          {
-+            "node": "Claude",
-+            "type": "main",
++            "node": "Get Pull Requests",
++            "type": "n8n-nodes-base.github",
 +            "index": 0
 +          }
 +        ]
 +      ]
 +    },
-+    "Claude": {
++    "Get Pull Requests": {
 +      "main": [
 +        [
 +          {
-+            "node": "Email",
-+            "type": "main",
-+            "index": 0
-+          },
-+          {
-+            "node": "Webhook",
-+            "type": "main",
++            "node": "Claude API",
++            "type": "n8n-nodes-base.anthropic",
 +            "index": 0
 +          }
 +        ]
 +      ]
-+    }
++    },
++    "Claude API": {
++      "main": [
++        [
++          {
++            "node": "Send Email",
++            "type": "n8
