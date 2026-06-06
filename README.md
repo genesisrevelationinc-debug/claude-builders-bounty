@@ -1,7 +1,5 @@
 # Claude Builders Bounty 🤖
-> A community bounty board for Claude Code builders.
 
-## How it works
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
@@ -52,4 +50,21 @@ You're in the right place.
 
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
+
+---
+
+## Changelog Generation
+
+This repository now includes a skill to automatically generate a structured CHANGELOG.md from git history.
+
+- **Command**: `/generate-changelog` or `bash changelog.sh`
+- **Features**: Auto-categorization of changes into Added, Fixed, Changed, Removed
+- **Output**: Properly formatted CHANGELOG.md file
+
+See `SKILL.md` for implementation details or run `changelog.sh` directly.
+
+---
+
+## Rules
+
+- Tasks must be related to Claude Code or AI tooling
