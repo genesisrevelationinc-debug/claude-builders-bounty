@@ -1,11 +1,5 @@
-# Claude Code PR Review Agent
+# Claude PR Reviewer Agent
 
-An AI-powered code review agent that analyzes GitHub PRs and provides structured feedback.
-
-## Setup
-
-1. Install dependencies:
-   
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -37,8 +31,15 @@ You're in the right place.
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+
+---
+
+## Claude PR Reviewer Agent
+
+This agent reviews PRs and generates structured feedback using Claude.
+
+### Installation
+
 
 ---
 
