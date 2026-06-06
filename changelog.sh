@@ -1,65 +1,77 @@
 #!/bin/bash
 
-# Script to generate a structured CHANGELOG.md from git history
-
 set -e
 
-# Check if CHANGELOG.md exists, if not create it
-if [ ! -f "CHANGELOG.md" ]; then
-    echo "# Changelog" > CHANGELOG.md
-    echo "" >> CHANGELOG.md
+# Function to display usage
+usage() {
+    echo "Usage: bash changelog.sh"
+    echo "  Generate a changelog from git history since the last tag"
+    exit 1
+}
+
+# Check for help flag
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    usage
 fi
 
-# Get the last tag or default to first commit
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "$(git rev-list --max-parents=0 HEAD)")
+# Get the last tag
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
 
-# Get commit hash for the last tag
-if [ "$LAST_TAG" != "" ]; then
-    LAST_TAG_COMMIT=$(git rev-list -n 1 $LAST_TAG 2>/dev/null)
+# If no tag exists, use all commits
+if [ -z "$LAST_TAG" ]; then
+    COMMITS=$(git log --oneline)
 else
-    # Fallback if no tags exist, get first commit
-    LAST_TAG_COMMIT=$(git rev-list --max-parents=0 HEAD)
+    COMMITS=$(git log --oneline $LAST_TAG..HEAD)
 fi
 
-# Get commits since last tag
-COMMITS_SINCE_TAG=$(git log $LAST_TAG_COMMIT..HEAD --reverse --pretty=format:"%s" --no-merges 2>/dev/null | grep -v "Merge branch" | grep -v "Merge pull request")
+# Initialize changelog sections
+added=""
+fixed=""
+changed=""
+removed=""
 
-# If no new commits since last tag, exit
-if [ -z "$COMMITS_SINCE_TAG" ]; then
-    echo "No new commits since last tag. Exiting."
-    exit 0
-fi
-
-# Create a temporary file to store the new changelog entries
-TEMP_CHANGELOG=$(mktemp)
-
-# Write the changelog header
-echo "## [$(date +'%Y-%m-%d')] - $(git describe --tags --abbrev=0 2>/dev/null || echo "Unreleased")" > "$TEMP_CHANGELOG"
-echo "" >> "$TEMP_CHANGELOG"
-
-# Categorize commits
-echo "$COMMITS_SINCE_TAG" | while IFS= read -r commit; do
-    # Default to "Changed" if no match
-    category="Changed"
-    
-    # Categorize based on the prefix of the commit message
-    if [[ $commit == "feat:"* ]] || [[ $commit == "feature:"* ]]; then
-        category="Added"
-    elif [[ $commit == "fix:"* ]]; then
-        category="Fixed"
-    elif [[ $commit == "remove:"* ]] || [[ $commitITS_SINCE_TAG" ]]; then
-        category="Removed"
+# Process commits
+while read -r commit; do
+    # Skip empty lines
+    if [ -z "$commit" ]; then
+        continue
     fi
     
-    # Add to the appropriate category
-    echo "* $commit" >> "$TEMP_CHANGELOG"
-done
+    # Extract commit message
+    message=$(echo "$commit" | sed 's/^[0-9a-f]* //')
+    
+    # Categorize based on prefixes
+    if [[ $message == feat:* || $message == add:* ]]; then
+        added="$added- $message"$'\n'
+    elif [[ $message == fix:* ]]; then
+        fixed="$fixed- $message"$'\n'
+    elif [[ $message == refactor:* || $message == chore:* ]]; then
+        changed="$changed- $message"$'\n'
+    elif [[ $message == remove:* || $message == delete:* ]]; then
+        removed="$removed- $message"$'\n'
+    else
+        # Default to changed if no prefix
+        changed="$changed- $message"$'\n'
+    fi
+done <<< "$COMMITS"
 
-# Prepend the new content to the changelog file
-cat - CHANGELOG.md < "$TEMP_CHANGELOG" > temp_changelog.md
-mv temp_changelog.md CHANGELOG.md
+# Generate the changelog content
+changelog_content="## [Unreleased]
 
-# Clean up
-rm "$TEMP_CHANGELOG"
+### Added
 
-echo "CHANGELOG.md has been updated."
+$added
+### Changed
+
+$changed
+### Fixed
+
+$fixed
+### Removed
+
+$removed"
+
+# Write to CHANGELOG.md
+echo "$changelog_content" > CHANGELOG.md
+
+echo "CHANGELOG.md has been generated successfully."
