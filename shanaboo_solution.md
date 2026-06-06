@@ -1,14 +1,14 @@
 ```diff
 --- /dev/null
-+++ b/n8n-claude-weekly-summary.json
-@@ -0,0 +1,1156 @@
++++ b/weekly-dev-summary.json
+@@ -0,0 +1,1000 @@
 +{
-+  "name": "Weekly Dev Summary",
++  "name": "Claude Weekly Dev Summary",
 +  "nodes": [
 +    {
 +      "parameters": {},
-+      "id": "Cron",
-+      "name": "Cron",
++      "id": "Schedule1",
++      "name": "Schedule",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
@@ -18,16 +18,15 @@
 +    },
 +    {
 +      "parameters": {
-+        "url": "https://api.github.com/repos/{{ $node['Set'].parameter['repoOwner'] }}/{{ $node['Set'].parameter['repoName'] }}/commits",
-+        "options": {
-+          "redirect": {
-+            "follow": true
-+          }
-+        }
++        "rule": {
++        "interval": "everyWeek",
++        "days": "friday",
++        "at": "17:00"
++      }
 +      },
-+      "id": "GitHub Commits",
-+      "name": "GitHub Commits",
-+      "type": "n8n-nodes-base.httpRequest",
++      "id": "Schedule2",
++      "name": "Weekly Trigger",
++      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
 +        450,
@@ -36,153 +35,135 @@
 +    },
 +    {
 +      "parameters": {
-+        "url": "https://api.github.com/repos/{{ $node['Set'].parameter['repoOwner'] }}/{{ $node['Set'].parameter['repoName'] }}/issues",
++        "method": "GET",
++        "url": "https://api.github.com/repos/{{$parameter[\"repo\"]}}/commits",
++        "authentication": "oAuth2",
++        "oAuth2Opts": {
++          "grantType": "clientCredentials",
++          "accessTokenUrl": "https://github.com/login/oauth/access_token",
++          "clientId": "={{ $parameter[\"githubClientId\"] }}",
++          "clientSecret": "={{ $parameter[\"githubClientSecret\"] }}",
++          "scope": "repo"
++        },
 +        "options": {
-+          "redirect": {
-+            "follow": true
++          "queryParameters": {
++            "since": "={{ $parameter[\"since\"] }}",
++            "until": "={{ $parameter[\"until\"] }}"
 +          }
 +        }
 +      },
-+      "id": "GitHub Issues",
-+      "name": "GitHub Issues",
++      "id": "GitHub1",
++      "name": "Get Commits",
 +      "type": "n8n-nodes-base.httpRequest",
-+      "typeVersion": 1,
-+      "position": [
-+        450,
-+        450
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "url": "https://api.github.com/repos/{{ $node['Set'].parameter['repoOwner'] }}/{{ $node['Set'].parameter['repoName'] }}/pulls",
-+        "options": {
-+          "redirect": {
-+            "follow": true
-+          }
-+        }
-+      },
-+      "id": "GitHub Pull Requests",
-+      "name": "GitHub Pull Requests",
-+      "type": "n8n-nodes-base.httpRequest",
-+      "typeVersion": 1,
-+      "position": [
-+        450,
-+        600
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "operation": "merge",
-+        "parameters": {
-+          "commit": {
-+            "sha": "={{ $node['GitHub Commits'].data }}",
-+            "message": "={{ $node['Set'].parameter['summaryPrompt'] }}",
-+            "author": {
-+              "name": "={{ $node['Set'].parameter['repoOwner'] }}",
-+              "email": "={{ $node['Set'].parameter['repoEmail'] }}"
-+            }
-+          }
-+        }
-+      },
-+      "id": "Merge Data",
-+      "name": "Merge Data",
-+      "type": "n8n-nodes-base.merge",
 +      "typeVersion": 1,
 +      "position": [
 +        650,
-+        300
++        200
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "operation": "transform",
-+        "parameters": {
-+          "commit": {
-+            "sha": "={{ $node['GitHub Commits'].data }}",
-+        }
-+      },
-+      "id": "Transform Data",
-+      "name": "Transform Data",
-+      "type": "n8n-nodes-base.transform",
-+      "typeVersion": 1,
-+      "position": [
-+        850,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "operation": "set",
-+        "parameters": {
-+          "commit": {
-+            "sha": "={{ $node['GitHub Commits'].data }}",
-+            "message": "={{ $node['Set'].parameter['summaryPrompt'] }}",
-+            "author": {
-+              "name": "={{ $node['Set'].parameter['repoOwner'] }}",
-+              "email": "={{ $node['Set'].parameter['repoEmail'] }}"
-+            }
++        "method": "GET",
++        "url": "https://api.github.com/repos/{{$parameter[\"repo\"]}}/issues",
++        "authentication": "oAuth2",
++        "oAuth2Opts": {
++          "grantType": "clientCredentials",
++          "accessTokenUrl": "https://github.com/login/oauth/access_token",
++          "clientId": "={{ $parameter[\"githubClientId\"] }}",
++          "clientSecret": "={{ $parameter[\"githubClientSecret\"] }}",
++          "scope": "repo"
++        },
++        "options": {
++          "queryParameters": {
++            "state": "closed",
++            "since": "={{ $parameter[\"since\"] }}"
 +          }
 +        }
 +      },
-+      "id": "Set",
-+      "name": "Set",
-+      "type": "n8n-nodes-base.set",
-+      "typeVersion": 1,
-+      "position": [
-+        1050,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "operation": "http",
-+        "parameters": {
-+          "commit": {
-+            "sha": "={{ $node['GitHub Commits'].data }}",
-+            "message": "={{ $node['Set'].parameter['summaryPrompt'] }}",
-+            "author": {
-+              "name": "={{ $node['Set'].parameter['repoOwner'] }}",
-+              "email": "={{ $node['Set'].parameter['repoEmail'] }}"
-+            }
-+          }
-+        }
-+      },
-+      "id": "HTTP Request",
-+      "name": "HTTP Request",
++      "id": "GitHub2",
++      "name": "Get Closed Issues",
 +      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 1,
 +      "position": [
-+        1250,
-+        300
++        650,
++        350
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "operation": "claude",
-+        "parameters": {
-+          "commit": {
-+            "sha": "={{ $node['GitHub Commits'].data }}",
-+            "message": "={{ $node['Set'].parameter['summaryPrompt'] }}",
-+            "author": {
-+              "name": "={{ $node['Set'].parameter['repoOwner'] }}",
-+              "email": "={{ $node['Set'].parameter['repoEmail'] }}"
-+            }
++        "method": "GET",
++        "url": "https://api.github.com/repos/{{$parameter[\"repo\"]}}/pulls",
++        "authentication": "oAuth2",
++        "oAuth2Opts": {
++          "grantType": "clientCredentials",
++          "accessTokenUrl": "https://github.com/login/oauth/access_token",
++          "clientId": "={{ $parameter[\"githubClientId\"] }}",
++          "clientSecret": "={{ $parameter[\"githubClientSecret\"] }}",
++          "scope": "repo"
++        },
++        "options": {
++          "queryParameters": {
++            "state": "closed",
++            "sort": "updated",
++            "direction": "desc"
 +          }
 +        }
 +      },
-+      "id": "Claude API",
-+      "name": "Claude API",
-+      "type": "n8n-nodes-base.claude",
++      "id": "GitHub3",
++      "name": "Get Merged PRs",
++      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 1,
 +      "position": [
-+        1450,
-+        300
++        650,
++        500
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "operation": "email",
-+        "parameters": {
-+          "commit": {
-+            "sha": "={{ $node['GitHub Commits'].data }}",
-+            "message": "={{ $node['Set'].parameter['summaryPrompt
++        "model": "claude-sonnet-4-20250514",
++        "prompt": "={{ $parameter[\"prompt\"] }}",
++        "max_tokens": 1024,
++        "temperature": 0.7
++      },
++      "id": "Claude1",
++      "name": "Generate Summary",
++      "type": "n8n-nodes-base.anthropic",
++      "typeVersion": 1,
++      "position": [
++        850,
++        350
++      ]
++    },
++    {
++      "parameters": {
++        "fromEmail": "={{ $parameter[\"fromEmail\"] }}",
++        "toEmail": "={{ $parameter[\"toEmail\"] }}",
++        "subject": "={{ $parameter[\"subject\"] }}",
++        "text": "={{ $parameter[\"text\"] }}",
++        "html": "={{ $parameter[\"html\"] }}",
++        "attachments": "={{ $parameter[\"attachments\"] }}"
++      },
++      "id": "Email1",
++      "name": "Send Email",
++      "type": "n8n-nodes-base.emailSend",
++      "typeVersion": 1,
++      "position": [
++        1050,
++        350
++      ]
++    },
++    {
++      "parameters": {
++        "values": {
++          "repo": "={{ $parameter[\"repo\"] }}",
++          "since": "={{ $parameter[\"since\"] }}",
++          "until": "={{ $parameter[\"until\"] }}",
++          "githubClientId": "={{ $parameter[\"githubClientId\"] }}",
++          "githubClientSecret": "={{ $parameter[\"githubClientSecret\"] }}",
++          "fromEmail": "={{ $parameter[\"fromEmail\"] }}",
++          "toEmail": "={{ $parameter[\"toEmail\"] }}",
++          "subject": "={{ $parameter[\"subject\"] }}",
++          "text": "={{ $parameter[\"text\"] }}",
++          "html": "={{ $parameter[\"html\"] }}",
++          "attachments": "={{ $parameter[\"attachments\"] }}",
++          "prompt": "={{ $parameter[\"
