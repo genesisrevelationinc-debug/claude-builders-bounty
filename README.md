@@ -1,7 +1,6 @@
-<a href="https://github.com/claude-builders-bounty/claude-builders-bounty/actions/workflow/n8n-claude-weekly-summary.json"><img src="https://img.shields.io/badge/Download-Workflow-blue" alt="Download Workflow"></a>
 # Claude Builders Bounty 🤖
 
-> A community bounty board for Claude Code builders.
+> A community bounty board for Claude Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
@@ -45,14 +44,16 @@ You're in the right place.
 ---
 
 ## Community
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude Code — automated weekly dev summary | $200 | 🟢 Open |
 
+## Claimed Bounties
 
----
+| # | Task | Amount | Status |
+|---|------|--------|--------|
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude Code — automated weekly dev summary | $200 | 🔴 Claimed |
 
-## Weekly Dev Summary Workflow
+## Rules
 
-## How it works
-
-**To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/op
+- Tasks must be related to Claude Code or AI tooling
+*Started by the Claude builder community · March 2026 · MIT License*
