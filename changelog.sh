@@ -1,111 +1,106 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# changelog.sh - A script to generate a structured CHANGELOG.md from git history
-#
-# This script fetches commits since the last git tag and categorizes them into:
-# - Added
-# - Fixed
-# - Changed
-# - Removed
-#
+# changelog.sh — Generate a structured CHANGELOG.md from git history
 # Usage: bash changelog.sh
 
-set -e
+CHANGELOG_FILE="CHANGELOG.md"
 
-# Get the latest tag
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+# Get the latest git tag; if none, use the first commit
+get_last_tag() {
+    git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD 2>/dev/null || echo ""
+}
 
-# If no tags exist, use --all to get all commits
-if [ -z "$LATEST_TAG" ]; then
-  # Get all commits if no tags
-  COMMIT_RANGE=""
-else
-  # Get commits since the latest tag
-  COMMIT_RANGE="$LATEST_TAG..HEAD"
-fi
+# Get commits since the last tag
+get_commits_since_tag() {
+    local since="$1"
+    if [ -z "$since" ]; then
+        git log --pretty=format:"%s" --no-merges
+    else
+        git log "${since}..HEAD" --pretty=format:"%s" --no-merges
+    fi
+}
 
-# Create a temporary file for commit messages
-TEMP_FILE=$(mktemp)
+# Categorize a single commit message
+categorize_commit() {
+    local msg="$1"
+    local lower_msg
+    lower_msg=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
 
-# Get commit messages
-if [ -z "$COMMIT_RANGE" ]; then
-  # If no tags, get all commits
-  git log --pretty=format:"%h %s" > "$TEMP_FILE"
-else
-  # Get commits in range
-  git log --pretty=format:"%h %s" "$COMMIT_RANGE" > "$TEMP_FILE"
-fi
+    # Check for conventional commit prefixes and keywords
+    if echo "$lower_msg" | grep -qE '^(feat|add|create|introduce)|\b(add|added|adding|introduce|introduces|introducing|feature|features)\b'; then
+        echo "added"
+    elif echo "$lower_msg" | grep -qE '^(fix|patch|bugfix)|\b(fix|fixed|fixing|patch|patched|repair|repaired|resolve|resolves|resolved|bugfix|bugfixes)\b'; then
+        echo "fixed"
+    elif echo "$lower_msg" | grep -qE '^(remove|delete|drop)|\b(remove|removed|removing|delete|deleted|deleting|drop|dropped|dropping|deprecate|deprecates|deprecated)\b'; then
+        echo "removed"
+    elif echo "$lower_msg" | grep -qE '^(change|update|modify|refactor|improve|enhance)|\b(change/update|update|updated|updating|change|changed|changing|modify|modified|modifying|refactor|refactored|refactoring|improve|improved|improving|enhance|enhanced|enhancing|upgrade|upgraded|rework|reworked)\b'; then
+        echo "changed"
+    else
+        # Default to changed for anything else
+        echo "changed"
+    fi
+}
 
-# Create or clear CHANGELOG.md
-echo "# Changelog" > CHANGELOG.md
-echo "" >> CHANGELOG.md
+# Generate the changelog
+generate_changelog() {
+    local last_tag
+    last_tag=$(get_last_tag)
+    local tag_ref="$last_tag"
+    [ -z "$last_tag" ] && tag_ref="beginning"
 
-# Try to get the latest tag name for the version
-VERSION_HEADER="## [Unreleased]"
-if [ -n "$LATEST_TAG" ]; then
-  VERSION_HEADER="## $LATEST_TAG"
-fi
+    locals
+    local commits
+    commits=$(get_commits_since_tag "$last_tag")
 
-echo "$VERSION_HEADER" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
+    if [ -z "$commits" ]; then
+        echo "No commits found since $tag_ref."
+        exit 0
+    fi
 
-# Categorize commits
-ADDED_SECTION="### Added"
-FIXED_SECTION="### Fixed"
-CHANGED_SECTION="### Changed"
-REMOVED_SECTION="### Removed"
+    local added=""
+    local fixed=""
+    local changed=""
+    local removed=""
 
-ADDED_LINES=$(mktemp)
-FIXED_LINES=$(mktemp)
-CHANGED_LINES=$(mktemp)
-REMOVED_LINES=$(mktemp)
+    while IFS= read -r commit; do
+        [ -z "$commit" ] && continue
+        local category
+        category=$(categorize_commit "$commit")
+        case "$category" in
+            added)   added="${added}- ${commit}"$'\n' ;;
+            fixed)   fixed="${fixed}- ${commit}"$'\n' ;;
+            changed) changed="${changed}- ${commit}"$'\n' ;;
+            removed) removed="${removed}- ${commit}"$'\n' ;;
+        esac
+    done <<< "$commits"
 
-# Process each commit
-while IFS= read -r line; do
-  # Extract the commit message (skip the hash)
-  commit_msg="${line#* }"
-  
-  # Categorize based on commit message prefixes
-  if [[ $commit_msg == feat:* ]] || [[ $commit_msg == add:* ]] || [[ $commit_msg == create:* ]]; then
-    echo "* $line" >> "$ADDED_LINES"
-  elif [[ $commit_msg == fix:* ]] || [[ $commit_msg == fixed:* ]]; then
-    echo "* $line" >> "$FIXED_LINES"
-  elif [[ $commit_msg == refactor:* ]] || [[ $commit_msg == update:* ]] || [[ $commit_msg == change:* ]]; then
-    echo "* $line" >> "$CHANGED_LINES"
-  elif [[ $commit_msg == remove:* ]] || [[ $commit_msg == delete:* ]] || [[ $commit_msg == rm:* ]]; then
-    echo "* $line" >> "$REMOVED_LINES"
-  else
-    # Default to "Changed" if no specific category
-    echo "* $line" >> "$CHANGED_LINES"
-  fi
-done < "$TEMP_FILE"
+    local version_date
+    version_date=$(date +%Y-%m-%d)
+    local new_version="## [Unreleased] - ${version_date}"$'\n\n'
 
-# Append categorized commits to CHANGELOG.md
-if [ -s "$ADDED_LINES" ]; then
-  echo "$ADDED_SECTION" >> CHANGELOG.md
-  cat "$ADDED_LINES" >> CHANGELOG.md
-  echo "" >> CHANGELOG.md
-fi
+    local output=""
+    [ -n "$added" ]   && output="${output}### Added"$'\n\n'"${added}"$'\n'
+    [ -n "$changed" ] && output="${output}### Changed"$'\n\n'"${changed}"$'\n'
+    [ -n "$fixed" ]   && output="${output}### Fixed"$'\n\n'"${fixed}"$'\n'
+    [ -n "$removed" ] && output="${output}### Removed"$'\n\n'"${removed}"$'\n'
 
-if [ -s "$FIXED_LINES" ]; then
-  echo "$FIXED_SECTION" >> CHANGELOG.md
-  cat "$FIXED_LINES" >> CHANGELOG.md
-  echo "" >> CHANGELOG.md
-fi
+    # Prepend to existing CHANGELOG or create new one
+    if [ -f "$CHANGELOG_FILE" ]; then
+        local existing
+        existing=$(cat "$CHANGELOG_FILE")
+        echo -e "# Changelog\n\n${new_version}${output}\n${existing#*$'# Changelog\n\n'}" > "$CHANGELOG_FILE"
+    else
+        {
+            echo "# Changelog"
+            echo ""
+            echo "${new_version}${output}"
+        } > "$CHANGELOG_FILE"
+    fi
 
-if [ -s "$CHANGED_LINES" ]; then
-  echo "$CHANGED_SECTION" >> CHANGELOG.md
-  cat "$CHANGED_LINES" >> CHANGELOG.md
-  echo "" >> CHANGELOG.md
-fi
+    echo "✅ CHANGELOG.md generated successfully!"
+    echo "   Commits since: $tag_ref"
+}
 
-if [ -s "$REMOVED_LINES" ]; then
-  echo "$REMOVED_SECTION" >> CHANGELOG.md
-  cat "$REMOVED_LINES" >> CHANGELOG.md
-  echo "" >> CHANGELOG.md
-fi
-
-# Clean up temporary files
-rm -f "$TEMP_FILE" "$ADDED_LINES" "$FIXED_LINES" "$CHANGED_LINES" "$REMOVED_LINES"
-
-echo "CHANGELOG.md has been generated."
+# Main
+generate_changelog
