@@ -1,80 +1,70 @@
 #!/bin/bash
 
-# Get the latest tag or set to empty if none exists
-latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
+# Get the latest tag
+latest_tag=$(git describe --tags $(git tag --sort=-v:refname | head -n 1)
 
-# Determine the range of commits to analyze
+# Get all commits since the last tag
 if [ -z "$latest_tag" ]; then
-    commit_range="HEAD"
+  # If no tag exists, get all commits from the beginning
+  commits=$(git log --oneline)
 else
-    commit_range="$latest_tage HEAD"
+  # Get commits since the last tag
+  commits=$(git log $latest_tag..HEAD --oneline)
 fi
 
-# Create a temporary file to store the changelog
-temp_file=$(mktemp)
+# If no commits since last tag, exit gracefully
+if [ -z "$commits" ]; then
+  echo "No commits since last tag ($latest_tag)"
+  echo "No changes to add to changelog."
+  exit 0
+fi
 
-# Function to add a commit to a section
-add_to_changelog() {
-    section=$1
-    line=$2
-    
-    # Add section header if it doesn't exist yet
-    if ! grep -q "### $section" "$temp_file"; then
-        echo "### $section" >> "$temp_file"
-    fi
-    
-    # Add the line to the appropriate section
-    echo "- $line" >> "$temp_file"
+# Create a temporary file for the changelog content
+tmp_file=$(mktemp)
+
+# Initialize categories
+added=""
+fixed=""
+changed=""
+removed=""
+
+# Categorize commits based on keywords in subject
+while IFS= read -r line; do
+  if [[ $line == *"fix:"* ]] || [[ $line == *"fix("* ]] || [[ $line == *"fixed:"* ]] || [[ $line == *"fixed("* ]]; then
+    fixed+="  - $line"$'\n'
+  elif [[ $line == *"remove:"* ]] || [[ $line == *"remove("* ]] || [[ $line == *"removed:"* ]] || [[ $line == *"removed("* ]] || [[ $line == *"delete:"* ]] || [[ $line == *"deleted:"* ]]; then
+    removed+="  - $line"$'\n'
+  elif [[ $line == *"change:"* ]] || [[ $line == *"change("* ]] || [[ $line == *"update:"* ]] || [[ $line == *"updated:"* ]] || [[ $line == *"modify:"* ]] || [[ $line == *"modified:"* ]] || [[ $line == *"refactor:"* ]]; then
+    changed+="  - $line"$'\n'
+  else
+    added+="  - $line"$'\n'
+  fi
+done <<< "$commits"
+
+# Function to write section if not empty
+write_section() {
+  local section_content=$1
+  local section_title=$2
+  if [ -n "$section_content" ]; then
+    echo "## $section_title" >> "$tmp_file"
+    echo -e "$section_content" >> "$tmp_file"
+  fi
 }
 
-# Initialize the changelog file with header
-echo "# Changelog" > CHANGELOG.md
-echo "" >> CHANGELOG.md
-echo "## [Unreleased]" >> CHANGELOG.md
+# Write changelog to tmp file
+echo "# Changelog" > "$tmp_file"
+echo "" >> "$tmp_file"
+write_section "$added" "Added" 
+write_section "$fixed" "Fixed"
+write_section "$changed" "Changed" 
+write_section "$removed" "Removed"
 
-# Create temporary file
-touch "$temp_file"
-
-# Process each commit
-if [ "$commit_range" = "HEAD" ]; then
-    # If no tags, process all commits
-    git log --pretty=format:"%s" | while read -r line; do
-        process_commit "$line"
-    done
-else
-    # Process commits since last tag
-    git log "$latest_tag..HEAD" --pretty=format:"%s" | while read -r line; do
-        process_commit "$line"
-    done
+# If changelog file exists, back it up
+if [ -f "CHANGELOG.md" ]; then
+  mv CHANGELOG.md CHANGELOG.md.backup
 fi
 
-# Function to process a commit message
-process_commit() {
-    local line="$1"
-    
-    # Categorize based on prefix
-    if [[ $line == feat:* ]] || [[ $line == add:* ]]; then
-        add_to_changelog "Added" "${line#*: }"
-    elif [[ $line == fix:* ]] || [[ $line == bug:* ]]; then
-        add_to_changelog "Fixed" "${line#*: }"
-    elif [[ $line == change:* ]] || [[ $line == refactor:* ]]; then
-        add_to_changelog "Changed" "${line#*: }"
-    elif [[ $line == remove:* ]] || [[ $line == delete:* ]]; then
-        add_to_changelog "Removed" "${line#*: }"
-    else
-        # Default categorization if no prefix match
-        add_to_changelog "Other" "$line"
-    fi
-}
+# Move the new changelog in place
+mv "$tmp_file" CHANGELOG.md
 
-# Sort and organize the sections
-if [ -f "$temp_file" ] && [ -s "$temp_file" ]; then
-    # Process the temporary file to organize sections properly
-    # This is a simplified version - a full implementation would need better section handling
-    cat "$temp_file" >> CHANGELOG.md
-fi
-
-# Clean up
-rm -f "$temp_file"
-
-echo "Changelog generated in CHANGELOG.md"
+echo "Changelog generated successfully!"
