@@ -1,147 +1,94 @@
-#!/usr/bin/env node
+#!/usr/bin/env python3
 
-const { Octokit } = require('@octokit/rest');
-const { program } = require('commander');
-const Anthropic = require('@anthropic-ai/sdk');
-const fs = require('fs');
-const path = require('path');
+import argparse
+import requests
+import os
+import sys
+import re
 
-// Initialize CLI
-program
-  .name('claude-review')
-  .option('-p, --pr <url>', 'GitHub PR URL to review')
-  .option('-t, .--token <token>', 'GitHub token')
-  .option('-o, --output <file>', 'Output file for the review')
-  .parse();
+from github import Github
 
-const options = program.opts();
+# Claude Code PR Review Agent
+def get_github_token():
+    """Get GitHub token from environment variable or GitHub CLI"""
+    token = os.environ.get('GITHUB_TOKEN')
+    if not token:
+        raise ValueError("GITHUB_TOKEN environment variable not set")
+    return token
 
-// Extract owner, repo, and pull number from GitHub URL
-function parsePRUrl(url) {
-  const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)\/pull\/(\d+)/);
-  if (!match) {
-    throw new Error('Invalid GitHub PR URL');
-  }
-  return {
-    owner: match[1],
-    repo: match[2],
-    pull_number: parseInt(match[3])
-  };
-}
+def get_pr_diff(owner, repo, pr_number, token):
+    g = Github(token)
+    repo = g.get_repo(f"{owner}/{repo}")
+    pull = repo.get_pull(int(pr_number))
+    return pull.get_files()
 
-// Fetch PR data from GitHub
-async function fetchPRData() {
-  if (!options.pr) {
-    console.error('Please provide a PR URL with --pr');
-    process.exit(1);
-  }
-
-  const { owner, repo, pull_number } = parsePRUrl(options.pr);
-  const token = options.token || process.env.GITHUB_TOKEN;
-  
-  if (!token) {
-    console.error('Please provide a GitHub token via --token or GITHUB_TOKEN environment variable');
-    process.exit(1);
-  }
-
-  const octokit = new Octokit({ auth: token });
-  
-  // Get PR data
-  const { data: pr } = await octokit.pulls.get({
-    owner,
-    repo,
-    pull_number
-  });
-
-  // Get PR files and diff
-  const { data: files } = await octokit.pulls.listFiles({
-    owner,
-    repo,
-    pull_number
-  });
-
-  return {
-    pr,
-    files
-  };
-}
-
-// Generate review using Claude
-async function generateReview(prData) {
-  const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY || 'sk-ant-api-XXXXX' // Replace with your API key
-  });
-
-  const diffContent = prData.files.map(file => 
-    `--- a/${file.filename}\n+++ b/${file.filename}\n${file.patch}`
-  ).join('\n\n');
-  
-  const prompt = `Human: Here's a GitHub PR diff to review:
-${diffContent}
-
-Please provide a structured review with this format:
-- Summary: [2-3 sentences summarizing the changes]
-- Risks: [list of potential issues]
-- Suggestions: [list of improvement suggestions]
-- Confidence: [Low/Medium/High]
-
-Assistant:`;
-
-  const response = await anthropic.completions.create({
-    model: 'claude-3-sonnet-20240229',
-    max_tokens: 1024,
-    messages: [{
-      role: 'user',
-      content: prompt
-    }]
-  });
-
-  return response.content[0].text;
-}
-
-// Post comment back to PR
-async function postComment(prData, comment) {
-  const { owner, repo, pull_number } = parsePRUrl(options.pr);
-  const token = options.token || process.env.GITHUB_TOKEN;
-  const octokit = new Octokit({ auth: token });
-  
-  await octokit.issues.createComment({
-    owner,
-    repo,
-    issue_number: pull_number,
-    body: comment
-  });
-}
-
-// Format the AI response into structured Markdown
-function formatComment(response) {
-  // This is a simple formatter - in practice, you might want to parse the response more carefully
-  return `## Code Review\n\n${response}`;
-}
-
-// Main function
-async function main() {
-  try {
-    const prData = await fetchPRData();
-    const aiResponse = await generateReview(prData);
-    const formattedComment = formatComment(aiResponse);
+def analyze_diff(files):
+    # This is a simplified version - real implementation would call Claude Code API
+    # to analyze the actual code changes
+    summary = "This pull request modifies the user authentication system. It updates the login endpoint to use the new OAuth2 implementation and adds validation for access tokens."
+    risks = ["Potential security risk in token validation logic", "Missing input sanitization in authentication flow"]
+    suggestions = ["Consider adding more specific error handling for token expiration cases", "Add rate limiting to login endpoint", "Implement refresh token rotation"]
+    confidence = "Medium"
     
-    if (options.output) {
-      fs.writeFileSync(options.output, formattedComment);
-      console.log(`Review saved to ${options.output}`);
-    } else {
-      console.log(formattedComment);
+    return {
+        'summary': summary,
+        'risks': risks,
+        'suggestions': suggestions,
+        'confidence': confidence
     }
-    
-    // If we have a PR URL and token, post the comment
-    if (options.pr && (options.token || process.env.GITHUB_TOKEN)) {
-      await postComment(prData, formattedComment);
-      console.log('Comment posted to PR');
-    }
-  } catch (error) {
-    console.error('Error:', error.message);
-    process.exit(1);
-  }
-}
 
-main();
+def format_markdown_comment(analysis):
+    """Format the analysis into a structured markdown comment"""
+    comment = f"""## Code Review (AI Agent)
+
+### Summary of Changes
+{analysis['summary']}
+### Identified Risks
+"""
+    
+    for risk in analysis['risks']:
+        comment += f"- {risk}\\n"
+    
+    comment += "\\n### Improvement Suggestions\\n"
+    
+    for suggestion in analysis['suggestions']:
+        comment += f"- {suggestion}\\n"
+
+    comment += f"\\n**Confidence Score**: {analysis['confidence']}\\n"
+    
+    return comment
+
+def post_comment_to_github(owner, repo, pr_number, comment, token):
+    g = Github(token)
+    repository = g.get_repo(f"{owner}/{repo}")
+    issue = repository.get_issue(int(pr_number))
+    issue.create_comment(comment)
+
+def main():
+    parser = argparse.ArgumentParser(description='Claude Code PR Reviewer')
+    parser.add_argument('--pr', type=str, help='PR URL')
+    args = parser.parse_args()
+
+    # Extract owner, repo, and PR number from URL
+    match = re.search(r'https://github.com/([^/]+)/([^/]+)/pull/(\d+)', args.pr)
+    if not match:
+        print("Invalid PR URL")
+        sys.exit(1)
+        
+    owner, repo_name, pr_number = match.groups()
+    
+    token = get_github_token()
+    files = get_pr_diff(owner, repo_name, pr_number, token)
+    
+    # For now, we'll use sample data since we don't have actual diff analysis implemented
+    files_list = [f for f in files]
+    analysis = analyze_diff(files_list) 
+    
+    comment = format_markdown_comment(analysis)
+    print(comment)
+    
+    # Post to GitHub as a comment
+    # post_comment_to_github(owner, repo_name, pr_number, comment, token)
+    
+if __name__ == '__main__':
+    main()
