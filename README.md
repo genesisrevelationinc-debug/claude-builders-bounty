@@ -22,23 +22,24 @@ You're in the right place.
 
 ---
 
-## Quick Setup
-
-1. **Make the script executable**: `chmod +x changelog.sh`
-2. **Run the script**: `bash changelog.sh`
-3. **Check the generated CHANGELOG.md file**
-
 ## Active Bounties
 
 | # | Task | Amount | Status |
 |---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
+
+## Quick Start
+
+1. Clone this repo
+2. Make sure you have `git` installed
+3. Run the changelog generator: `bash changelog.sh`
+4. Check the generated `CHANGELOG.md` file
+
+## How it works
+
+**To post a bounty**
 
 ## Rules
 
