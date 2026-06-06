@@ -50,7 +50,7 @@ You're in the right place.
 
 ---
 
-# Claude Destructive Command Blocker
+# Block Destructive Commands Hook
 
 ## Installation
 
