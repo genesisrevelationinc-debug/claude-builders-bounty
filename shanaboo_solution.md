@@ -1,159 +1,140 @@
 ```diff
 --- /dev/null
-+++ b/n8n-github-summary.json
-@@ -0,0 +1,1304 @@
++++ b/weekly-dev-summary.json
+@@ -0,0 +1,274 @@
 +{
-+  "name": "Weekly GitHub Summary",
++  "versionId": "1.0",
++  "name": "Weekly Dev Summary",
 +  "nodes": [
 +    {
 +      "parameters": {},
-+      "id": "0a0d7b56-878d-426d-9e71-9de4a828fd60",
++      "id": "1",
 +      "name": "Start",
-+      "type": "n8n-nodes-base.manualTrigger",
-+      "typeVersion": 1,
-+      "position": [
-+        240,
-+        340
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "rule": {
-+          "interval": [
-+            {
-+              "field": "weeks",
-+              "weeks": [
-+                "5pm on Friday"
-+              ]
-+            }
-+          ]
-+        }
-+      },
-+      "id": "8e5f36a8-7b1e-4b5e-9d5a-8e5f36a87b1e",
-+      "name": "Cron",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
-+        240,
-+        340
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "method": "GET",
-+        "url": "https://api.github.com/repos/{{ $json.github_repo }}/commits",
-+        "options": {
-+          "qs": {
-+            "since": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}",
-+          }
-+        }
-+      },
-+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-+      "name": "Get Commits",
-+      "type": "n8n-nodes-base.httpRequest",
-+      "typeVersion": 1,
-+      "position": [
-+        400,
++        250,
 +        300
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "method": "GET",
-+        "url": "https://api.github.com/repos/{{ $json.github_repo }}/issues",
-+        "options": {
-+          "qs": {
-+            "state": "closed",
-+            "since": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}"
-+          }
-+        }
++        "resource": "search",
++        "operation": "issues",
++        "owner": "={{ $json[\"github_repo\"].split(\"/\")[0] }}",
++        "repository": "={{ $json[\"github_repo\"].split(\"/\")[1] }}",
++        "query": "={{ \"repo:\" + $json[\"github_repo\"] + \" is:issue closed:>\" + $json[\"since_date\"] }}",
++        "returnAll": true
 +      },
-+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567891",
++      "id": "2",
 +      "name": "Get Closed Issues",
-+      "type": "n8n-nodes-base.httpRequest",
++      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        400,
-+        400
++        450,
++        300
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "method": "GET",
-+        "url": "https://api.github.com/repos/{{ $json.github_repo }}/pulls",
-+        "options": {
-+          "qs": {
-+            "state": "closed",
-+            "sort": "updated",
-+            "direction": "desc"
-+          }
-+        }
++        "resource": "search",
++        "operation": "pullRequests",
++        "owner": "={{ $json[\"github_repo\"].split(\"/\")[0] }}",
++        "repository": "={{ $json[\"github_repo\"].split(\"/\")[1] }}",
++        "query": "={{ \"repo:\" + $json[\"github_repo\"] + \" is:pr merged:>\" + $json[\"since_date\"] }}",
++        "returnAll": true
 +      },
-+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567892",
++      "id": "3",
 +      "name": "Get Merged PRs",
-+      "type": "n8n-nodes-base.httpRequest",
++      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        400,
-+        500
++        450,
++        450
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "prompt": "Generate a narrative summary of the following GitHub activity for the past week:\n\nCommits:\n{{ $json.commits }}\n\nClosed Issues:\n{{ $json.closed_issues }}\n\nMerged PRs:\n{{ $json.merged_prs }}\n\nPlease provide a concise, narrative summary in {{ $json.language }}.",
++        "resource": "repository",
++        "operation": "getCommits",
++        "owner": "={{ $json[\"github_repo\"].split(\"/\")[0] }}",
++        "repository": "={{ $json[\"github_repo\"].split(\"/\")[1] }}",
++        "since": "={{ $json[\"since_date\"] }}",
++        "until": "={{ $json[\"until_date\"] }}",
++        "returnAll": true
++      },
++      "id": "4",
++      "name": "Get Commits",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        450,
++        600
++      ]
++    },
++    {
++      "parameters": {
 +        "model": "claude-sonnet-4-20250514",
-+        "max_tokens": 1000,
++        "prompt": "={{ \"Please provide a narrative summary of the following GitHub activity for the week ending \" + $json[\"until_date\"] + \":\\n\\nClosed Issues:\\n\" + $json[\"closed_issues\"] + \"\\n\\nMerged PRs:\\n\" + $json[\"merged_prs\"] + \"\\n\\nCommits:\\n\" + $json[\"commits\"] }}",
++        "maxTokens": 1000,
 +        "temperature": 0.7
 +      },
-+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567893",
++      "id": "5",
 +      "name": "Claude API",
-+      "type": "claude-ai.Claude",
++      "type": "n8n-nodes-base.claude",
 +      "typeVersion": 1,
 +      "position": [
-+        600,
++        750,
 +        300
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "subject": "Weekly GitHub Summary",
-+        "to": "{{ $json.email }}",
-+        "text": "={{ $json.claude_response }}",
-+        "html": "={{ $json.claude_response }}"
++        "subject": "={{ \"Weekly Dev Summary - \" + $json[\"github_repo\"] }}",
++        "to": "={{ $json[\"email\"] }}",
++        "body": "={{ $json[\"claude_response\"].content[0].text }}"
 +      },
-+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567894",
++      "id": "6",
 +      "name": "Send Email",
 +      "type": "n8n-nodes-base.emailSend",
 +      "typeVersion": 1,
 +      "position": [
-+        600,
-+        400
++        950,
++        300
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "keepOnlySet": true,
-+        "values": {
-+          "string": [
-+            {
-+              "name": "github_repo",
-+              "value": "={{ $parameter.github_repo }}",
-+              "type": "string"
-+            },
-+            {
-+              "name": "language",
-+              "value": "={{ $parameter.language }}",
-+              "type": "string"
-+            },
-+            {
-+              "name": "email",
-+              "value": "={{ $parameter.email }}",
-+              "type": "string"
-+            }
-+          ]
-+        }
++        "functionCode": "const today = new Date();\nconst lastWeek = new Date();\nlastWeek.setDate(today.getDate() - 7);\n\nitems[0] = {\n  json: {\n    github_repo: 'claude-builders-bounty/claude-builders-bounty',\n    email: 'devteam@example.com',\n    since_date: lastWeek.toISOString().split('T')[0],\n    until_date: today.toISOString().split('T')[0]\n  }\n};\n\nreturn items;"
 +      },
-+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567895",
-+      "name": "Set Variables",
-+      "type": "n8n-nodes-base.set",
-+      "typeVersion
++      "id": "7",
++      "name": "Set Dates",
++      "type": "n8n-nodes-base.function",
++      "typeVersion": 1,
++      "position": [
++        250,
++        450
++      ]
++    },
++    {
++      "parameters": {
++        "functionCode": "const issues = items[0].json.response.items.map(issue => `- ${issue.title} (#${issue.number})`).join('\\n');\n\nitems[0].json = {\n  closed_issues: issues\n};\n\nreturn items;"
++      },
++      "id": "8",
++      "name": "Format Issues",
++      "type": "n8n-nodes-base.function",
++      "typeVersion": 1,
++      "position": [
++        650,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "functionCode": "const prs = items[0].json.response.items.map(pr => `- ${pr.title} (#${pr.number})`).join('\\n');\n\nitems[0].json = {\n  merged_prs: prs\n};\n\nreturn items;"
++      },
++      "id": "9",
++      "name": "Format PRs",
++      "type": "n8n-nodes-base.function",
++      "typeVersion": 1,
++
