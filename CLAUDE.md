@@ -1,12 +1,14 @@
-# CLAUDE.md — Next.js + SQLite SaaS Project Template
+# Project Style Guide for Claude Code
 
 ## Stack & Versions
 
-- **Next.js 15** with App Router
-- **SQLite** (via better-sqlite3 or Turso)
-- **TypeScript** 5.x
-- **Tailwind CSS** 3.x
-- **React** 18.x
+- **Framework**: Next.js 15 with App Router
+- **Database**: SQLite (using better-sqlite3)
+- **ORM**: Drizzle ORM
+- **Styling**: Tailwind CSS
+- **Deployment**: Vercel
+- **Language**: TypeScript
+- **Package Manager**: pnpm
 
 ## Folder Structure
 
