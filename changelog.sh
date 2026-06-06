@@ -4,87 +4,70 @@
 
 set -e
 
-#########################
-# Configuration
-#########################
+# Default output file
+OUTPUT_FILE="CHANGELOG.md"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Get the latest tag, or default to initial commit
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-# Default configuration
-CHANGELOG_FILE="CHANGELOG.md"
-REPO_URL=""
+# Get commit hash for the last tag, or initial commit
+if [ -n "$LAST_TAG" ]; then
+  LAST_TAG_HASH=$(git rev-parse "$LAST_TAG" 2>/dev/null || echo "")
+else
+  # If no tags, use initial commit
+  LAST_TAG_HASH=$(git rev-list --max-parents=0 HEAD)
+fi
 
-#########################
-# Functions
-#########################
+# If we have a valid last tag hash, get commits since then, otherwise get all commits
+if [ -n "$LAST_TAG_HASH" ]; then
+  COMMITS_SINCE=$(git log "$LAST_TAG_HASH"..HEAD --oneline --no-merges 2>/dev/null || git log --oneline --no-merges)
+else
+  COMMITS_SINCE=$(git log --oneline --no-merges)
+fi
 
-print_usage() {
-  echo "Usage: $0 [OPTIONS]"
-  echo "  -h, --help     Show this help message"
-  echo "  -o, --output    Specify output file (default: CHANGELOG.md)"
-  echo "  -r, --repo      Specify repository URL for commit links"
-  echo ""
-  echo "Examples:"
-  echo "  bash changelog.sh"
-  echo "  bash changelog.sh -o custom_changelog.md"
-  echo "  bash changelog.sh -r https://github.com/user/repo"
+# Function to categorize commits based on prefixes
+categorize_commits() {
+  local commits="$1"
+  echo "### Added"
+  echo "$commits" | grep -E "^(feat|add|new):" | sed 's/^.*: /* /' | while read line; do
+    echo "$line"
+  done
+  echo
+
+  echo "### Fixed"
+  echo "$commits" | grep -E "^(fix|bug):" | sed 's/^.*: /* /' | while read line; do
+    echo "$line"
+  done
+  echo
+
+  echo "### Changed"
+  echo "$commits" | grep -E "^(change|update|modify):" | sed 's/^.*: /* /' | while read line; do
+    echo "$line"
+  done
+  echo
+
+  echo "### Removed"
+  echo "$commits" | grep -E "^(remove|delete):" | sed 's/^.*: /* /' | while read line; do
+    echo "$line"
+  done
+  echo
 }
 
+# Generate the changelog content
 generate_changelog() {
-  # Get the last tag or use initial commit if no tags exist
-  LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null) || true
-  
-  if [ -z "$LAST_TAG" ]; then
-    # If no tags, use the initial commit
-    LAST_TAG=$(git rev-list --max-parents=0 HEAD)
-  fi
-  
-  # Get commits since last tag
-  COMMITS=$(git log --pretty=format:"%s" $LAST_TAG..HEAD)
-  
-  # Generate the changelog content
-  echo "# Changelog" > $CHANGELOG_FILE
-  echo "" >> $CHANGELOG_FILE
-  
-  # Categorize commits
-  while IFS= read -r line; do
-    if [[ $line == *"fix"* ]] || [[ $line == *"Fix"* ]] || [[ $line == *"fixed"* ]] || [[ $line == *"Fixed"* ]]; then
-      echo "### Fixed" >> $CHANGELOG_FILE
-      echo "- $line" >> $CHANGELOG_FILE
-    elif [[ $line == *"add"* ]] || [[ $line == *"Add"* ]] || [[ $line == *"new"* ]] || [[ $line == *"New"* ]]; then
-      echo "### Added" >> $CHANGELOG_FILE
-      echo "- $line" >> $CHANGELOG_FILE
-    elif [[ $line == *"change"* ]] || [[ $line == *"Change"* ]] || [[ $line == *"refactor"* ]] || [[ $line == *"Refactor"* ]] || [[ $line == *"update"* ]] || [[ $line == *"Update"* ]]; then
-      echo "### Changed" >> $CHANGELOG_FILE
-      echo "- $line" >> $CHANGELOG_FILE
-    elif [[ $line == *"remove"* ]] || [[ $line == *"Remove"* ]] || [[ $line == *"delete"* ]] || [[ $line == *"Delete"* ]]; then
-      echo "### Removed" >> $CHANGELOG_FILE
-      echo "- $line" >> $CHANGELOG_FILE
-    else
-      echo "### Added" >> $CHANGELOG_FILE
-      echo "- $line" >> $CHANGELOG_FILE
-    fi
-    echo "" >> $CHANGELOG_FILE
-  done <<< "$COMMITS"
-  
-  echo -e "${GREEN}Changelog generated in $CHANGELOG_FILE${NC}"
-  if [ "$REPO_URL" ]; then
-    echo "You can find it at: $REPO_URL"
-  fi
+  echo "# Changelog"
+  echo
+  echo "All notable changes to this project will be documented in this file."
+  echo
+  echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),"
+  echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.0.html)."
+  echo
+  echo "## [Unreleased]"
+  echo
+  categorize_commits "$COMMITS_SINCE"
 }
 
-# Parse command line arguments
-while getopts "o:r:h" opt; do
-  case $opt in
-    o) CHANGELOG_FILE="$OPTARG" ;;
-    r) REPO_URL="$OPTARG" ;;
-    h) print_usage; exit 0 ;;
-    *) echo "Invalid option"; print_usage; exit 1 ;;
-  esac
-done
+# Write to CHANGELOG.md
+generate_changelog > "$OUTPUT_FILE"
 
-generate_changelog
+echo "CHANGELOG.md has been generated successfully!"
