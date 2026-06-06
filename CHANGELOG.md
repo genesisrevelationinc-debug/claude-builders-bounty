@@ -8,20 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- CHANGELOG.md file
-- Initial project structure
 
 ### Changed
-- Updated documentation
 
 ### Fixed
-- Fixed a critical bug in processing
 
 ### Removed
-- Deprecated old API endpoints
-- Legacy configuration files
 
-## [1.0.0] - 2026-01-15
+## [1.0.0] - 2024-03-01
 
 ### Added
-- Initial release
+- Initial project setup
+- README with bounty board information
+- License file
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+### Removed
+- N/A
