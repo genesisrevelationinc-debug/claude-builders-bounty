@@ -8,14 +8,6 @@ You're in the right place.
 
 ---
 
-## Security Hooks
-
-This repository includes a `pre-tool-use` hook for Claude Code that blocks destructive bash commands.
-
-**Quick install:**
-
----
-
 ## How it works
 
 **To post a bounty**
@@ -57,5 +49,35 @@ This repository includes a `pre-tool-use` hook for Claude Code that blocks destr
 - 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Destructive Command Blocker Hook
+
+This Claude Code hook blocks destructive bash commands before they are executed.
+
+## Installation
+
+1. Place the hook file in `~/.claude/hooks/pre-tool-use`
+2. Make the hook executable: `chmod +x ~/.claude/hooks/pre-tool-use`
+
+## Features
+
+- Blocks dangerous commands like `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without WHERE clause
+- Logs all blocked commands to `~/.claude/hooks/blocked.log` with timestamp and project path
+- Prevents accidental data loss in Claude Code workflows
+
+## Blocked Commands
+
+The hook blocks these specific patterns:
+
+- `rm -rf` and `rm -rf *`
+- `DROP TABLE`
+- `TRUNCATE TABLE`
+- `DELETE FROM table` (without a WHERE clause)
+- `git push --force`
+
+## Log Format
+
+Each blocked command is logged in the following format:
+
 
 *Started by the Claude builder community · March 2026 · MIT License*
