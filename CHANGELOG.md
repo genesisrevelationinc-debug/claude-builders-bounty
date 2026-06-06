@@ -1,46 +1,22 @@
 # Changelog
 
-## [v1.0.0] - 2026-03-15
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
 
 ### Added
-- Initial release of the changelog generator script
-- Support for fetching commits since last git tag
-- Auto-categorization of changes into Added/Fixed/Changed/Removed sections
-- Structured output to CHANGELOG.md
+- Initial project structure
+- README with project description
+- This CHANGELOG file
 
 ### Changed
-- Improved changelog formatting logic
-- Better grouping of commit types
+- Updated README with detailed instructions
 
 ### Fixed
-- Issue with duplicate commit processing
-- Error handling for repositories with no tags
+- Corrected typos in documentation
 
 ### Removed
-- Deprecated legacy changelog generation method
-
-
-## [v0.2.0] - 2026-03-10
-
-### Added
-- New feature for changelog generation
-- Support for automatic version detection
-
-### Fixed
-- Minor bug fixes in parsing
-
-
-## [v0.1.0] - 2026-03-01
-
-### Added
-- Initial version of changelog generator
-- Basic commit parsing functionality
-- Category classification (Add, Fix, Change, Remove)
-- CHANGELOG.md output file creation
-
-### Fixed
-- Formatting issues in generated changelog
-
-### Changed
-- Improved commit message parsing logic
-- Enhanced error handling for edge cases
+- Obsolete example files
