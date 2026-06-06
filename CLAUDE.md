@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project conventions. Read this before writing code. If a rule seems arbitrary, the reason is in parentheses.
 
 ---
 
@@ -9,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead, perfect for single-node deploys |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | NextAuth.js v5 (Auth.js) | Edge-compatible, JWT sessions, OAuth + credentials |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, copy-paste components, no runtime CSS |
-| Validation | Zod | Schema validation shared between server and client |
-| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical flows |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
+| Runtime | Node.js 20+ | `next` requires 18+; we target 20 for native `fetch` stability |
+| Database | better-sqlite3 | Synchronous, fast, zero network overhead. Turso only if you need multi-region |
+| Schema tool | `drizzle-kit` + `drizzle-orm` | Type-safe SQL, migrations as code, no query builder lock-in |
+| Auth | Lucia + `oslo` | Session-based, works without OAuth providers, SQLite-native |
+| Styling | Tailwind CSS + `cn()` utility | No CSS-in-JS runtime; `cn()` merges classes without conflicts |
+| Forms | Server Actions + `zod` | No API routes for mutations; validation co-located with action |
+| Testing | Vitest (unit) + Playwright (E2E) | Fast unit tests; real browser for critical paths |
 
-**Lock these versions.** Do not upgrade major versions without a migration plan.
+**Lockfile rule:** Use `pnpm`. If `package-lock.json` or `yarn.lock` exists, delete it and run `pnpm install`.
 
 ---
 
