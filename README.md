@@ -34,14 +34,19 @@ You're in the right place.
 
 ---
 
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
-- Quality over speed — a solid PR beats a fast one
+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+| [#6](../../issues/6) | WORKFLOW: GitHub activity summarizer with Claude API | $200 | 🟢 Open |
 
-## Bounties Claimed
-| # | Task | Amount | Contributor |
-|---|------|--------|-------------|
+## Claimed Bounties
 
-## Community
+| # | Task | Amount | Status |
+|---|------|--------|--------|
+| [#5](../../issues/5) | WORKFOW: n8n + Claude API — automated weekly dev summary | $200 | 🟡 In Progress |
+
+---
+
 
 ---
 
