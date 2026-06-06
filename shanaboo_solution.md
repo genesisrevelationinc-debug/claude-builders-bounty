@@ -1,162 +1,176 @@
 ```diff
 --- /dev/null
-+++ b/claude-weekly-summary.json
-@@ -0,0 +1,404 @@
++++ b/n8n-workflow.json
+@@ -0,0 +1,1069 @@
 +{
-+  "meta": {
-+    "instanceId": "0488421c-6df7-45bd-9da0-35f7d29521a3",
-+    "createdAt": "2024-01-15T12:00:00.000Z",
-+    "schemaVersion": 18,
-+    "workflowVersion": 1
-+  },
 +  "nodes": [
++    {
++      "parameters": {},
++      "id": "d48ddc40-4f5a-4fb5-9f60-0d8b28798881",
++      "name": "Start",
++      "type": "n8n-nodes-base.start",
++      "typeVersion": 1,
++      "position": [
++        250,
++        300
++      ]
++    },
 +    {
 +      "parameters": {
 +        "rule": {
-+          "interval": "59",
-+          "mode": "everyX"
++          "interval": [
++            {
++              "field": "cronExpression",
++              "expression": "0 17 * * 5"
++            }
++          ]
 +        }
 +      },
-+      "id": "Schedule1",
-+      "name": "Weekly Trigger",
++      "id": "4e1f3e3b-8c5a-4b6a-9f00-123456789abc",
++      "name": "Cron Trigger",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
 +        250,
-+        350
++        150
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "repository",
-+        "operation": "getAll",
-+        "owner": "={{ $parameter[\"repoOwner\"] }}",
-+        "repository": "={{ $parameter[\"repoName\"] }}",
-+        "filters": {
-+          "since": "={{ $now.setHours(0, 0, 0, 0).subtract(7, 'days').toISOString() }}",
-+          "until": "={{ $now.toISOString() }}",
-+          "state": "all"
-+        },
-+        "options": {
-+          "sort": "updated",
-+          "direction": "desc"
-+        }
++        "resource": "search",
++        "operation": "issuesAndPullRequests",
++        "query": "=repo:{{$json["repo"]}} is:pr is:closed merged:>={{$json["startDate"]}}",
++        "options": {}
 +      },
-+      "id": "GitHub1",
-+      "name": "Get Commits",
++      "id": "gh-search-1",
++      "name": "GitHub Search PRs",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        450,
-+        250
-+      ]
++        550,
++        150
++      ],
++      "credentials": {
++        "githubApi": "GitHub_Credentials"
++      }
 +    },
 +    {
 +      "parameters": {
-+        "resource": "issue",
-+        "operation": "getAll",
-+        "owner": "={{ $parameter[\"repoOwner\"] }}",
-+        "repository": "={{ $parameter[\"repoName\"] }}",
-+        "filters": {
-+          "since": "={{ $now.setHours(0, 0, 0, 0).subtract(7, 'days').toISOString() }}",
-+          "until": "={{ $now.toISOString() }}",
-+          "state": "closed"
-+        },
-+        "options": {
-+          "sort": "updated",
-+          "direction": "desc"
-+        }
++        "resource": "search",
++        "operation": "issuesAndPullRequests",
++        "query": "=repo:{{$json["repo"]}} is:issue is:closed closed:>={{$json["startDate"]}}",
++        "options": {}
 +      },
-+      "id": "GitHub2",
-+      "name": "Get Closed Issues",
++      "id": "gh-search-2",
++      "name": "GitHub Search Issues",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        450,
-+        350
-+      ]
++        550,
++        300
++      ],
++      "credentials": {
++        "githubApi": "GitHub_Credentials"
++      }
 +    },
 +    {
 +      "parameters": {
-+        "resource": "pullRequest",
-+        "operation": "getAll",
-+        "owner": "={{ $parameter[\"repoOwner\"] }}",
-+        "repository": "={{ $parameter[\"repoName\"] }}",
-+        "filters": {
-+          "since": "={{ $now.setHours(0, 0, 0, 0).subtract(7, 'days').toISOString() }}",
-+          "until": "={{ $now.toISOString() }}",
-+          "state": "closed"
-+        },
-+        "options": {
-+          "sort": "updated",
-+          "direction": "desc"
-+        }
++        "resource": "search",
++        "operation": "commits",
++        "query": "=repo:{{$json["repo"]}} committer-date:>={{$json["startDate"]}}",
++        "options": {}
 +      },
-+      "id": "GitHub3",
-+      "name": "Get Merged PRs",
++      "id": "gh-search-3",
++      "name": "GitHub Search Commits",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        450,
++        550,
 +        450
-+      ]
++      ],
++      "credentials": {
++        "githubApi": "GitHub_Credentials"
++      }
 +    },
 +    {
 +      "parameters": {
 +        "model": "claude-sonnet-4-20250514",
-+        "prompt": "={{ \"Create a weekly development summary for the \" + $parameter[\"repoName\"] + \" repository.\\n\\nHere's the activity for the week:\\n\\nCommits:\\n\" + JSON.stringify($items('Get Commits')) + \"\\n\\nClosed Issues:\\n\" + JSON.stringify($items('Get Closed Issues')) + \"\\n\\nMerged PRs:\\n\" + JSON.stringify($items('Get Merged PRs')) + \"\\n\\nPlease provide a narrative summary of this activity in \" + $parameter[\"language\"] + \".\" }}",
-+        "systemPrompt": "={{ \"You are an expert technical writer creating a development summary for a software team.\" }}",
++        "prompt": "Generate a narrative summary of the GitHub activity for the repository {{$json[\"repo\"]}} for the week of {{$json[\"startDate\"]}} to {{$json[\"endDate\"]}}. Include highlights of merged pull requests, closed issues, and important commits. Write in {{$json[\"language\"]}}.",
 +        "maxTokens": 1000,
-+        "temperature": 0.5
++        "temperature": 0.7
 +      },
-+      "id": "Claude1",
-+      "name": "Generate Summary",
-+      "type": "claude3-nodes.claude",
-+      "typeVersion": 1,
-+      "position": [
-+        650,
-+        350
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "fromEmail": "={{ $parameter[\"senderEmail\"] }}",
-+        "toEmail": "={{ $parameter[\"recipientEmail\"] }}",
-+        "subject": "={{ 'Weekly Summary for ' + $parameter[\"repoName\"] }}",
-+        "text": "={{ $items('Generate Summary')[0].json.response }}",
-+        "options": {}
-+      },
-+      "id": "Email1",
-+      "name": "Send Email",
-+      "type": "n8n-nodes-base.emailSend",
++      "id": "claude-node",
++      "name": "Claude API",
++      "type": "n8n-nodes-base.claude",
 +      "typeVersion": 1,
 +      "position": [
 +        850,
-+        350
++        300
++      ],
++      "credentials": {
++        "claudeApi": "Claude_API_Credentials"
++      }
++    },
++    {
++      "parameters": {
++        "keepOnlySet": true,
++        "fields": [
++          {
++            "name": "repo",
++            "type": "string",
++            "value": "claude-builders-bounty/claude-builders-bounty"
++          },
++          {
++            "name": "startDate",
++            "type": "string",
++            "value": "={{$now.setHours(0,0,0,0).setDate($now.getDate()-7).toISOString().split('T')[0]}}"
++          },
++          {
++            "name": "endDate",
++            "type": "string",
++            "value": "={{$now.setHours(0,0,0,0).toISOString().split('T')[0]}}"
++          },
++          {
++            "name": "language",
++            "type": "string",
++            "value": "English"
++          }
++        ]
++      },
++      "id": "set-node",
++      "name": "Set Parameters",
++      "type": "n8n-nodes-base.set",
++      "typeVersion": 1,
++      "position": [
++        400,
++        300
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "values": {
-+          "string": [
-+            {
-+              "name": "repoOwner",
-+              "value": "claude-builders-bounty"
-+            },
-+            {
-+              "name": "repoName",
-+              "value": "claude-builders-bounty"
-+            },
-+            {
-+              "name": "language",
-+              "value": "English"
-+            },
-+            {
-+              "name": "senderEmail",
-+              "value": "weekly-summary@example.com"
-+            },
-+            {
-+              "name": "recipientEmail",
-+              "value": "team@example.com"
-+            }
-+         
++        "resource": "issues",
++        "operation": "getAll",
++        "owner": "={{$json[\"repo\"].split('/')[0]}}",
++        "repo": "={{$json[\"repo\"].split('/')[1]}}",
++        "filters": {
++          "state": "closed",
++          "type": "pull-request"
++        }
++      },
++      "id": "github-prs",
++      "name": "Get Merged PRs",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        550,
++        150
++      ],
++      "credentials": {
++        "githubApi": "GitHub_Credentials"
++      }
++    },
++    {
++      "parameters": {
++        "resource": "issues",
++        "operation": "getAll",
++        "owner": "={{$json[\"repo\"].split('/')[0]}}
