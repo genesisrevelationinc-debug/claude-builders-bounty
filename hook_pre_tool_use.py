@@ -1,75 +1,82 @@
 #!/usr/bin/env python3
 
-import sys
 import json
-import re
-from datetime import datetime
+import sys
 import os
-import logging
-
-# Set up logging
-log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
-os.makedirs(os.path.dirname(log_file), exist_ok=True)
-
-logging.basicConfig(
-    filename=log_file,
-    level=logging.INFO,
-    format='%(asctime)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+import time
+from pathlib import Path
 
 def block_destructive_commands():
+    """Pre-tool-use hook that blocks destructive bash commands"""
+    
+    # Read the tool use request from stdin
+    input_data = sys.stdin.read()
+    if not input_data:
+        return
+    
     try:
-        # Read the tool use request from stdin
-        tool_use = json.load(sys.stdin)
+        tool_use = json.loads(input_data)
     except json.JSONDecodeError:
-        print("Error: Invalid JSON input")
-        sys.exit(1)
+        # If not JSON, treat as a regular command
+        command = input_data.strip()
+        check_and_block_command(command)
+        return
+    
+    # Check if this is a bash tool use
+    if tool_use.get("tool") != "bash":
+        print(input_data)  # Echo back non-bash tool uses
+        return
+    
+    command = tool_use.get("command", "").strip()
+    check_and_block_command(command)
 
-    # Check if this is a bash tool use request
-    if tool_use.get("tool") != "bash" or not tool_use.get("command"):
-        # If not a bash command, allow it to proceed
-        json.dump(tool_use, sys.stdout)
-        sys.exit(0)
-
-    command = tool_use["command"]
-    project_path = tool_use.get("project_path", "Unknown")
-
-    # Define destructive patterns
+def check_and_block_command(command):
+    """Check a command and block if it's destructive"""
+    # List of destructive patterns to block
     destructive_patterns = [
-        r"rm\s+-rf",
-        r"DROP\s+TABLE",
-        r"git\s+push\s+--force",
-        r"TRUNCATE",
-        r"DELETE\s+FROM(?!\s+\w+\s+WHERE).*(?=;|$",  # DELETE FROM without WHERE clause
+        "rm -rf",
+        "DROP TABLE",
+        "git push --force",
+        "TRUNCATE ",
+        "DELETE FROM "
     ]
-
-    # Check for destructive patterns
+    
+    # Special handling for DELETE FROM without WHERE
+    if "DELETE FROM" in command and "WHERE" not in command.upper():
+        log_blocked_command(command)
+        print(f"❌ Command blocked: DELETE statements without WHERE clause are destructive", file=sys.stderr)
+        sys.exit(1)
+    
+    # Check for other destructive patterns
     for pattern in destructive_patterns:
-        if re.search(pattern, command, re.IGNORECASE):
-            # Log the blocked attempt
-            logging.info(f"Blocked command: {command} | Project path: {project_path}")
-            
-            # Print explanation to Claude
-            print(f"❌ Blocked execution of destructive command: {command}")
-            print("This command has been blocked for safety.")
-            if "rm -rf" in command:
-                print("Use 'rm' with specific files only, not 'rm -rf /'")
-            elif "DROP TABLE" in command:
-                print("Database table drops require manual confirmation")
-            elif "git push --force" in command:
-                print("Destructive git pushes are blocked. Use '--force-with-lease' instead")
-            elif "TRUNCATE" in command:
-                print("TRUNCATE operations are not allowed")
-            elif "DELETE FROM" in command:
-                print("DELETE operations without WHERE clauses are not allowed")
-            print("\nTo execute this command, remove the pre-tool-use hook or whitelist it manually.")
-            
-            # Exit with error code to prevent command execution
+        if pattern in command:
+            log_blocked_command(command)
+            if pattern == "DELETE FROM ":
+                print(f"❌ Command blocked: DELETE statements without WHERE clause are destructive", file=sys.stderr)
+            else:
+                print(f"❌ Command blocked: {pattern} is a destructive command pattern", file=sys.stderr)
             sys.exit(1)
+    
+    # If we get here, echo the original input (non-destructive)
+    print(command)
 
-    # If no destructive patterns found, allow the command
-    json.dump(tool_use, sys.stdout)
+def get_project_path():
+    """Get the current project path"""
+    # In a real implementation, this would determine the project path
+    # For now we'll use a placeholder
+    return os.getcwd()
+
+def log_blocked_command(command):
+    """Log blocked command attempts"""
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    project_path = get_project_path()
+    
+    # Create the hooks directory if it doesn't exist
+    log_file_path = Path.home() / ".claude" / "hooks" / "blocked.log"
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(log_file_path, "a") as f:
+        f.write(f"[{timestamp}] Blocked: {command} in {project_path}\n")
 
 if __name__ == "__main__":
     block_destructive_commands()
