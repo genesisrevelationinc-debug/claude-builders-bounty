@@ -1,4 +1,6 @@
+# Claude PR Reviewer
 
+# Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
 
@@ -51,3 +53,15 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+
+---
+
+## Setup
+
+1. Install the tool: `npm install -g claude-review`
+2. Get an Anthropic API key and set it as an environment variable:
+   
