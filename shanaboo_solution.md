@@ -1,5 +1,121 @@
+Looking at the issue, I need to create an n8n workflow for generating weekly development summaries using the Claude API. Since there are no existing workflow files, I'll create the necessary structure.
+
+First, let me create a workflows directory and the actual workflow file:
+
 ```diff
 --- /dev/null
-+++ b/n8n-workflow.json
-@@ -0,0 +1,1 @@
-+{"name":"Weekly Dev Summary","nodes":[{"parameters":{},"id":"0d9a3e2f-84d1-4b1b-91a5-330267461fc9","name":"Start","type":"n8n-nodes-base.cron","typeVersion":1,"position":[450,390]},{"parameters":{"httpMethod":"GET","url":"https://api.github.com/repos/claude-builders-bounty/claude-builders-bounty/commits","queryParameters":[{"name":"since","value":"{{ $now.subtract(7, 'day').format('YYYY-MM-DD') }}"}],"options":{"responseFormat":"json"}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Get Commits","type":"n8n-nodes-base.httpRequest","typeVersion":1,"position":[450,560]},{"parameters":{"httpMethod":"GET","url":"={{$responseItem$['url']}}","options":{"responseFormat":"json"}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Get Commit Details","type":"n8n-nodes-base.httpRequest","typeVersion":1,"position":[650,560]},{"parameters":{"model":"claude-sonnet-4-20250514","prompt":"Please summarize the following GitHub activity for the week:\n\nCommits:\n{{ $input.all()[0].json.commits }}\n\nIssues:\n{{ $input.all()[0].json.issues }}\n\nPRs:\n{{ $input.all()[0].json.prs }}","options":{"max_tokens":1000,"temperature":0.7}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Claude AI","type":"@n8n/nodes-ai.claude","typeVersion":1,"position":[850,560]},{"parameters":{"from":"weekly-summary@example.com","to":"recipient@example.com","subject":"Weekly Development Summary","body":"={{ $json['text'] }}","options":{"allowUnauthorizedCerts":true}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Email","type":"n8n-nodes-base.emailSend","typeVersion":1,"position":[1050,560]},{"parameters":{"resource":"issue","repository":"{{ $env.GITHUB_REPO }}","state":"closed","filter":{}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Get Issues","type":"n8n-nodes-base.github","typeVersion":1,"position":[450,760]},{"parameters":{"resource":"pullRequest","repository":"{{ $env.GITHUB_REPO }}","state":"merged","filter":{}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Get PRs","type":"n8n-nodes-base.github","typeVersion":1,"position":[650,760]},{"parameters":{"resource":"repository","repository":"{{ $env.GITHUB_REPO }}","filters":{}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Get Repository","type":"n8n-nodes-base.github","typeVersion":1,"position":[850,760]},{"parameters":{"mode":"expression","value":"={{ $date.add(7, 'day').format('YYYY-MM-DD') }}","options":{}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Get Date","type":"n8n-nodes-base.dateTime","typeVersion":1,"position":[1050,760]},{"parameters":{"mode":"expression","value":"={{ $date.format('YYYY-MM-DD') }}","options":{}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Get Date","type":"n8n-nodes-base.dateTime","typeVersion":1,"position":[1250,760]},{"parameters":{"mode":"expression","value":"={{ $responseItem$['url'] }}","options":{}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Get PR Details","type":"n8n-nodes-base.httpRequest","typeVersion":1,"position":[1450,760]},{"parameters":{"mode":"expression","value":"={{ $responseItem$['url'] }}","options":{}},"id":"b6c1a8d0-1d1d-4437-94f5-96106e528158","name":"Get Issue Details","type":"n8n-nodes-base.httpRequest","typeVersion":1,"position":[1650,760]}],"connections":{"Start":{"main":[[{"node":"Get Commits","type":"main","index":0}]]},"Get Commits":{"main":[[{"node":"Get Commit Details","type":"main","index":0}]]},"Get Commit Details":{"main":[[{"node":"Claude AI","type":"main","index":0}]]},"Claude AI":{"main":[[{"node":"Email","type":"main","index":0}]]},"Get Issues":{"main":[[{"node":"Get Issue Details","type":"main","index":0}]]},"Get PRs":{"main":[[{"node":"Get PR Details","type":"main","index":0}]]},"Get Repository":{"main":[[{"node":"Get Date","type":"main","index":0}]]},"Get Date":{"main":[[{"node":"Get Date","type":"main","index":0}]]},"Get PR Details
++++ b/workflows/weekly-dev-summary.json
+@@ -0,0 +1,1024 @@
++{
++  "name": "Weekly Dev Summary Generator",
++  "nodes": [
++    {
++      "parameters": {},
++      "id": "1",
++      "name": "Start",
++      "type": "n8n-nodes-base.cron",
++      "typeVersion": 1,
++      "position": [
++        250,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "resource": "search",
++        "operation": "issuesAndPullRequests",
++        "query": "repo:={{ $json[\"github_repo\"] }} is:issue state:closed closed:>={{ $json[\"start_date\"] }} closed:<={{ $json[\"end_date\"] }}",
++        "options": {}
++      },
++      "id": "2",
++      "name": "GitHub Issues Search",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        550,
++        250
++      ]
++    },
++    {
++      "parameters": {
++        "resource": "search",
++        "operation": "commits",
++        "query": "repo:={{ $json[\"github_repo\"] }} committer-date:{{ $json[\"start_date\"] }}..{{ $json[\"end_date\"] }}",
++        "options": {}
++      },
++      "id": "3",
++      "name": "GitHub Commits Search",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        550,
++        400
++      ]
++    },
++    {
++      "parameters": {
++        "resource": "search",
++        "operation": "issuesAndPullRequests",
++        "query": "repo:={{ $json[\"github_repo\"] }} is:pr state:closed merged:>={{ $json[\"start_date\"] }} merged:<={{ $json[\"end_date\"] }}",
++        "options": {}
++      },
++      "id": "4",
++      "name": "GitHub PRs Search",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        550,
++        550
++      ]
++    },
++    {
++      "parameters": {
++        "model": "claude-3-5-sonnet-20240620",
++        "options": {
++          "systemPrompt": "You are a technical writer creating a weekly development summary. Be concise and focus on the most important changes.",
++          "maxTokens": 2048,
++          "temperature": 0.7
++        },
++        "prompt": "Create a weekly development summary in {{ $json[\"language\"] }} for the {{ $json[\"github_repo\"] }} repository.\n\nDate Range: {{ $json[\"start_date\"] }} to {{ $json[\"end_date\"] }}\n\nRecent commits:\n{% for commit in $json[\"commits\"] %}\n- {{ commit.commit.message }} (by {{ commit.commit.author.name }})\n{% endfor %}\n\nClosed issues:\n{% for issue in $json[\"issues\"] %}\n- #{{ issue.number }}: {{ issue.title }}\n{% endfor %}\n\nMerged pull requests:\n{% for pr in $json[\"pull_requests\"] %}\n- #{{ pr.number }}: {{ pr.title }}\n{% endfor %}\n\nPlease create a narrative summary that highlights the key developments, major features, and important fixes from this week's activity. Organize the information in a clear, professional format."
++      },
++      "id": "5",
++      "name": "Claude API",
++      "type": "n8n-nodes-base.anthropic",
++      "typeVersion": 1.1,
++      "position": [
++        1000,
++        400
++      ]
++    },
++    {
++      "parameters": {
++        "functionCode": "const now = new Date();\nconst end_date = now.toISOString().split('T')[0];\n\n// Calculate start date (7 days ago)\nconst startDate = new Date(now);\nstartDate.setDate(now.getDate() - 7);\nconst start_date = startDate.toISOString().split('T')[0];\n\n// Get repository from environment variables\nconst github_repo = $env.GITHUB_REPO || 'claude-builders-bounty/claude-builders-bounty';\n\n// Get language from environment variables (default to EN)\nconst language = $env.LANGUAGE || 'EN';\n\n// Get delivery method\nconst delivery_method = $env.DELIVERY_METHOD || 'email';\n\nreturn [{ \n  json: { \n    start_date,\n    end_date,\n    github_repo,\n    language,\n    delivery_method\n  } \n}];"
++      },
++      "id": "6",
++      "name": "Set Date Range",
++      "type": "n8n-nodes-base.function",
++      "typeVersion": 2,
++      "position": [
++        400,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "functionCode": "// Process commits data\nconst commits = [];\n\nif (items.length > 0) {\n  items[0].json.commits = $input.all();\n  return [items[0]];\n}\n\nreturn items;"
++      },
++      "id": "7",
++      "name": "Process Commits",
++      "type": "n8n-nodes-base.function",
++      "typeVersion": 2,
++      "position": [
++        700,
++        400
++      ]
++    },
++    {
++      "parameters": {
++        "functionCode": "// Process issues data\nconst issues = [];\n\nif (items.length > 0) {\n  items[0].json.issues = $input.all();\n  return [items[0]];\n}\n\nreturn items;"
++      },
++      "id": "8",
++      "
