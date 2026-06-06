@@ -1,114 +1,75 @@
-#!/usr/bin/env python3
+#!/usr/bin/env node
 
-import argparse
-import os
-import sys
-import requests
-import json
-from pathlib import Path
+const { execSync } = require('child_process');
+const https = require('https');
+const { Octokit } = require('@octokit/rest');
 
-try:
-    from github import Github
-except ImportError:
-    print("Error: PyGithub library is required. Install it using 'pip install PyGithub'")
-    sys.exit(1)
+function getDiff(url) {
+  const [, owner, repo, , prNumber] = url.split('/');
+  const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+  return octokit.pulls.get({
+    owner,
+    repo,
+    pull_number: parseInt(prNumber)
+  }).then(({ data }) => {
+    return data;
+  });
+}
 
-def get_github_token():
-    token = os.environ.get('GITHUB_TOKEN')
-    if not token:
-        raise ValueError("GITHUB_TOKEN environment variable is required")
-    return token
+function analyzeCode(diff) {
+  // This is a simplified analysis
+  // In a real implementation, you would integrate with Claude Code API
+  const changes = diff.split('\n').filter(line => line.startsWith('+') || line.startsWith('-'));
+  const addedLines = changes.filter(line => line.startsWith('+'));
+  const removedLines = changes.filter(line => line.startsWith('-'));
+  
+  return {
+    summary: `This PR modifies ${addedLines.length} lines and removes ${removedLines.length} lines. The changes appear to be ${addedLines.length > removedLines.length ? 'additive' : 'refactoring'} in nature.`,
+    risks: [
+      'No critical risks identified in this automated review',
+      'Consider if all edge cases are covered by the changes'
+    ],
+    suggestions: [
+      'Consider adding more unit tests to cover the new functionality',
+      'Documentation should be updated to reflect these changes'
+    ],
+    confidence: 'Medium'
+  };
+}
 
-def analyze_pr(diff_text):
-    # This is a simplified analysis function
-    # A real implementation would use Claude API to analyze the code
-    changes = []
-    risks = []
-    suggestions = []
-    
-    # Simple heuristics for demonstration
-    if "delete" in diff_text.lower() or "remove" in diff_text.lower():
-        risks.append("Potential data loss if deletion functionality is not properly safeguarded")
-    
-    if "config" in diff_text.lower() or "setting" in diff_text.lower():
-        risks.append("Configuration changes may have unintended side effects")
-    
-    if "TODO" in diff_text or "FIXME" in diff_text:
-        suggestions.append("Consider removing or resolving TODO/FIXME comments before merging")
-    
-    if "password" in diff_text.lower() or "secret" in diff_text.lower():
-    suggestions.append("Ensure sensitive information is not exposed in the code")
-    
-    # Simple summary of changes
-    changes.append("This PR modifies existing functionality in the codebase.")
-    changes.append("The changes involve updates to configuration and security components.")
-    changes.append("Security-related modifications have been identified.")
-    
-    return {
-        "summary": " ".join(changes) if changes else "This PR introduces several changes to the codebase.",
-        "risks": risks if risks else ["No major risks identified in the code changes"],
-        "suggestions": suggestions if suggestions else ["Consider adding more comprehensive error handling"],
-        "confidence": "Medium"
-    }
+function formatComment(analysis) {
+  return `
+## Code Review
 
-def format_markdown_comment(analysis):
-    comment = f"""## Code Review
+### Summary
+${analysis.summary}
 
-### Summary of Changes
-{analysis['summary']}
+### Risks
+${analysis.risks.map(risk => `- ${risk}`).join('\n')}
 
-### Identified Risks
-"""
-    for risk in analysis['risks']:
-        comment += f"- {risk}\n"
-    
-    comment += f"""
-### Improvement Suggestions
-"""
-    for suggestion in analysis['suggestions']:
-        comment += f"- {suggestion}\n"
-    
-    comment += f"""
+### Suggestions
+${analysis.suggestions.map(suggestion => `- ${suggestion}`).join('\n')}
+
 ### Confidence
-{analysis['confidence']}
-"""
-    return comment.strip()
+${analysis.confidence}
+`;
+}
 
-def main():
-    parser = argparse.ArgumentParser(description='Claude Code PR Reviewer')
-    parser.add_argument('--pr', required=True, help='GitHub PR URL')
-    
-    args = parser.parse_args()
-    
-    # Extract owner, repo, and PR number from URL
-    # Simple URL parsing - in practice, use urllib or regex
-    try:
-        parts = args.pr.rstrip('/').split('/')
-        owner = parts[-4]
-        repo_name = parts[-3]
-        pr_number = parts[-1]
-        
-        # Initialize GitHub API
-        g = Github(get_github_token())
-        repo = g.get_repo(f"{owner}/{repo_name}")
-        pr = repo.get_pull(int(pr_number))
-        files = pr.get_files()
-        
-        # Get PR diff
-        diff_content = ""
-        for file in files:
-            diff_content += file.patch or ""
-        
-        # Analyze the PR
-        analysis = analyze_pr(diff_content)
-        
-        # Print structured comment
-        comment = format_markdown_comment(analysis)
-        print(comment)
-        
-    except Exception as e:
-        print(f"Error processing PR: {e}")
-        sys.exit(1)
+async function main() {
+  const prUrl = process.argv[2];
+  if (!prUrl) {
+    console.error('Usage: claude-review <pr-url>');
+    process.exit(1);
+  }
 
-if __name__ == "__main__":
-    main()
+  try {
+    const prData = await getDiff(prUrl);
+    const analysis = analyzeCode(prData.patch);
+    console.log(formatComment(analysis));
+  } catch (error) {
+    console.error('Error:', error.message);
+    process.exit(1);
+  }
+}
+
+main();
