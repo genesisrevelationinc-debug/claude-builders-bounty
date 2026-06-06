@@ -1,24 +1,26 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso). Paste this into your project root. Claude Code should understand the full context without asking clarifying questions.
+> Opinionated project conventions. Read this before writing code. If Claude suggests something that contradicts this file, the file wins.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| Framework | Next.js 15 (App Router) | Server Components by default = simpler data flow, less client JS |
-| Runtime | Node.js 20+ | `fetch` cache control, native `crypto`, stable ESM |
-| Database | SQLite via `better-sqlite3` (local/dev) or Turso (prod) | Single file, zero-config local; edge-ready with Turso |
-| ORM/Query | Raw SQL + `better-sqlite3` API | ORMs hide query plans; we want explicit, fast, debuggable SQL |
-| Migrations | Custom Node.js scripts | No migration framework bloat; full control over transaction boundaries |
-| Auth | `iron-session` + bcrypt | Stateless sessions, no Redis/DB dependency for auth state |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, no runtime CSS; shadcn = copy-pasteable, own your components |
-| Validation | Zod | Type-safe schemas shared between server and client |
-| Testing | Vitest (unit) + Playwright (E2E) | Fast unit tests; real browser for critical paths |
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
+| Database | better-sqlite3 | Synchronous SQLite = simpler transactions, no connection pool hell |
+| ORM/Query | Drizzle ORM | Type-safe SQL, zero runtime bloat, migration files are plain SQL |
+| Auth | Lucia + oslo | Session cookies, no JWT in localStorage. Works with SQLite out of the box |
+| Styling | Tailwind CSS + shadcn/ui | Copy-paste components, no phantom dependency on a component library |
+| Validation | Zod | Same schemas for API, forms, and DB |
+| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
 
-**Lock these versions in `package.json`. Do not float majors.**
+**Pinned versions (do not upgrade without discussion):**
+- `next`: `15.0.0` — App Router stable, `dynamicIO` experimental
+- `better-sqlite3`: `^11.0.0` — native module, pin to avoid rebuild issues
+- `drizzle-orm`: `^0.36.0` — watch for breaking changes in `0.37`
 
 ---
 
