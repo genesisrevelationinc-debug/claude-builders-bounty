@@ -1,15 +1,27 @@
----
-name: Generate Changelog
-description: Automatically generates a structured CHANGELOG.md from git history
-tags: [git, documentation, automation]
-skill_run_title: Generate Changelog from Git History
-skill_run_description: Creates a changelog based on commits since last tag
-skill_run_icon: 📝
-skill_run_input_title: Git Repository Path
-skill_run_input_description: Path to the git repository (leave empty for current directory)
-skill_run_input_placeholder: "/path/to/repo or leave empty"
-skill_run_output_title: Generated Changelog
----
+# Generate Changelog
 
-## Configuration
+This skill automatically generates a structured CHANGELOG.md from your project's git history.
 
+## Usage
+
+Type `/generate-changelog` to create an updated changelog based on commits since the last git tag.
+
+## Features
+
+- Fetches commits since the last git tag
+- Auto-categorizes changes into Added, Fixed, Changed, and Removed sections
+- Outputs a properly formatted CHANGELOG.md file
+
+## How it works
+
+1. The skill runs `git describe` to find the last tag
+2. Gets commit messages since that tag with `git log`
+3. Categorizes commits based on keywords in the commit message
+4. Generates a CHANGELOG.md file in the current directory
+
+## Requirements
+
+- Git must be installed and the project must be a Git repository with tags
+- The project should use [Conventional Commits](https://www.conformantcommits.org) for best results
+
+This skill was generated as a response to bounty #1.
