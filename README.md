@@ -1,4 +1,4 @@
-# Claude Builders Bounty 🛡️
+# Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
 
@@ -45,12 +45,16 @@ You're in the right place.
 
 ## Community
 
-*Started by the Claude builder community · March 2026 · MIT License*
-
-## Installation
-
-
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
 
 ---
+
+# Destructive Command Blocker
+
+## Description
+This Claude Code hook blocks dangerous bash commands before they are executed.
+
+## Installation
 
 *Started by the Claude builder community · March 2026 · MIT License*
