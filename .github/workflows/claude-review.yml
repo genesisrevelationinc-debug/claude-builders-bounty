@@ -1,4 +1,4 @@
-name: Claude Code PR Review
+name: Claude PR Review
 
 on:
   pull_request:
@@ -10,38 +10,26 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.x'
-        
+        python-version: '3.9'
+
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install requests
-        
-    - name: Get PR diff
-      run: |
-        # Get the PR diff from GitHub API
-        PR_URL="https://api.github.com/repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER"
-        curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-             -H "Accept: application/vnd.github.v3.diff" \
-             $PR_URL > pr.diff
+        pip install openai requests
+
+    - name: Run Claude Review
       env:
-        PR_NUMBER: ${{ github.event.pull_request.number }}
-        
-    - name: Run Claude Code Analysis
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
       run: |
-        # Analyze the code changes
-        python3 -c "
-        import sys
-        sys.path.append('.')
-        import claude_review
-        # Read the diff
-        with open('pr.diff', 'r') as f:
-            diff = f.read()
-        # Analyze the code
-        analysis = claude_review.analyze_code(diff)
-        print(claude_review.format_comment(analysis))
-        "
+        # Get the PR diff
+        PR_URL="https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+        
+        # Run the review script
+        python claude-review --pr "$PR_URL"
+
+    - name: Post comment
+      uses: actions/github-script@v6
