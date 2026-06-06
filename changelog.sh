@@ -1,70 +1,90 @@
 #!/bin/bash
 
-# Generate a structured CHANGELOG.md from git history
+# changelog.sh - Generate a structured CHANGELOG.md from git history
 
 set -e
 
-echo "Generating CHANGELOG.md..."
+#########################
+# Configuration
+#########################
 
-# Get the latest tag
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# Get commits since the latest tag or all commits if no tags exist
-if [ -n "$LATEST_TAG" ]; then
-    COMMITS=$(git log "$LATEST_TAG"..HEAD --oneline)
-    echo "Commits since tag $LATEST_TAG:"
-else
-    COMMITS=$(git log --oneline)
-    echo "No tags found. Processing all commits:"
-fi
+# Default configuration
+CHANGELOG_FILE="CHANGELOG.md"
+REPO_URL=""
 
-# Initialize categories
-ADDED=""
-FIXED=""
-CHANGED=""
-REMOVED=""
+#########################
+# Functions
+#########################
 
-# Categorize commits
-while IFS= read -r commit; do
-    if [[ $commit =~ (add|feature|implement) ]]; then
-        ADDED+="- $commit"$'\n'
-    elif [[ $commit =~ (fix|bug|resolve) ]]; then
-        FIXED+="- $commit"$'\n'
-    elif [[ $commit =~ (remove|delete|cleanup) ]]; then
-        REMOVED+="- $commit"$'\n'
-    elif [[ $commit =~ (change|update|modify) ]]; then
-        CHANGED+="- $commit"$'\n'
+print_usage() {
+  echo "Usage: $0 [OPTIONS]"
+  echo "  -h, --help     Show this help message"
+  echo "  -o, --output    Specify output file (default: CHANGELOG.md)"
+  echo "  -r, --repo      Specify repository URL for commit links"
+  echo ""
+  echo "Examples:"
+  echo "  bash changelog.sh"
+  echo "  bash changelog.sh -o custom_changelog.md"
+  echo "  bash changelog.sh -r https://github.com/user/repo"
+}
+
+generate_changelog() {
+  # Get the last tag or use initial commit if no tags exist
+  LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null) || true
+  
+  if [ -z "$LAST_TAG" ]; then
+    # If no tags, use the initial commit
+    LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+  fi
+  
+  # Get commits since last tag
+  COMMITS=$(git log --pretty=format:"%s" $LAST_TAG..HEAD)
+  
+  # Generate the changelog content
+  echo "# Changelog" > $CHANGELOG_FILE
+  echo "" >> $CHANGELOG_FILE
+  
+  # Categorize commits
+  while IFS= read -r line; do
+    if [[ $line == *"fix"* ]] || [[ $line == *"Fix"* ]] || [[ $line == *"fixed"* ]] || [[ $line == *"Fixed"* ]]; then
+      echo "### Fixed" >> $CHANGELOG_FILE
+      echo "- $line" >> $CHANGELOG_FILE
+    elif [[ $line == *"add"* ]] || [[ $line == *"Add"* ]] || [[ $line == *"new"* ]] || [[ $line == *"New"* ]]; then
+      echo "### Added" >> $CHANGELOG_FILE
+      echo "- $line" >> $CHANGELOG_FILE
+    elif [[ $line == *"change"* ]] || [[ $line == *"Change"* ]] || [[ $line == *"refactor"* ]] || [[ $line == *"Refactor"* ]] || [[ $line == *"update"* ]] || [[ $line == *"Update"* ]]; then
+      echo "### Changed" >> $CHANGELOG_FILE
+      echo "- $line" >> $CHANGELOG_FILE
+    elif [[ $line == *"remove"* ]] || [[ $line == *"Remove"* ]] || [[ $line == *"delete"* ]] || [[ $line == *"Delete"* ]]; then
+      echo "### Removed" >> $CHANGELOG_FILE
+      echo "- $line" >> $CHANGELOG_FILE
     else
-        CHANGED+="- $commit"$'\n'
+      echo "### Added" >> $CHANGELOG_FILE
+      echo "- $line" >> $CHANGELOG_FILE
     fi
-done <<< "$COMMITS"
+    echo "" >> $CHANGELOG_FILE
+  done <<< "$COMMITS"
+  
+  echo -e "${GREEN}Changelog generated in $CHANGELOG_FILE${NC}"
+  if [ "$REPO_URL" ]; then
+    echo "You can find it at: $REPO_URL"
+  fi
+}
 
-# Generate CHANGELOG.md
-{
-    echo "# Changelog"
-    echo ""
-    echo "## [Unreleased]"
-    echo ""
-    
-    if [ -n "$ADDED" ]; then
-        echo "### Added"
-        echo "$ADDED"
-    fi
-    
-    if [ -n "$FIXED" ]; then
-        echo "### Fixed"
-        echo "$FIXED"
-    fi
-    
-    if [ -n "$CHANGED" ]; then
-        echo "### Changed"
-        echo "$CHANGED"
-    fi
-    
-    if [ -n "$REMOVED" ]; then
-        echo "### Removed"
-        echo "$REMOVED"
-    fi
-} > CHANGELOG.md
+# Parse command line arguments
+while getopts "o:r:h" opt; do
+  case $opt in
+    o) CHANGELOG_FILE="$OPTARG" ;;
+    r) REPO_URL="$OPTARG" ;;
+    h) print_usage; exit 0 ;;
+    *) echo "Invalid option"; print_usage; exit 1 ;;
+  esac
+done
 
-echo "CHANGELOG.md generated successfully!"
+generate_changelog
