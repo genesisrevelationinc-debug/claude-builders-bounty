@@ -50,19 +50,14 @@ You're in the right place.
 
 ---
 
-# Changelog Generator
+# Generate Changelog
 
-## Description
-This is a bash script that automatically generates a structured `CHANGELOG.md` from a project's git history.
+This script automatically generates a structured `CHANGELOG.md` from your project's git history.
 
-## Setup Instructions
+## Setup
 
-1. Copy `changelog.sh` to your project root
-2. Make it executable: `chmod +x changelog.sh`
-3. Run the script: `bash changangelog.sh`
+1. Make the script executable: `chmod +x changelog.sh`
+2. Run with: `bash changelog.sh`
+3. The script will generate a `CHANGELOG.md` file in the current directory
 
-## Features
-- Auto-categorizes commits into Added, Fixed, Changed, and Removed sections
-- Works with or without existing git tags
-- Requires git to be installed and a git repository to run
 *Started by the Claude builder community · March 2026 · MIT License*
