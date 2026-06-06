@@ -1,56 +1,72 @@
 #!/bin/bash
 
-# Exit on any error
-set -e
+# Get the latest tag
+latest_tag=$(git describe --tags "$(git rev-list --tags --max-count=1)")
 
-# Get the directory where the script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-
-# Change to the target repository directory
-cd "$SCRIPT_DIR" || exit 1
-
-# Get the last tag, or use a default start point
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD")
-
-# If there are no tags, get all commits
-if [ "$LAST_TAG" = "HEAD" ]; then
-  COMMITS=$(git log --oneline)
+# If no tags exist, use the beginning of history
+if [ -z "$latest_tag" ]; then
+    latest_tag=$(git rev-list --all --reverse --oneline | head -n 1 | cut -d" " -f1)
+    if [ -z "$latest_tag" ]; then
+        echo "No commits found"
+        exit 1
+    fi
+    tag_name="Initial commit"
+    range="$latest_tag"
 else
-  # Get commits since the last tag
-  COMMITS=$(git log "$LAST_TAG"..HEAD --oneline 2>/dev/null || git log --oneline)
+    tag_name="$latest_tag"
+    range="$latest_tag..HEAD"
 fi
 
-# Initialize changelog content
-CHANGELOG="## Changelog\n\n"
+# Get commit messages
+commits=$(git log $range --pretty=format:"%s" --no-merges)
 
-# Try to get the version from the latest tag, otherwise use date
-VERSION=$(git describe --tags --abbrev=0 2>/dev/null || date +%Y-%m-%d)
-CHANGELOG+="### $VERSION\n\n"
+# Create temporary file for changelog
+tmp_file=$(mktemp)
 
-# Categorize commits
-ADDED=$(echo "$COMMITS" | grep -E '^[0-9a-f]+ (feat|add|new):' || true)
-FIXED=$(echo "$COMMITS" | grep -E '^[0-9a-f]+ (fix|fixed):' || true)
-CHANGED=$(echo "$COMMITS" | grep -E '^[0-9a-f]+ (change|update|refactor):' || true)
-REMOVED=$(echo "$COMMITS" | grep -E '^[0-9a-f]+ (remove|delete|rm):' || true)
+# Initialize categories
+added=""
+fixed=""
+changed=""
+removed=""
 
-# Function to format commit messages
-format_commits() {
-  if [ -n "$1" ]; then
-    echo "$1" | while read -r line; do
-      if [ -n "$line" ]; then
-        # Remove commit hash and keep only the message
-        echo "- ${line#* }"
-      fi
-    done
-  fi
-}
+# Process commits
+echo "$commits" | while read -r line || [[ -n $line ]]; do
+    # Skip if empty
+    if [ -z "$line" ]; then
+        continue
+    fi
+    
+    # Categorize based on prefix
+    if [[ $line == "feat:"* ]] || [[ $line == "feat("* ]] || [[ $line == "add:"* ]] || [[ "$line" == "new:"* ]]; then
+        added+="* $line\n"
+    elif [[ $line == "fix:"* ]] || [[ $line == "fix("* ]] || [[ "$line" == "bug:"* ]]; then
+        fixed+="* $line\n"
+    elif [[ $line == "refactor:"* ]] || [[ $line == "refactor("* ]] || [[ "$line" == "update:"* ]] || [[ "$line" == "change:"* ]]; then
+        changed+="* $line\n"
+    elif [[ $line == "remove:"* ]] || [[ $line == "remove("* ]] || [[ "$line" == "delete:"* ]] || [[ "$line" == "del:"* ]]; then
+        removed+="* $line\n"
+    else
+        # Default to added if no category matches
+        added+="* $line\n"
+    fi
+done
 
-[ -n "$ADDED" ] && CHANGELOG+="#### Added\n$(format_commits "$ADDED")\n\n"
-[ -n "$FIXED" ] && CHANGELOG+="#### Fixed\n$(format_commits "$FIXED")\n\n"
-[ -n "$CHANGED" ] && CHANGELOG+="#### Changed\n$(format_commits "$CHANGED")\n\n"
-[ -n "$REMOVED" ] && CHANGELOG+="#### Removed\n$(format_commits "$REMOVED")\n\n"
-
-# Write to CHANGELOG.md
-echo -e "$CHANGELOG" > CHANGELOG.md
+# Create CHANGELOG.md
+echo "# Changelog" > CHANGELOG.md
+echo "" >> CHANGELOG.md
+echo "## $tag_name" >> CHANGELOG.md
+echo "" >> CHANGELOG.md
+echo "### Added" >> CHANGELOG.md
+echo -e "$added" >> CHANGELOG.md
+echo "" >> CHANGELOG.md
+echo "### Fixed" >> CHANGELOG.md
+echo -e "$fixed" >> CHANGELOG.md
+echo "" >> CHANGELOG.md
+echo "### Changed" >> CHANGELOG.md
+echo -e "$changed" >> CHANGELOG.md
+echo "" >> CHANGELOG.md
+echo "### Removed" >> CHANGELOG.md
+echo -e "$removed" >> CHANGELOG.md
+echo "" >> CHANGELOG.md
 
 echo "CHANGELOG.md generated successfully!"
