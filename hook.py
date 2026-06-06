@@ -1,97 +1,51 @@
 #!/usr/bin/env python3
-
 import sys
 import os
-import json
 import re
 from datetime import datetime
-from pathlib import Path
 
-def log_blocked_command(command: str, project_path: str):
-    """Log blocked command to file"""
-    log_file = Path.home() / ".claude" / "hooks" / "blocked.log"
-    timestamp = datetime.now().isoformat()
-    log_entry = f"[{timestamp}] Blocked command: {command} in project: {project_path}\n"
-    
-    # Ensure log directory exists
-    log_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    with open(log_file, "a") as f:
-        f.write(log_entry)
-
-def block_destructive_command(command_data):
-    """Check if command is destructive and should be blocked"""
-    # Extract command and project path
-    command = command_data.get("command", "")
-    project_path = command_data.get("cwd", "")
+def block_destructive_commands():
+    # Get the command from Claude Code
+    command = sys.argv[1] if len(sys.argv) > 1 else ""
     
     # Destructive patterns to block
-    destructive_patterns = [
+    blocked_patterns = [
         r"rm\s+-rf",
         r"DROP\s+TABLE",
         r"git\s+push\s+--force",
-        r"TRUNCATE",
-        r"DELETE\s+FROM(?!\s+\w+\s+WHERE)"
+        r"TRUNCATE\s+TABLE",
+        r"DELETE\s+FROM(?!\s+\w+\s+WHERE\b)",
     ]
     
-    # Check if any destructive pattern matches
-    for pattern in destructive_patterns:
+    # Check if command matches any blocked pattern
+    for pattern in blocked_patterns:
         if re.search(pattern, command, re.IGNORECASE):
-            log_blocked_command(command, project_path)
-            return True, f"Blocked destructive command: {command}"
+            # Log the blocked attempt
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            project_path = os.getcwd()
+            log_entry = f"[{timestamp}] Blocked command: {command} (Project: {project_path})\n"
+            
+            # Append to blocked.log
+            log_file = os.path.expanduser("~/.claude/hooks/blocke d.log")
+            os.makedirs(os.path.dirname(log_file), exist_ok=True)
+            
+            with open(log_file, "a") as f:
+                f.write(log_entry)
+            
+            # Inform Claude about the block
+            print(f"🚫 Blocked destructive command: {command}", file=sys.stderr)
+            print("This command has been blocked for security reasons.", file=sys.stderr)
+            print("The following patterns are blocked:")
+            print("- rm -rf")
+            print("- DROP TABLE")
+            print("- git push --force")
+            print("- TRUNCATE")
+            print("- DELETE FROM (without WHERE clause)")
+            print("Contact: claudebounty@gmail.com")
+            sys.exit(1)
     
-    return False, None
-
-def main():
-    # Read input from stdin
-    input_data = sys.stdin.read().strip()
-    if not input_data:
-        print(json.dumps({"result": "allow"}))
-        return
-    
-    try:
-        # Parse the input as JSON
-        data = json.loads(input_data)
-    except json.JSONDecodeError:
-        # If not valid JSON, treat as plain text
-        print(json.dumps({"result": "allow"}))
-        return
-    
-    # Extract command information
-    if isinstance(data, dict) and "tool" in data and data["tool"] == "bash":
-        command_info = {
-            "command": data.get("command", ""),
-            "cwd": data.get("cwd", "")
-        }
-        is_blocked, message = block_destructive_command(command_info)
-        if is_blocked:
-            response = {
-                "result": "block",
-                "explanation": message
-            }
-            print(json.dumps(response))
-            return
-    
-    # Default allow if not blocked
-    print(json.dumps({"result": "allow"}))
+    # If we get here, the command is allowed
+    sys.exit(0)
 
 if __name__ == "__main__":
-    main()
-
-"""
-Sample input (from Claude):
-{
-  "tool": "bash",
-  "command": "rm -rf /",
-  "cwd": "/home/user/project"
-}
-
-Sample output (if blocked):
-{
-  "result": "block",
-  "explanation": "Blocked destructive command: rm -rf /"
-}
-
-Sample output (if allowed):
-{"result": "allow"}
-"""
+    block_destructive_commands()
