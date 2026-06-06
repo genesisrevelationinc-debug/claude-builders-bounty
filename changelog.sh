@@ -1,67 +1,80 @@
 #!/bin/bash
 
-# Get the last tag or use the initial commit if no tags exist
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
-if [ -z "$LAST_TAG" ]; then
-    LAST_TAG=$(git rev-list --max-parents=0 HEAD)
-    TAG_NAME="Initial commit"
+# Get the latest tag or set to empty if none exists
+latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
+
+# Determine the range of commits to analyze
+if [ -z "$latest_tag" ]; then
+    commit_range="HEAD"
 else
-    TAG_NAME="since tag $LAST_TAG"
+    commit_range="$latest_tage HEAD"
 fi
 
-# Get commits since last tag
-COMMITS=$(mktemp)
-git log --no-merges --pretty=format:"%s" $LAST_TAG..HEAD > "$COMMITS"
+# Create a temporary file to store the changelog
+temp_file=$(mktemp)
 
-# Initialize arrays for each category
-declare -a ADDED FIXED CHANGED REMOVED
-
-# Categorize commits
-while IFS= read -r commit; do
-    # Convert to lowercase for case-insensitive matching
-    lower_commit=$(echo "$commit" | tr '[:upper:]' '[:lower:]')
+# Function to add a commit to a section
+add_to_changelog() {
+    section=$1
+    line=$2
     
-    # Categorize based on prefixes
-    if [[ $lower_commit == fix* ]] || [[ $lower_commit ==修复* ]] || [[ $lower_commit == *fix* ]] || [[ $lower_commit == *fixed* ]] || [[ $lower_commit == *bug* ]] || [[ $lower_commit == *修复* ]]; then
-        FIXED+=("$commit")
-    elif [[ $lower_commit == feat* ]] || [[ $lower_commit == add* ]] || [[ $lower_commit == implement* ]] || [[ $lower_commit == *feature* ]] || [[ $lower_commit == *add* ]]; then
-       FIXED+=("$commit")
-    elif [[ $lower_commit == change* ]] || [[ $lower_commit == update* ]] || [[ $lower_commit == *change* ]] || [[ $lower_commit == *update* ]] || [[ $lower_commit == refactor* ]] || [[ $lower_commit == *refactor* ]]; then
-       CHANGED+=("$commit")
-    elif [[ $lower_commit == remove* ]] || [[ $lower_commit == delete* ]] || [[ $lower_commit == *remove* ]] || [[ $lower_commit == *delete* ]] || [[ $lower_commit == deprecate* ]]; then
-       REMOVED+=("$commit")
+    # Add section header if it doesn't exist yet
+    if ! grep -q "### $section" "$temp_file"; then
+        echo "### $section" >> "$temp_file"
+    fi
+    
+    # Add the line to the appropriate section
+    echo "- $line" >> "$temp_file"
+}
+
+# Initialize the changelog file with header
+echo "# Changelog" > CHANGELOG.md
+echo "" >> CHANGELOG.md
+echo "## [Unreleased]" >> CHANGELOG.md
+
+# Create temporary file
+touch "$temp_file"
+
+# Process each commit
+if [ "$commit_range" = "HEAD" ]; then
+    # If no tags, process all commits
+    git log --pretty=format:"%s" | while read -r line; do
+        process_commit "$line"
+    done
+else
+    # Process commits since last tag
+    git log "$latest_tag..HEAD" --pretty=format:"%s" | while read -r line; do
+        process_commit "$line"
+    done
+fi
+
+# Function to process a commit message
+process_commit() {
+    local line="$1"
+    
+    # Categorize based on prefix
+    if [[ $line == feat:* ]] || [[ $line == add:* ]]; then
+        add_to_changelog "Added" "${line#*: }"
+    elif [[ $line == fix:* ]] || [[ $line == bug:* ]]; then
+        add_to_changelog "Fixed" "${line#*: }"
+    elif [[ $line == change:* ]] || [[ $line == refactor:* ]]; then
+        add_to_changelog "Changed" "${line#*: }"
+    elif [[ $line == remove:* ]] || [[ $line == delete:* ]]; then
+        add_to_changelog "Removed" "${line#*: }"
     else
-        # Default to "Changed" if no clear category
-        CHANGED+=("$commit")
+        # Default categorization if no prefix match
+        add_to_changelog "Other" "$line"
     fi
-done < "$COMMITS"
+}
 
-# Generate the changelog
-{
-    echo "# Changelog"
-    echo ""
-    echo "## [${TAG_NAME}] - $(date +'%Y-%m-%d')"
-    echo ""
-    if [ ${#ADDED[@]} -gt 0 ]; then
-        echo "### Added"
-        for item in "${ADDED[@]}"; do echo "- $item"; done
-        echo ""
-    fi
-    if [ ${#FIXED[0]} -gt 0 ]; then
-        echo "### Fixed"
-        for item in "${FIXED[@]}"; do echo "- $item"; done
-        echo ""
-    fi
-    if [ ${#CHANGED[0]} -gt 0 ]; then
-        echo "### Changed"
-        for item in "${CHANGED[@]}"; do echo "- $item"; done
-        echo ""
-    fi
-    if [ ${#REMOVED[@]} -gt 0 ]; then
-        echo "### Removed"
-        for item in "${REMOVED[@]}"; do echo "- $item"; done
-        echo ""
-    fi
-} > CHANGELOG.md
+# Sort and organize the sections
+if [ -f "$temp_file" ] && [ -s "$temp_file" ]; then
+    # Process the temporary file to organize sections properly
+    # This is a simplified version - a full implementation would need better section handling
+    cat "$temp_file" >> CHANGELOG.md
+fi
 
-rm "$COMMITS"
+# Clean up
+rm -f "$temp_file"
+
+echo "Changelog generated in CHANGELOG.md"
