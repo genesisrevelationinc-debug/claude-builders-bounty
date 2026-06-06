@@ -1,3 +1,11 @@
+# Claude Code PR Review Agent
+
+An AI-powered code review agent that analyzes GitHub PRs and provides structured feedback.
+
+## Setup
+
+1. Install dependencies:
+   
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -10,18 +18,10 @@ You're in the right place.
 
 ## How it works
 
-
----
-
-## How it works
-
-**To contribute to a bounty**
-1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
-3. Submit a PR — payment is automatic on merge ✅
-
-## Active Bounties
-
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
+2. Comment `/opire create $XXX` in the issue to set the reward
+3. Share the link — contributors will find it
 
 **To claim a bounty**
 1. Browse the open issues below
