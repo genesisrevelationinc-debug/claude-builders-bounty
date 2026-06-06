@@ -1,68 +1,97 @@
 #!/usr/bin/env python3
-"""
-Claude Code pre-tool-use hook to block destructive bash commands.
-"""
 
-import os
 import sys
+import os
 import json
 import re
 from datetime import datetime
 from pathlib import Path
 
-def log_blocked_command(command, project_path):
-    """Log blocked commands to file with timestamp"""
+def log_blocked_command(command: str, project_path: str):
+    """Log blocked command to file"""
     log_file = Path.home() / ".claude" / "hooks" / "blocked.log"
+    timestamp = datetime.now().isoformat()
+    log_entry = f"[{timestamp}] Blocked command: {command} in project: {project_path}\n"
+    
+    # Ensure log directory exists
     log_file.parent.mkdir(parents=True, exist_ok=True)
     
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(log_file, "a") as f:
-        f.write(f"[{timestamp}] Command: {command} | Project: {project_path}\n")
+        f.write(log_entry)
 
-def should_block_command(command):
-    """Check if command matches any blocked patterns"""
-    # Normalize command for checking
-    cmd = command.strip().lower()
+def block_destructive_command(command_data):
+    """Check if command is destructive and should be blocked"""
+    # Extract command and project path
+    command = command_data.get("command", "")
+    project_path = command_data.get("cwd", "")
     
-    # Block rm -rf
-    if "rm -rf" in cmd:
-        return True
-        
-    # Block SQL DROP TABLE
-    if "drop table" in cmd:
-        return True
-        
-    # Block git push --force
-    if "git push --force" in cmd:
-        return True
-        
-    # Block TRUNCATE
-    if "truncate" in cmd:
-        # Only block if it's a SQL TRUNCATE command
-        if re.search(r'\btruncate\b', cmd):
-            return True
-            
-    # Block DELETE FROM without WHERE
-    if "delete from" in cmd and "where" not in cmd:
-        return True
-        
-    return False
+    # Destructive patterns to block
+    destructive_patterns = [
+        r"rm\s+-rf",
+        r"DROP\s+TABLE",
+        r"git\s+push\s+--force",
+        r"TRUNCATE",
+        r"DELETE\s+FROM(?!\s+\w+\s+WHERE)"
+    ]
+    
+    # Check if any destructive pattern matches
+    for pattern in destructive_patterns:
+        if re.search(pattern, command, re.IGNORECASE):
+            log_blocked_command(command, project_path)
+            return True, f"Blocked destructive command: {command}"
+    
+    return False, None
 
 def main():
-    """Main hook function"""
-    if len(sys.argv) > 1:
-        command = sys.argv[1]
-        project_path = os.getcwd()
-        
-        if should_block_command(command):
-            log_blocked_command(command, project_path)
-            print(f"🚫 BLOCKED: Dangerous command detected: {command}")
-            print("This command has been blocked for security reasons.")
-            print("Check ~/.claude/hooks/blocked.log for details.")
-            sys.exit(1)
+    # Read input from stdin
+    input_data = sys.stdin.read().strip()
+    if not input_data:
+        print(json.dumps({"result": "allow"}))
+        return
     
-    # If we get here, the command is allowed
-    sys.exit(0)
+    try:
+        # Parse the input as JSON
+        data = json.loads(input_data)
+    except json.JSONDecodeError:
+        # If not valid JSON, treat as plain text
+        print(json.dumps({"result": "allow"}))
+        return
+    
+    # Extract command information
+    if isinstance(data, dict) and "tool" in data and data["tool"] == "bash":
+        command_info = {
+            "command": data.get("command", ""),
+            "cwd": data.get("cwd", "")
+        }
+        is_blocked, message = block_destructive_command(command_info)
+        if is_blocked:
+            response = {
+                "result": "block",
+                "explanation": message
+            }
+            print(json.dumps(response))
+            return
+    
+    # Default allow if not blocked
+    print(json.dumps({"result": "allow"}))
 
 if __name__ == "__main__":
     main()
+
+"""
+Sample input (from Claude):
+{
+  "tool": "bash",
+  "command": "rm -rf /",
+  "cwd": "/home/user/project"
+}
+
+Sample output (if blocked):
+{
+  "result": "block",
+  "explanation": "Blocked destructive command: rm -rf /"
+}
+
+Sample output (if allowed):
+{"result": "allow"}
+"""
