@@ -1,15 +1,15 @@
 # Changelog Generator
 
-Automatically generate a structured `CHANGELOG.md` from your git history.
+This repository contains a bash script to automatically generate a structured CHANGELOG.md from git history.
 
 ## Setup
 
-1. Save `changelog.sh` to your project root
-2. Make it executable: `chmod +x changelog.sh`
-3. Run: `bash changelog.sh`
+1. Make sure you have git installed on your system
+2. Place the `changelog.sh` script in your project root
+3. Run with: `bash changelog.sh`
 
-## How it works
+## Features
 
-- Finds commits since the last git tag
-- Categorizes commits based on keywords in commit messages
-- Outputs to `CHANGELOG.md`
+- Automatically fetches commits since the last git tag
+- Categorizes changes into Added, Fixed, Changed, and Removed sections
+- Generates properly formatted CHANGELOG.md
