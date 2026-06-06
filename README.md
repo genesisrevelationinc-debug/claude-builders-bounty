@@ -56,5 +56,6 @@ This hook blocks dangerous bash commands before they are executed by Claude Code
 
 ## Installation
 
-
+1. Create the hooks directory:
+   
 *Started by the Claude builder community · March 2026 · MIT License*
