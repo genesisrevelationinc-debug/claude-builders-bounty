@@ -1,33 +1,41 @@
-# Claude Code PR Review Workflow
-
-name: Claude Code Review
+name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
 
 jobs:
   review:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          pip install httpx
+          pip install -r claude-review/requirements.txt
 
-      - name: Run Claude Code Review
+      - name: Run Claude Review
         env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          curl -o claude-review https://raw.githubusercontent.com/claude-builders-bounty/claude-builders-bounty/main/claude-review
-          chmod +x claude-review
-          ./claude-review --pr "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/$PR_NUMBER" --comment
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          python -m claude-review --pr "$PR_URL" --output review.md
+
+      - name: Post Review Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: review.md
+          header: claude-review
