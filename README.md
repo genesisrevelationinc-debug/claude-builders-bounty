@@ -1,3 +1,11 @@
+# Generate Changelog
+
+Generate a structured `CHANGELOG.md` from git history.
+
+## Usage
+
+1. Make the script executable:
+
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -5,12 +13,6 @@
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
-
-## Quick Start
-
-1. Clone this repo
-2. Run `bash changelog.sh` to generate a CHANGELOG.md from git history
-3. Check the generated `CHANGELOG.md`
 
 ---
 
@@ -52,8 +54,8 @@ You're in the right place.
 ## Community
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
 
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
 *Started by the Claude builder community · March 2026 · MIT License*
