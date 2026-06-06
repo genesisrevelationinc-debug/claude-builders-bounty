@@ -1,5 +1,179 @@
 ```diff
 --- /dev/null
-+++ b/weekly-dev-summary.json
-@@ -0,0 +1,1 @@
-+{"name":"Weekly Development Summary","nodes":[{"parameters":{},"id":"04a7eb53-1c2a-4231-b8d9-2d94038623c9","name":"Start","type":"n8n-nodes-base.cron","typeVersion":1,"position":[250,300],"webhookId":"04a7eb53-1c2a-4231-b8d9-2d94038623c9"},{"parameters":{"operation":"getAll","owner":"{{ $parameter['github_owner'] }}","repository":"{{ $parameter['github_repo'] }}","filters":{"since":"{{ $fromDate }}","until":"{{ $toDate }}","state":"closed","type":"commits"},"resolveData":true},"id":"8a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d","name":"Get Commits","type":"n8n-nodes-base.github","typeVersion":1,"position":[450,250]},{"parameters":{"operation":"getAll","owner":"{{ $parameter['github_owner'] }}","repository":"{{ $parameter['github_repo'] }}","filters":{"since":"{{ $fromDate }}","until":"{{ $toDate }}","state":"closed"},"resolveData":true},"id":"9b8a7c6d-5e4f-3e2d-1c0b-9a8b7c6d5e4f","name":"Get Closed Issues","type":"n8n-nodes-base.github","typeVersion":1,"position":[450,350]},{"parameters":{"operation":"getAll","owner":"{{ $parameter['github_owner'] }}","repository":"{{ $parameter['github_repo'] }}","filters":{"since":"{{ $fromDate }}","until":"{{ $toDate }}","state":"closed","base":"main"},"resolveData":true},"id":"0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d","name":"Get Merged PRs","type":"n8n-nodes-base.github","typeVersion":1,"position":[450,450]},{"parameters":{"model":"claude-sonnet-4-20250514","prompt":"Generate a narrative summary of the following GitHub activity for the week of {{ $fromDate }} to {{ $toDate }}:\n\nCommits:\n{{ $commits }}\n\nClosed Issues:\n{{ $issues }}\n\nMerged PRs:\n{{ $prs }}\n\nPlease provide a concise narrative summary in {{ $parameter['language'] }} suitable for a weekly development update.","systemPrompt":"You are a technical writer creating a weekly development summary.","maxTokens":2000},"id":"1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d","name":"Claude API","type":"@n8n/n8n-nodes-langchain.lmAnthropic","typeVersion":1,"position":[750,350]},{"parameters":{"fromEmail":"{{ $parameter['email_from'] }}","toEmail":"{{ $parameter['email_to'] }}","subject":"Weekly Development Summary - {{ $fromDate }} to {{ $toDate }}","text":"{{ $summary }}"},"id":"2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7","name":"Send Email","type":"n8n-nodes-base.emailSend","typeVersion":1,"position":[950,350]},{"parameters":{"keepOnlySet":true,"values":{"string":[{"name":"fromDate","value":"{{ $json[\"timestamp\"].split('T')[0] }}"},{"name":"toDate","value":"{{ $json[\"timestamp\"].split('T')[0] }}"}]}},"id":"3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7a8","name":"Set Dates","type":"n8n-nodes-base.set","typeVersion":1,"position":[350,150]},{"parameters":{"keepOnlySet":true,"values":{"string":[{"name":"summary","value":"{{ $json[\"response\"] }}"}]}},"id":"4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7a8b9","name":"Format Summary","type":"n8n-nodes-base.set","typeVersion":1,"position":[850,350]},{"parameters":{"fieldToSplit":"commits","options":{"keepSource":true}}},"id":"5e6f7a8b-9c0d-1e2f-3a4b-5c6d7a8b9c0","name":"Split Commits","type":"n8n-nodes-base.splitInBatches","typeVersion":1,"position":[550,250]},{"parameters":{"fieldToSplit":"issues","options":{"keepSource":true}}},"id":"6f7a8b9c-0d1e-2f3a-4b5c-6d7a8b9c0d1","name":"Split Issues","type":"n8n-nodes-base.splitInBatches","typeVersion":1,"position":[550,350]},{"parameters":{"fieldToSplit":"prs","options":{"keepSource":true}}},"id":"7a8b9c0d-1e2f-3a4b-5c6d-7a8b9c0d1e2","name":"Split PRs","type":"n8n-nodes-base.splitInBatches","typeVersion":1,"position":[550,450]}],"connections":{"Start":{"main":[{"node":"Set Dates","type":"main","index":0}]},"Get Commits":{"main":[{"node":"Split Commits","type":"main","index":0}]},"Get Closed Issues":{"main":[{"node":"Split Issues","type":"main","index":0}]},"Get Merged PRs":{"main":[{"node":"Split PRs","type":"main","index":0}]},"Split Commits":{"main":[{"node":"Claude API","type":"main","index":0}]},"Split Issues":{"main":[{"node":"Claude API","type":"main","index":0}]},"Split PRs":{"main":[{"node":"Claude API","type":"main
++++ b/claude-weekly-summary.json
+@@ -1,0 +1,1009 @@
++{
++  "name": "Claude Weekly Dev Summary",
++  "nodes": [
++    {
++      "parameters": {},
++      "id": "f881e248-270a-404d-b4ed-9d90d4e31c3c",
++      "name": "Start",
++      "type": "n8n-nodes-base.cron",
++      "typeVersion": 1,
++      "position": [
++        250,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "resource": "repository",
++        "owner": "={{ $json[\"github_owner\"] }}",
++        "repository": "={{ $json[\"github_repo\"] }}",
++        "filePath": "={{ $json[\"github_token\"] }}",
++        "branch": "={{ $json[\"github_branch\"] }}",
++        "fileContent": "={{ $json[\"github_file_content\"] }}",
++        "commitMessage": "={{ $json[\"github_commit_message\"] }}",
++        "additionalFields": {
++          "state": "all",
++          "since": "={{ $json[\"since_date\"] }}",
++          "until": "={{ $json[\"until_date\"] }}",
++          "per_page": 100
++        }
++      },
++      "id": "4f3b2c9f-8a1b-4c2d-9d8e-0a1b2c3d4e5f",
++      "name": "GitHub",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        450,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "model": "claude-sonnet-4-20250514",
++        "prompt": "={{ $json[\"claude_prompt\"] }}",
++        "maxTokens": 1024,
++        "temperature": 0.7
++      },
++      "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
++      "name": "Claude",
++      "type": "n8n-nodes-base.claude",
++      "typeVersion": 1,
++      "position": [
++        850,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "send": true,
++        "email": "={{ $json[\"email\"] }}",
++        "subject": "={{ $json[\"subject\"] }}",
++        "text": "={{ $json[\"text\"] }}",
++        "options": {
++          "allowMissingCredentials": false
++        }
++      },
++      "id": "b2c3d4e5-f6a7-8901-2345-678901abcdef",
++      "name": "Email",
++      "type": "n8n-nodes-base.emailSend",
++      "typeVersion": 1,
++      "position": [
++        1050,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "mode": "runOnce",
++        "options": {
++          "responsePropertyName": "data"
++        }
++      },
++      "id": "c3d4e5f6-7890-1234-5678-901234567890",
++      "name": "Set",
++      "type": "n8n-nodes-base.set",
++      "typeVersion": 1,
++      "position": [
++        650,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "options": {
++          "responsePropertyName": "data"
++        }
++      },
++      "id": "d4e5f6a7-8901-2345-6789-012345678901",
++      "name": "Function",
++      "type": "n80n-nodes-base.function",
++      "typeVersion": 1,
++      "position": [
++        750,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "url": "={{ $json[\"webhook_url\"] }}",
++        "method": "POST",
++        "fieldToCheck": "={{ $json[\"field_to_check\"] }}",
++        "options": {
++          "responsePropertyName": "data"
++        }
++      },
++      "id": "e5f6a7b8-9012-3456-7890-123456789012",
++      "name": "Webhook",
++      "type": "n8n-nodes-base.webhook",
++      "typeVersion": 1,
++      "position": [
++        950,
++        300
++      ]
++    }
++  ],
++  "pinData": {},
++  "connections": {
++    "Start": {
++      "main": [
++        [
++          {
++            "node": "GitHub",
++            "type": "main",
++            "index": 0
++          }
++        ]
++      ]
++    },
++    "GitHub": {
++      "main": [
++        [
++          {
++            "node": "Set",
++            "type": "main",
++            "index": 0
++          }
++        ]
++      ]
++    },
++    "Set": {
++      "main": [
++        [
++          {
++            "node": "Claude",
++            "type": "main",
++            "index": 0
++          }
++        ]
++      ]
++    },
++    "Claude": {
++      "main": [
++        [
++          {
++            "node": "Email",
++            "type": "main",
++            "index": 0
++          },
++          {
++            "node": "Webhook",
++            "type": "main",
++            "index": 0
++          }
++        ]
++      ]
++    }
