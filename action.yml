@@ -1,22 +1,24 @@
-name: 'Claude Code Review'
-description: 'Reviews PRs with Claude Code and posts structured comments'
-author: 'Claude Builder'
+name: 'Claude Code PR Review'
+description: 'Posts a structured code review comment on a pull request'
+author: 'Claude Builders Bounty'
 inputs:
   github-token:
     description: 'GitHub token for API access'
     required: true
-  claude-token:
-    description: 'Claude Code API token'
+  pr-number:
+    description: 'Pull request number to review'
+    required: true
+  owner:
+    description: 'Repository owner'
+    required: true
+  repo:
+    description: 'Repository name'
     required: true
 runs:
-  using: 'composite'
-  steps:
-    - name: Get PR diff
-      run: |
-        PR_NUMBER=$(echo $GITHUB_REF | sed 's/refs\/pull\///' | sed 's/\/merge//')
-        echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-    - name: Analyze with Claude Code
-      run: |
-        # Here you would call the Claude Code API with the PR diff
-        # and generate the structured review comment
-      shell: bash
+  using: 'node12'
+  main: 'claude-review'
+  args:
+    - '--token'
+    - ${{ inputs.github-token }}
+    - '--pr'
+    - https://github.com/${{ inputs.owner }}/${{ inputs.repo }}/pull/${{ inputs.pr-number }}
