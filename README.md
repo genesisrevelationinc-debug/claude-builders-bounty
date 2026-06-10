@@ -50,14 +50,10 @@ You're in the right place.
 
 ---
 
-# CHANGELOG.md Generator
+# Changelog Generator
 
-## Setup Instructions
+## Setup
 
-1. Save the `changelog.sh` script in your project's root directory
-2. Make it executable: `chmod +x changelog.sh`
-3. Run the script: `bash changelog.sh`
-
-The script will generate a `CHANGELOG.md` file with changes from your last git tag.
-Commit messages are automatically categorized into Added, Fixed, Changed, or Removed sections.
+1. Make the script executable:
+   
 *Started by the Claude builder community · March 2026 · MIT License*
