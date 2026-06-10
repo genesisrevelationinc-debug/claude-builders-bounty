@@ -1,183 +1,172 @@
 ```diff
 --- /dev/null
-+++ b/claude-weekly-dev-summary.json
-@@ -0,0 +1,700 @@
++++ b/n8n-weekly-dev-summary.json
+@@ -1 +1,1079 @@
 +{
-+  "name": "Claude Weekly Dev Summary",
++  "name": "Weekly Dev Summary",
 +  "nodes": [
 +    {
 +      "parameters": {},
-+      "id": "Schedule",
-+      "name": "Schedule",
++      "id": "1",
++      "name": "Start",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
 +        250,
 +        300
-+      ]
++      ],
++      "webhookId": "7a1f8c2c-434a-4b2e-8e7f-3987d1e1a851"
 +    },
 +    {
 +      "parameters": {
-+        "resource": "get",
-+        "owner": "={ { $json[\"repo_owner\"] } }",
-+        "repo": "={ { $json[\"repo_name\"] } }",
-+        "fieldSelectors": [
-+          {
-+            "field": "commits",
-+            "active": true,
-+            "operation": "searchCommits",
-+            "parameters": {
-+              "since": "={ { $json[\"since\"] } }",
-+              "until": "={ { $json[\"until\"] } }"
-+            }
-+          },
-+          {
-+            "field": "pulls",
-+            "active": true,
-+            "operation": "getAll",
-+            "parameters": {
-+              "state": "closed",
-+              "sort": "updated",
-+              "direction": "desc"
-+            }
-+          },
-+          {
-+            "field": "issues",
-+            "active": true,
-+            "operation": "getAll",
-+            "parameters": {
-+              "state": "closed",
-+              "sort": "updated",
-+              "direction": "desc"
-+            }
-+          }
-+        ]
++        "resource": "issues",
++        "owner": "={{ $json.github_repo_owner }}",
++        "repository": "={{ $json.github_repo_name }}",
++        "authentication": "={{ $json.github_auth_type }}",
++        "personalAccessToken": "={{ $json.github_token }}",
++        "filters": {
++          "state": "closed",
++          "sort": "updated",
++          "direction": "desc",
++          "since": "={{ $json.since_date }}",
++          "until": "={{ $json.until_date }}"
++        }
 +      },
-+      "id": "GitHub",
-+      "name": "GitHub",
++      "id": "2",
++      "name": "Get Closed Issues",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        550,
++        450,
 +        300
++      ],
++      "credentials": {
++        "githubApi": "={{ $json.github_credential }}"
++      }
++    },
++    {
++      "parameters": {
++        "resource": "pulls",
++        "owner": "={{ $json.github_repo_owner }}",
++        "repository": "={{ $json.github_repo_name }}",
++        "authentication": "={{ $json.github_auth_type }}",
++        "personalAccessToken": "={{ $json.github_token }}",
++        "filters": {
++          "state": "closed",
++          "sort": "updated",
++          "direction": "desc",
++          "base": "={{ $json.github_branch }}",
++          "since": "={{ $json.since_date }}",
++          "until": "={{ $json.until_date }}"
++        }
++      },
++      "id": "3",
++      "name": "Get Merged PRs",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        450,
++        450
++      ],
++      "credentials": {
++        "githubApi": "={{ $json.github_credential }}"
++      }
++    },
++    {
++      "parameters": {
++        "resource": "commits",
++        "owner": "={{ $json.github_repo_owner }}",
++        "repository": "={{ $json.github_repo_name }}",
++        "authentication": "={{ $json.github_auth_type }}",
++        "personalAccessToken": "={{ $json.github_token }}",
++        "filters": {
++          "since": "={{ $json.since_date }}",
++          "until": "={{ $json.until_date }}",
++          "path": "={{ $json.github_path }}",
++          "author": "={{ $json.github_author }}",
++          "sha": "={{ $json.github_branch }}"
++        }
++      },
++      "id": "4",
++      "name": "Get Commits",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        450,
++        600
++      ],
++      "credentials": {
++        "githubApi": "={{ $json.github_credential }}"
++      }
++    },
++    {
++      "parameters": {
++        "mode": "combine",
++        "inputData": "={{ $json.github_data }}",
++        "options": {
++          "mergeBy": "index",
++          "outputFormat": "unpairedItem"
++        }
++      },
++      "id": "5",
++      "name": "Merge Data",
++      "type": "n8n-nodes-base.merge",
++      "typeVersion": 1,
++      "position": [
++        650,
++        450
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "model": "claude-3-sonnet-4-20250514",
-+        "options": {
-+          "maxTokens": 4000,
-+          "temperature": 0.7,
-+          "topP": 1,
-+          "topK": 5
-+        },
-+        "system_prompt": "={ { $json[\"system_prompt\"] } }",
-+        "messages": "=[ {\"role\": \"user\", \"content\": \"={ { $json[\"prompt\"] } }\"} ]",
-+        "responseProperty": "claude_response"
++        "mode": "combine",
 +      },
-+      "id": "Claude_API",
++      "id": "6",
++      "name": "Merge All Data",
++      "type": "n8n-nodes-base.merge",
++      "typeVersion": 1,
++      "position": [
++        850,
++        450
++      ]
++    },
++    {
++      "parameters": {
++        "model": "claude-sonnet-4-20250514",
++        "prompt": "={{ $json.claude_prompt }}",
++        "system": "={{ $json.claude_system_prompt }}",
++        "max_tokens": "={{ $json.claude_max_tokens }}",
++        "temperature": "={{ $json.claude_temperature }}",
++        "stop_sequences": "={{ $json.claude_stop_sequences }}",
++        "top_p": "={{ $json.claude_top_p }}",
++        "top_k": "={{ $json.claude_top_k }}",
++        "anthropic-version": "={{ $json.claude_version }}",
++        "anthropic-api-key": "={{ $json.claude_api_key }}"
++      },
++      "id": "7",
 +      "name": "Claude API",
 +      "type": "n8n-nodes-base.claude",
 +      "typeVersion": 1,
 +      "position": [
-+        850,
-+        300
-+      ]
++        1050,
++        450
++      ],
++      "credentials": {
++        "claudeApi": "={{ $json.claude_credential }}"
++      }
 +    },
 +    {
 +      "parameters": {
-+        "subject": "={ { $json[\"email_subject\"] } }",
-+        "to": "={ { $json[\"email_to\"] } }",
-+        "body": "={ { $json[\"email_body\"] } }"
-+      },
-+      "id": "Send_Email",
-+      "name": "Send Email",
-+      "type": "n8n-nodes-base.emailSend",
-+      "typeVersion": 1,
-+      "position": [
-+        1150,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "keepOnlySet": true,
-+        "values": {
-+          "string": [
-+            {
-+              "name": "repo_owner",
-+              "value": "claude-builders-bounty"
-+            },
-+            {
-+              "name": "repo_name",
-+              "value": "claude-builders-bounty"
-+            },
-+            "name": "system_prompt",
-+              "value": "You are a helpful assistant that summarizes weekly development activity in a clear, concise, and well-structured way. Please create a summary of the development activity for the week based on the GitHub data provided. Organize it in a narrative format with clear sections for commits, issues, and pull requests. Highlight key changes and contributions."
-+            },
-+            {
-+              "name": "email_to",
-+              "value": "team@example.com"
-+            },
-+            {
-+              "name": "email_subject",
-+              "value": "Weekly Development Summary - {{new Date().toISOString().split('T')[0]}}"
-+            }
-+          ]
++        "resource": "users",
++        "owner": "={{ $json.github_repo_owner }}",
++        "repository": "={{ $json.github_repo_name }}",
++        "authentication": "={{ $json.github_auth_type }}",
++        "personalAccessToken": "={{ $json.github_token }}",
++        "filters": {
++          "since": "={{ $json.since_date }}",
++          "until": "={{ $json.until_date }}"
 +        }
 +      },
-+      "id": "Set",
-+      "name": "Set",
-+      "type": "n8n-nodes-base.set",
-+      "typeVersion": 1,
-+      "position": [
-+        400,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "values": {
-+          "string": [
-+            {
-+              "name": "since",
-+              "value": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }}"
-+            },
-+            {
-+              "name": "until",
-+              "value": "={{ new Date().toISOString().split('T')[0] }}"
-+            }
-+          ]
-+        }
-+      },
-+      "id": "Date_Helper",
-+      "name": "Date Helper",
-+      "type": "n8n-nodes-base.function",
-+      "typeVersion": 1,
-+      "position": [
-+      550,
-+      150
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "values": {
-+          "string": [
-+            {
-+              "name": "prompt",
-+              "value": "Please summarize the following development activity for the week:\n\nCommits:\n{{ $json[\"commits\"] }}\n\nIssues:\n{{ $json[\"issues\"] }}\n\nPull Requests:\n{{ $json[\"pulls\"] }}\n\nCreate a narrative summary organized by category with key highlights and statistics."
-+            }
-+          ]
-+        }
-+      },
-+      "id": "Prompt_Builder",
-+      "name": "Prompt Builder",
-+      "type": "n8n-nodes-base.set",
-+      "typeVersion": 1,
-+      "position": [
-+        700,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters
++      "id": "8",
++      "name": "Get Contributors",
++
