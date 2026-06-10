@@ -50,9 +50,20 @@ You're in the right place.
 
 ---
 
-# Destructive Command Blocker Hook
-
-## Installation
-
-
 *Started by the Claude builder community · March 2026 · MIT License*
+
+---
+
+## Hooks
+
+### Pre-Tool-Use Hook: Block Destructive Commands
+
+A security hook that intercepts dangerous bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute in Claude Code.
+
+**Installation:** See [`hooks/README.md`](hooks/README.md)
+
+---
+
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
