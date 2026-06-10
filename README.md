@@ -6,14 +6,6 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
-## Quick Start
-
-Generate a changelog from your git history in 3 steps:
-
-1. Clone this repo
-2. Run `bash changelog.sh`
-3. Check your `CHANGELOG.md`
-
 ---
 
 ## How it works
