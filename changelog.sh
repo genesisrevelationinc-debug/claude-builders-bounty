@@ -1,106 +1,68 @@
 #!/bin/bash
 
-# changelog.sh - Generate a structured CHANGELOG.md from git history
+# Script to generate a CHANGELOG.md from git history
 
-set -e
-
-# Configuration
-CHANGELOG_FILE="CHANGELOG.md"
-TEMP_FILE=$(mktemp)
-
-# Cleanup function
-cleanup() {
-    rm -f "$TEMP_FILE"
-}
-trap cleanup EXIT
-
-# Get the latest tag or use initial commit if no tags exist
-if ! git describe --tags --abbrev=0 HEAD >/dev/null 2>&1; then
-    LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+# Get the latest tag or default to empty if no tags exist
+if ! git describe --tags --abbrev=0 >/dev/null 2>&1; then
+  echo "No existing tags, using all commits from HEAD"
+  from_commit=$(git rev-list --max-parents=0 HEAD)
 else
-    LAST_TAG=$(git describe --tags --abbrev=0 HEAD)
+  latest_tag=$(git describe --tags --abbrev=0)
+  from_commit=$(git rev-list --boundary $latest_tag...HEAD | head -1)
 fi
 
-# Get commits since last tag
-COMMITS=$(mktemp)
-trap "rm -f $COMMITS" EXIT
-git log --no-merges --pretty=format:"- %s" "$LAST_TAG..HEAD" > "$COMMITS" 2>/dev/null || true
+# Get commit range from last tag to HEAD
+commits=$(git log --oneline $from_commit..HEAD)
 
-# Create categories
-ADDED=$(mktemp)
-FIXED=$(mktemp)
-CHANGED=$(mktemp)
-REMOVED=$(mktemp)
-trap "rm -f $ADDED $FIXED $CHANGED $REMOVED" EXIT
+# Create temporary file to process commits
+tmp_file=$(mktemp)
+echo "$commits" > $tmp_file
+
+# Initialize categories
+added_commits=""
+fixed_commits=""
+changed_commits=""
+removed_commits=""
 
 # Categorize commits
-while IFS= read -r line || [[ -n "$line" ]]; do
-    # Remove the leading "- " from commit line
-    commit_msg=${line#- }
-    case "$commit_msg" in
-        *"add"*)
-            echo "$commit_msg" >> "$ADDED"
-            ;;
-        *"Add"*)
-            echo "$commit_msg" >> "$ADDED"
-            ;;
-        *"fix"*)
-            echo "$commit_msg" >> "$FIXED"
-            ;;
-        *"Fix"*)
-            echo "$commit_msg" >> "$FIXED"
-            ;;
-        *"remove"*)
-            echo "$commit_msg" >> "$REMOVED"
-            ;;
-        *"Remove"*)
-            echo "$commit_msg" >> "$REMOVED"
-            ;;
-        *"delete"*)
-            echo "$commit_msg" >> "$REMOVED"
-            ;;
-        *"Delete"*)
-            echo "$commit_msg" >> "$REMOVED"
-            ;;
-        *)
-            echo "$commit_msg" >> "$CHANGED"
-            ;;
-    esac
-done < "$COMMITS"
+while IFS= read -r line; do
+  # Categorize based on conventional commit messages
+  if [[ $line == *"feat:"* ]] || [[ $line == *"add:"* ]]; then
+    added_commits="$added_commits- $line\n"
+  elif [[ $line == *"fix:"* ]]; then
+    fixed_commits="$fixed_commits- $line\n"
+  elif [[ $line == *"chore:"* ]] || [[ $line == *"refactor:"* ]] || [[ $line == *"style:"* ]] || [[ $line == *"docs:"* ]]; then
+    changed_commits="$changed_commits- $line\n"
+  elif [[ $line == *"remove:"* ]]; then
+    removed_commits="$removed_commits- $line\n"
+  else
+    # Default to 'Changed' if no conventional commit pattern matched
+    changed_commits="$line\n$changed_comm0its"
+  fi
+done < <cat $tmp_file
 
-# Generate CHANGELOG.md
-{
-    echo "# Changelog"
-    echo ""
-    
-    # Only output categories that have content
-    if [ -s "$ADDED" ]; then
-        echo "## Added"
-        echo ""
-        cat "$ADDED"
-        echo ""
-    fi
-    
-    if [ -s "$FIXED" ]; then
-        echo "## Fixed"
-        echo ""
-        cat "$FIXED"
-        echo ""
-    fi
-    
-    if [ -s "$CHANGED" ]; then
-        echo "## Changed"
-        echo ""
-        cat "$CHANGED"
-        echo ""
-    fi
-    
-    if [ -s "$REMOVED" ]; then
-        echo "## Removed"
-        echo ""
-        cat "$REMOVED"
-        echo ""
-    fi
-} > "$CHANGELOG_FILE"
 
-echo "Changelog generated in $CHANGELOG_FILE"
+# Generate the changelog content
+changelog="## Changelog\n\n"
+
+if [ -n "$added_commits" ]; then
+  changelog="$changelog### Added\n$added_commits\n"
+fi
+
+if [ -n "$fixed_commits" ]; then
+  changelog="$changelog### Fixed\n$fixed_commits\n"
+fi
+
+if [ -n "$changed_commits" ]; then
+  changit+log="$changelog### Changed\n$changed_commits\n"
+fi
+
+if [ -n "$removed_commits" ]; then
+  changelog="$changelog### Removed\n$removed_commits\n"
+fi
+
+# Write to CHANGELOG.md
+echo -e "$changelog" > CHANGELOG.md
+
+# Cleanup
+rm $tmp_file
