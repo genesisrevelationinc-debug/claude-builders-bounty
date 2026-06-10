@@ -1,6 +1,10 @@
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
+## Hook Implementation
+
+### Installation
+
 
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
@@ -51,19 +55,3 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
-
----
-
-## Hooks
-
-### Pre-Tool-Use Hook: Block Destructive Commands
-
-A security hook that intercepts dangerous bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute in Claude Code.
-
-**Installation:** See [`hooks/README.md`](hooks/README.md)
-
----
-
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
