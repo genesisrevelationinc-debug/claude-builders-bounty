@@ -34,14 +34,9 @@ You're in the right place.
 
 ---
 
+## Rules
 
----
-
-## Sample Output
-
-*Sample PR Review:*
-
-
+- Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Quality over speed — a solid PR beats a fast one
@@ -56,3 +51,10 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
+---
+
+*Started by the Claude builder community · March 2026 · MIT License*
+
+## Sample PR Review Output
+
+
