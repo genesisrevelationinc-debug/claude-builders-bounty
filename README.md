@@ -2,14 +2,6 @@
 
 > A community bounty board for Claude Code builders.
 
-## Claude-Review Agent (Pull Request Reviewer)
-
-This agent reviews GitHub pull requests and provides structured feedback.
-
-### Installation
-
-
-
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
@@ -42,9 +34,14 @@ You're in the right place.
 
 ---
 
-## Rules
 
-- Tasks must be related to Claude Code or AI tooling
+---
+
+## Sample Output
+
+*Sample PR Review:*
+
+
 - Every issue must have clear acceptance criteria before a bounty is activated
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Quality over speed — a solid PR beats a fast one
