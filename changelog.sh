@@ -1,36 +1,64 @@
 #!/bin/bash
 
-# Get the previous tag
-PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "v0.0.0")
+# changelog.sh - Generate a structured CHANGELOG.md from git history
 
-# Get the commit message since last tag
-COMMITS=$(git log --oneline "$PREV_TAG..HEAD")
+# Get the last tag, or initial commit if no tags exist
+LAST_TAG=$(git describe --tags --abbrev=0 --always)
+if [ -z "$LAST_TAG" ] || [ "$LAST_TAG" = "" ]; then
+  LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+fi
 
-# Initialize categories
-ADDED=""
-CHANGED=""
-FIXED=""
-REMOVED=""
-
-# Process commits and categorize
-while read -r line; do
-  if [[ $line == *"fix:"* ]] || [[ $line == *"fixed"* ]]; then
-    FIXED="$FIXED- $line"$'\n'
-  elif [[ $line == *"add:"* ]] || [[ $line == *"feat:"* ]]; then
-    ADDED="$ADDED- $line"$'\n'
-  elif [[ $line == *"change:"* ]] || [[ $line == *"update:"* ]] || [[ $line == *"refactor:"* ]]; then
-    CHANGED="$CHANGED- $line"$'\n'
-  elif [[ $line == *"remove:"* ]] || [[ $line == *"revert:"* ]]; then
-    REMOVED="$REMOVED- $line"$'\n'
+# Get commit types for categorization
+get_commit_type() {
+  local message="$1"
+  if [[ $message == *"fix"* ]] || [[ $message == *"Fix"* ]] || [[ $message == *"bug"* ]] || [[ $message == *"Bug"* ]] || [[ $message == *"resolve"* ]] || [[ $message == *"Resolve"* ]]; then
+    echo "Fixed"
+  elif [[ $message == *"remove"* ]] || [[ $message == *"Remove"* ]] || [[ $message == *"delete"* ]] || [[ $message == *"Delete"* ]]; then
+    echo "Removed"
+  elif [[ $message == *"change"* ]] || [[ $message == *"Change"* ]] || [[ $message == *"update"* ]] || [[ $message == *"Update"* ]] || [[ $message == *"refactor"* ]] || [[ $message == *"Refactor"* ]]; then
+    echo "Changed"
+  else
+    echo "Added"
   fi
-done <<< "$COMMITS"
+}
 
-# Write the changelog
-cat > CHANGELOG.md << EOF
-$(if [ -n "$ADDED" ]; then echo "## Added"; echo -e "$ADDED"; fi)
-$(if [ -n "$CHANGED" ]; then echo "## Changed"; echo -e "$CHANGED"; fi)
-$(if [ -n "$FIXED" ]; then echo "## Fixed"; echo -e "$FIXED"; fi)
-$(if [ -n "$REMOVED" ]; then echo "## Removed"; echo -e "$REMOVED"; fi)
-EOF
+# Get the commits between the last tag and HEAD
+if [ "$LAST_TAG" = "$(git rev-list --max-parents=0 HEAD)" ]; then
+  COMMITS=$(git log --pretty=format:"%s" $LAST_TAG..HEAD)
+else
+  COMMITS=$(git log --pretty=format:"%s" $LAST_TAG..HEAD)
+fi
 
-echo "Changelog generated successfully!"
+# If no new commits since last tag, create an empty changelog
+if [ -z "$COMMITS" ]; then
+  echo "# Changelog" > CHANGELOG.md
+  echo "" >> CHANGELOG.md
+  echo "## [Unreleased]" >> CHANGELOG.md
+  echo "" >> CHANGELOG.md
+  echo "### Added" >> CHANGELOG.md
+  echo "" >> CHANGELOG.md
+  echo "### Fixed" >> CHANGELOG.md
+  echo "" >> CHANGELOG.md
+  echo "### Changed" >> CHANGELOG.md
+  echo "" >> CHANGELOG.md
+  echo "### Removed" >> CHANGELOG.md
+  echo "" >> CHANGELOG.md
+  exit 0
+fi
+
+# Generate the changelog
+{
+  echo "# Changelog"
+  echo ""
+  echo "## [Unreleased]"
+  echo ""
+  echo "### Added"
+  echo ""
+  echo "### Fixed"
+  echo ""
+  echo "### Changed"
+  echo ""
+  echo "### Removed"
+} > CHANGELOG.md
+
+echo "CHANGELOG.md has been generated!"
