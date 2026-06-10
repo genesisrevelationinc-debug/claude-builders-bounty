@@ -6,6 +6,10 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
+## Hooks
+
+- **[pre-tool-use](hooks/)** — Block destructive bash commands in Claude Code. See [hooks/README.md](hooks/README.md).
+
 ---
 
 ## How it works
@@ -49,10 +53,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# Destructive Command Blocker Hook
-
-## Installation
-
 
 *Started by the Claude builder community · March 2026 · MIT License*
