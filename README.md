@@ -1,5 +1,19 @@
+# Claude PR Reviewer
+
+> A GitHub App that reviews PRs and generates structured feedback
+
+## Features
+
+This tool provides:
+- Automated PR reviews with structured feedback
+- Summary of changes, risks, and improvement suggestions
+- Confidence scoring for the review
+
+## Installation
+
+
 # Claude Builders Bounty 🤖
-claude-builders-bounty/claude-builders-bounty
+
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
@@ -51,14 +65,3 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
-- Quality over speed — a solid PR beats a fast one
-
----
-
-## Sample Agent Implementation
-
-### Setup
-
-1. Install required dependencies:
-   
