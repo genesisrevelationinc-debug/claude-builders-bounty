@@ -2,6 +2,21 @@
 
 > A community bounty board for Claude Code builders.
 
+## Claude Code PR Reviewer
+
+This is a Claude Code agent that reviews PRs and generates structured Markdown comments.
+
+### Features
+
+- Analyzes PR diffs for code quality, risks, and suggestions
+- Generates structured, actionable feedback
+- CLI and GitHub Action support
+- Works with real GitHub PRs
+
+### Installation
+
+
+
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
@@ -51,10 +66,3 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
----
-
-*Started by the Claude builder community · March 2026 · MIT License*
-
-## Sample PR Review Output
-
-
