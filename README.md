@@ -50,4 +50,14 @@ You're in the right place.
 
 ---
 
+# Generate Changelog
+
+This skill generates a structured `CHANGELOG.md` file from your project's git history.
+
+## Setup
+
+1. Create a `SKILL.md` file with the provided changelog generation code
+2. Add the changelog generation command to your Claude Code project
+3. Run `/generate-changelog` to create your changelog
+4. Or run `bash changelog.sh` from your project root
 *Started by the Claude builder community · March 2026 · MIT License*
