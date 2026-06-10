@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root.
-> Assumes: Next.js 15 (App Router), TypeScript, Tailwind CSS, better-sqlite3, Zod.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso). Paste this into your repo root. Claude Code reads it automatically.
 
 ---
 
@@ -9,17 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = simpler data flow |
-| Runtime | Node.js 20+ | `better-sqlite3` requires native bindings, no Edge |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-tenant |
-| ORM/Query | Raw SQL + Zod | No ORM magic. Schema is the source of truth. |
-| Auth | `bcryptjs` + `jose` (JWT) | No external auth service dependency |
-| Styling | Tailwind CSS + `shadcn/ui` | Copy-paste components, full control |
-| Validation | Zod | Same schemas on server and client |
-| Testing | Vitest + Playwright | Unit for logic, E2E for critical paths |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable ESM |
+| Database | SQLite via `better-sqlite3` (local) or Turso (remote) | Zero-config local dev, edge-ready with Turso |
+| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, no codegen bloat |
+| Auth | Lucia + `oslo` (or NextAuth.js v5 if OAuth-only) | Session-based, works with SQLite out of the box |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste components |
+| Validation | Zod | Schema validation shared between server and client |
+| Testing | Vitest + Playwright | Unit tests in Node, E2E in real browser |
 
-**Non-negotiable:** This stack runs on Node.js runtime only. Do NOT use Edge Runtime.
-`better-sqlite3` is native and must run in Node.js. Edge = broken.
+**Lock these versions in `package.json`.** Do not upgrade major versions without updating this file.
 
 ---
 
