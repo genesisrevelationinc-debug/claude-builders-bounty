@@ -1,85 +1,84 @@
 #!/usr/bin/env python3
-"""
-Claude Code pre-tool-use hook to block destructive bash commands.
-"""
 
+import json
 import sys
 import os
 import re
 from datetime import datetime
-import json
-import shutil
+from pathlib import Path
 
 def log_blocked_command(command, project_path):
-    """Log blocked command attempts to file"""
-    log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Ensure log directory exists
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    
+    """Log blocked command to file"""
     log_entry = {
-        "timestamp": timestamp,
+        "timestamp": datetime.now().isoformat(),
         "command": command,
-        "project_path": project_path
+        "project_path": project_path or "Unknown"
     }
     
+    log_file = Path.home() / ".claude" / "hooks" / "blocked.log"
     with open(log_file, "a") as f:
-        f.write(f"[{timestamp}] Blocked command: {command} (Project: {project_path})\n")
-
-def is_destructive_command(command):
-    """Check if command matches destructive patterns"""
-    destructive_patterns = [
-        r'rm\s+-rf',  # rm -rf commands
-        r'DROP\s+TABLE',  # SQL DROP TABLE
-        r'git\s+push\s+--force',  # git push --force
-        r'TRUNCATE\s+',  # SQL TRUNCATE
-        r'DELETE\s+FROM\s+\w+\s*$',  # DELETE FROM without WHERE clause
-        r'DELETE\s+FROM\s+\w+\s*;',  # DELETE FROM without WHERE clause
-    ]
-    
-    # Check if any pattern matches
-    for pattern in destructive_patterns:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True
-    return False
+        f.write(f"{json.dumps(log_entry)}\n")
 
 def main():
-    # Read command from stdin
-    input_data = sys.stdin.read()
-    if not input_data:
-        sys.exit(1)
-        
-    try:
-        # Parse the JSON input
-        data = json.loads(input_data)
-        command = data.get('tool_input', {}).get('command', '') if data.get('tool_input') else ''
-        project_path = os.getcwd()
-        
-        if is_destructive_command(command):
+    # Read the command from stdin
+    input_data = json.load(sys.stdin)
+    command = input_data.get("command", "")
+    project_path = input_data.get("project_path", "")
+    
+    # Destructive patterns to block
+    destructive_patterns = [
+        r"rm\s+-rf",
+        r"DROP\s+TABLE",
+        r"git\s+push\s+--force",
+        r"TRUNCATE",
+        r"DELETE\s+FROM(?!(?!.*\bWHERE\b))"  # DELETE FROM without WHERE
+    ]
+    
+    # Check if command matches any destructive pattern
+    for pattern in destructive_patterns:
+        if re.search(pattern, command, re.IGNORECASE):
             log_blocked_command(command, project_path)
-            
-            # Print explanation for Claude
-            print("Error: Destructive command blocked for security.")
-            if 'rm -rf' in command:
-                sys.exit(1)
-            elif 'DROP TABLE' in command:
-                sys.exit(1)
-            elif 'git push --force' in command:
-                sys.exit(1)
-            elif 'TRUNCATE' in command:
-                sys.exit(1)
-            elif 'DELETE FROM' in command and 'WHERE' not in command:
-                sys.exit(1)
-            else:
-                sys.exit(1)
-        else:
-            # Not a destructive command, allow execution
-            sys.exit(0)
-    except json.JSONDecodeError:
-        # If we can't parse JSON, err on the side of caution and block
-        print("Error: Could not parse command input")
-        sys.exit(1)
+            print(json.dumps({
+                "blocked": True,
+                "reason": f"Blocked destructive command: {pattern}",
+                "message": "Blocked execution of destructive command for security reasons"
+            }))
+            return
+    
+    # Special case for DELETE FROM without WHERE clause
+    if "DELETE FROM" in command.upper() and "WHERE" not in command.upper():
+        log_blocked_command(command, project_path)
+        print(json.dumps({
+            "blocked": True,
+            "reason": "Blocked DELETE FROM without WHERE clause",
+            "message": "Blocked execution of DELETE FROM without WHERE clause for security reasons"
+        }))
+        return
+    
+    # Special case for git push --force
+    if "git push --force" in command:
+        log_blocked_command(command, project_path)
+        print(json.dumps({
+            "blocked": True,
+            "reason": "Blocked 'git push --force' command",
+            "message": "Blocked execution of 'git push --force' for security reasons"
+        }))
+        return
+    
+    # Special case for TRUNCATE
+    if "TRUNCATE" in command.upper():
+        log_blocked_command(command, project_path)
+        print(json.dumps({
+            "blocked": True,
+            "reason": "Blocked TRUNCATE command",
+            "message": "Blocked execution of TRUNCATE for security reasons"
+        }))
+        return
+    
+    # If we get here, the command is allowed
+    print(json.dumps({
+        "blocked": False
+    }))
 
 if __name__ == "__main__":
     main()
