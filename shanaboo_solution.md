@@ -1,29 +1,23 @@
 ```diff
 --- /dev/null
-+++ b/Claude_Weekly_Dev_Summary.json
-@@ -0,0 +1,1000 @@
++++ b/n8n-workflow-dev-summary.json
+@@ -0,0 +1,1399 @@
 +{
-+  "meta": {
-+    "instanceId": "06a177a3-4d0d-4193-b27c-1e71c8b8d1e7"
-+  },
++  "name": "Weekly Dev Summary",
 +  "nodes": [
 +    {
 +      "parameters": {
 +        "rule": {
-+          "interval": "weeks",
-+          "mode": "everyWeekOn",
-+          "weekdays": [
++          "interval": [
 +            {
-+              "weekdays": [
-+                "5"
-+              ],
-+              "time": "17:00"
++              "field": "cronExpression",
++              "value": "0 17 * * 5"
 +            }
 +          ]
 +        }
 +      },
-+      "id": "Schedule Trigger",
-+      "name": "Weekly Trigger",
++      "id": "0",
++      "name": "Schedule Trigger",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
@@ -33,18 +27,26 @@
 +    },
 +    {
 +      "parameters": {
++        "operation": "getAll",
 +        "owner": "={{ $parameter[\"repoOwner\"] }}",
 +        "repository": "={{ $parameter[\"repoName\"] }}",
-+        "operation": "get",
-+        "returnAll": true,
-+        "filters": {
-+          "since": "={{ $parameter[\"sinceDate\"] }}",
-+          "until": "={{ $parameter[\"untilDate\"] }}"
-+        }
++        "path": "={{ $parameter[\"githubToken\"] }}",
++        "branch": "={{ $parameter[\"repoBranch\"] }}",
++        "commits": {
++          "range": "lastWeek"
++        },
++        "issues": {
++          "state": "closed",
++          "range": "lastWeek"
++        },
++        "pullRequests": {
++          "state": "closed",
++          "range": "lastWeek"
++          }
 +      },
-+      "id": "GitHub1",
-+      "name": "Get Commits",
-+      "type": "n8n-nodes-base.github",
++      "id": "1",
++      "name": "Get Repository Data",
++      "type": "custom-nodes.github",
 +      "typeVersion": 1,
 +      "position": [
 +        450,
@@ -53,139 +55,154 @@
 +    },
 +    {
 +      "parameters": {
-+        "owner": "={{ $parameter[\"repoOwner\"] }}",
-+        "repository": "={{ $parameter[\"repoName\"] }}",
-+        "operation": "getAll",
-+        "returnAll": true,
-+        "filters": {
-+          "state": "closed",
-+          "since": "={{ $parameter[\"sinceDate\"] }}",
-+          "until": "={{ $parameter[\"untilDate\"] }}"
++        "httpMethod": "POST",
++        "url": "https://api.anthropic.com/v1/messages",
++        "authentication": "headerAuth",
++        "headers": {
++          "header": [
++            {
++              "name": "anthropic-version",
++              "value": "2023-06-01"
++            },
++            {
++              "name": "content-type",
++              "value": "application/json"
++            }
++          ]
++        },
++        "sendBody": true,
++        "body": {
++          "model": "claude-3-sonnet-20250514",
++          "max_tokens": 1024,
++          "messages": [
++            {
++              "role": "user",
++              "content": "={{ $parameter[\"prompt\"] }}"
++            }
++          ]
 +        }
 +      },
-+      "id": "GitHub2",
-+      "name": "Get Closed Issues",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        450,
-+        450
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "owner": "={{ $parameter[\"repoOwner\"] }}",
-+        "repository": "={{ $parameter[\"repoName\"] }}",
-+        "operation": "getAll",
-+        "returnAll": true,
-+        "filters": {
-+          "state": "closed",
-+          "base": "",
-+          "sort": "updated",
-+          "direction": "desc"
-+        }
-+      },
-+      "id": "GitHub3",
-+      "name": "Get Merged PRs",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        450,
-+        600
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "model": "claude-sonnet-4-20250514",
-+        "prompt": "={{ $json[\"prompt\"] }}",
-+        "options": {
-+          "temperature": 0.7,
-+          "maxTokens": 1000
-+        }
-+      },
-+      "id": "Claude API",
++      "id": "2",
 +      "name": "Claude API",
-+      "type": "n8n-nodes-base.anthropic",
++      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 1,
 +      "position": [
-+        900,
++        650,
 +        300
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "fromEmail": "={{ $parameter[\"fromEmail\"] }}",
-+        "to": "={{ $parameter[\"toEmail\"] }}",
++        "sendTo": "={{ $parameter[\"email\"] }}",
 +        "subject": "={{ $parameter[\"emailSubject\"] }}",
-+        "body": "={{ $parameter[\"emailBody\"] }}",
-+        "attachments": "={{ $parameter[\"attachments\"] }}"
++        "text": "={{ $json[\"response\"] }}"
 +      },
-+      "id": "Send Email",
++      "id": "3",
 +      "name": "Send Email",
 +      "type": "n8n-nodes-base.emailSend",
-+      "type0": "n8n-nodes-base.emailSend",
 +      "typeVersion": 1,
 +      "position": [
-+        1100,
++        850,
 +        300
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "operation": "append",
-+        "datasetName": "={{ $parameter[\"datasetName\"] }}",
-+        "sheetName": "={{ $parameter[\"sheetName\"] }}",
-+        "columns": "={{ $parameter[\"columns\"] }}",
-+        "dataMode": "autoMapInputs",
++        "model": "claude-3-sonnet-20250514",
++        "maxTokens": 1024,
++        "system": "={{ $parameter[\"systemPrompt\"] }}",
++        "prompt": "={{ $parameter[\"userPrompt\"] }}",
 +        "options": {}
 +      },
-+      "id": "Google Sheets",
-+      "name": "Google Sheets",
-+      "type": "n8n-nodes-base.googleSheets",
++      "id": "4",
++      "name": "Claude Sonnet 4",
++      "type": "nodes-claude.claude",
 +      "typeVersion": 1,
 +      "position": [
-+        1100,
-+        450
++        650,
++        500
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "keepOnlySet": true
++        "values": {
++          "string": [
++            {
++              "name": "repoOwner",
++              "value": "claude-builders-bounty"
++            },
++            {
++              "name": "repoName",
++              "value": "claude-builders-bounty"
++            },
++            {
++              "name": "githubToken",
++              "value": "your-github-token"
++            },
++            {
++              "name": "claudeKey",
++              "value": "your-claude-api-key"
++            },
++            {
++              "name": "email",
++              "value": "user@example.com"
++            },
++            {
++              "name": "repoBranch",
++              "value": "main"
++            },
++            {
++              "name": "language",
++              "value": "EN"
++            }
++          ]
++        }
 +      },
-+      "id": "Set",
-+      "name": "Set",
++      "id": "5",
++      "name": "Configuration",
 +      "type": "n8n-nodes-base.set",
 +      "typeVersion": 1,
 +      "position": [
-+        700,
-+        300
++        250,
++        500
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "options": {}
++        "options": {
++          "keepOnlySet": true
++        },
++        "set": {
++          "entries": [
++            {
++              "name": "repoOwner",
++              "value": "={{ $parameter[\"repoOwner\"] }}",
++              "type": "string"
++            },
++            {
++              "name": "repoName", 
++              "value": "={{ $parameter[\"repoName\"] }}",
++              "type": "string"
++            },
++            {
++              "name": "repoBranch",
++              "value": "={{ $parameter[\"repoBranch\"] }}",
++              "type": "string"
++            },
++            {
++              "name": "language",
++              "value": "={{ $parameter[\"language\"] }}",
++              "type": "string"
++            }
++          ]
++        }
 +      },
-+      "id": "Function",
-+      "name": "Function",
-+      "type": "n8n-nodes-base.function",
++      "id": "6",
++      "name": "Set Variables",
++      "type": "n8n-nodes-base.set",
 +      "typeVersion": 1,
 +      "position": [
-+        700,
-+        450
++        450,
++        500
 +      ]
 +    },
-+    {
-+      "parameters": {
-+        "options": {}
-+      },
-+      "id": "Function1",
-+      "name": "Function1",
-+      "type": "n8n-nodes-base.function",
-+      "typeVersion": 1,
-+      "position": [
-+        700,
-+        600
-+      ]
-+    }
-+  ],
-+
