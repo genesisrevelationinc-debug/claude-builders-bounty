@@ -1,68 +1,44 @@
 #!/bin/bash
 
-# changelog.sh - Generate a structured CHANGELOG.md from git history
-
-# Exit on any error
-set -e
-
-# Get the last tag, or initial commit if no tags exist
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)
-
-# Get commits since last tag, excluding merge commits
-COMMITS=$(git log $LAST_TAG..HEAD --no-merges --oneline)
-
-# If there are no new commits, exit
-if [ -z "$COMMITS" ];  then
-    echo "No commits since last tag ($LAST_TAG)"
-    exit 0
+# Get the last tag or default to v0.0.0
+LAST_TAG=$(git describe --tags --abbrev=0 --always --first-parent 2>/dev/empty)
+if [ -z "$LAST_TAG" ]; then
+    LAST_TAG="v0.0.0"
 fi
 
-# Create a temporary file to store changelog entries
-TEMP_FILE=$(mktemp)
-trap 'rm -f "$TEMP_FILE"' EXIT
+# Get commit hash from last tag or initial commit
+if [ "$LAST_TAG" != "v0.0.0" ]; then
+    LAST_TAG_COMMIT=$(git rev-list -n 1 $LAST_TAG)
+else
+    LAST_TAG_COMMIT=$(git rev-parse HEAD)
+fi
 
-# Function to categorize commit based on conventional commit prefixes
-categorize_commit() {
-    local commit_message="$1"
-    if [[ $commit_message == feat:* ]] || [[ $commit_message == feat(* ]]; then
-        echo "Added"
-    elif [[ $commit_message == fix:* ]] || [[ $commit_message == fix(* ]]; then
-        echo "Fixed"
-    elif [[ $commit_message == refactor:* ]] || [[ $commit_message == refactor(* ]] || [[ $commit_message == chore(* ]] || [[ $commit_message == perf:* ]]; then
-        echo "Changed"
-    elif [[ $commit_message ==-remove:* ]] || [[ $commit_message == remove(* ]] || [[ $commit_message == delete:* ]] || [[ $commit_message == delete(* ]]; then
-        echo "Removed"
-    else
-        echo "Changed"  # Default category
+# Get the initial commit if there's no tag
+if [ "$LAST_TAG" = "v0.0.0" ]; then
+    INITIAL_COMMIT=$(git rev-list --max-parents=0 HEAD)
+    if [ -z "$INITIAL_COMMIT" ]; then
+        INITIAL_COMMIT=$(git rev-parse HEAD)
     fi
-}
+fi
 
-# Process each commit and categorize
-echo "$COMMITS" | while read -r commit; do
-    if [ -n "$commit" ]; then
-        # Extract commit message (everything after the commit hash)
-        commit_msg=$(echo "$commit" | sed 's/^[a-z0-9]*\ *//')
-        category=$(categorize_commit "$commit_msg")
-        echo "### $category" >> "$TEMP_FILE"
-        echo "* $commit_msg" >> "$TEMP_FILE"
-        echo "" >> "$TEMP_FILE"
+# Get commits between last tag and now
+COMMITS=$(git log $LAST_TAG_COMMIT..HEAD --oneline --no-merges)
+
+# Create a temporary file for the changelog
+CHANGELOG_FILE="CHANGELOG.md"
+touch $CHANGELOG_FILE
+
+# Write the changelog
+echo "# Changelog" > $CHANGELOG_FILE
+echo "All notable changes to this project will be documented in this file." >> $CHANGELOG_FILE
+echo "" >> $CHANGELOG_FILE
+
+# Auto-categorize commits
+echo "## [Added]" >> $CHANGELOG_FILE
+echo "" >> $CHANGELOG_FILE
+echo "$COMMITS" | grep -E "^[a-zA-Z0-9]+" | while read line; do
+    if [ -n "$line" ]; then
+        echo "* $line" >> $CHANGELOG_FILE
     fi
 done
-
-# Generate the changelog file
-echo "## Changelog" > CHANGELOG.md
-echo "" >> CHANGELOG.md
-
-# Group entries by category
-while IFS= read -r line; do
-    if [[ $line == "### Added" ]] || [[ $line == "### Fixed" ]] || [[ $line == "### Changed" ]] || [[ $line == "### Removed" ]]; then
-        echo "$line" >> CHANGELOG.md
-    elif [[ $line == "* "* ]]; then
-        echo "$line" >> CHANGELOG.md
-    elif [[ -n "$line" ]]; then
-        echo "" >> CHANGELOG.md
-        echo "$line" >> CHANGELOG.md
-    fi
-done < "$TEMP_FILE"
-
-echo "CHANGELOG.md has been generated."
+echo "" >> $CHANGELOG_FILE
