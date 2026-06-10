@@ -1,5 +1,4 @@
 # Claude Builders Bounty 🤖
-> **Note** This repository includes a changelog generator. See `CHANGELOG.md` for recent changes.
 
 > A community bounty board for Claude Code builders.
 
@@ -39,13 +38,10 @@ You're in the right place.
 
 - Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
 
 ---
-
-## Generate Changelog
-To generate a changelog for this project, run `bash changelog.sh` from the root of the repository.
-
-## Rules
 
 ## Community
 
@@ -55,3 +51,11 @@ To generate a changelog for this project, run `bash changelog.sh` from the root 
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
+
+*Started by the Claude builder community · March 2026 · MIT License*
+
+## Generate Changelog
+
+To generate a structured changelog from git history, run:
+
+
