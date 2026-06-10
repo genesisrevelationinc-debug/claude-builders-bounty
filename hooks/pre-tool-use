@@ -2,89 +2,90 @@
 """
 Claude Code pre-tool-use hook to block destructive bash commands.
 
-Place this file at: ~/.claude/hooks/pre-tool-use
-Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
+This hook intercepts dangerous bash commands before they are executed
+by Claude Code, preventing accidental data loss.
 """
 
 import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 
 
 BLOCKED_PATTERNS = [
-    # rm -rf / rm -r -f variations
-    (r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+.*', 'rm -rf: Recursive force delete'),
-    (r'\brm\s+.*\s+-[a-zA-Z]*rf[a-zA-Z]*', 'rm -rf: Recursive force delete'),
+    # rm -rf (recursive force delete)
+    {
+        "pattern": r"rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+",
+        "name": "rm -rf",
+        "description": "Recursive force deletion of files/directories",
+    },
     # DROP TABLE
-    (r'\bDROP\s+TABLE\b', 'DROP TABLE: Database table deletion'),
-    # git push --force / git push -f
-    (r'\bgit\s+push\s+.*(--force\b|-f\b)', 'git push --force: Force push to remote'),
+    {
+        "pattern": r"(?i)\bDROP\s+TABLE\b",
+        "name": "DROP TABLE",
+        "description": "Dropping database tables",
+    },
+    # git push --force
+    {
+        "pattern": r"(?i)git\s+push\s+.*--force",
+        "name": "git push --force",
+        "description": "Force pushing to git repository",
+    },
     # TRUNCATE
-    (r'\bTRUNCATE\s+TABLE?\b', 'TRUNCATE: Table data deletion'),
+    {
+        "pattern": r"(?i)\bTRUNCATE\s+TABLE\b",
+        "name": "TRUNCATE",
+        "description": "Truncating database tables",
+    },
     # DELETE FROM without WHERE
-    (r'\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)', 'DELETE FROM without WHERE: Unqualified row deletion'),
+    {
+        "pattern": r"(?i)\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)",
+        "name": "DELETE FROM without WHERE",
+        "description": "Deleting all rows from a table without a WHERE clause",
+    },
 ]
 
-LOG_FILE = os.path.expanduser('~/.claude/hooks/blocked.log')
+LOG_FILE = os.path.expanduser("~/.claude/hooks/blocked.log")
 
 
-def log_blocked_attempt(command: str, reason: str, project_path: str):
-    """Log a blocked command attempt with timestamp and details."""
-    timestamp = datetime.now(timezone.utc).isoformat()
-    log_entry = f"[{timestamp}] BLOCKED: {reason}\n  Command: {command}\n  Project: {project_path}\n\n"
-    
-    # Ensure the hooks directory exists
+def log_blocked_attempt(command: str, reason: str):
+    """Log a blocked command attempt with timestamp and project path."""
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+    timestamp = datetime.now().isoformat()
+    project_path = os.getcwd()
+    log_entry = f"[{timestamp}] BLOCKED: {reason} | Command: {command} | Project: {project_path}\n"
     
-    with open(LOG_FILE, 'a') as f:
+    with open(LOG_FILE, "a") as f:
         f.write(log_entry)
 
 
-def check_command(command: str, project_path: str) -> tuple[bool, str]:
-    """Check if a command matches any blocked pattern. Returns (is_blocked, reason)."""
-    command_upper = command.upper()
-    
-    for pattern, reason in BLOCKED_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True, reason
-    
-    return False, ""
-
-
 def main():
-    # Read the hook input from stdin (JSON format per Claude Code hooks spec)
+    # Read the hook input from stdin (Claude Code passes tool use info as JSON)
     try:
-        hook_data = json.load(sys.stdin)
+        input_data = json.loads(sys.stdin.read())
     except json.JSONDecodeError:
-        # If not valid JSON, allow the command to proceed
+        sys.exit(0)  # If we can't parse, let it through
+
+    # Only check bash tool invocations
+    if input_data.get("tool_name") != "bash":
         sys.exit(0)
-    
-    # Extract tool name and input
-    tool_name = hook_data.get('tool_name', '')
-    tool_input = hook_data.get('tool_input', {})
-    project_path = hook_data.get('project_path', os.getcwd())
-    
-    # Only intercept bash tool
-    if tool_name != 'bash':
-        sys.exit(0)
-    
-    command = tool_input.get('command', '')
-    
-    is_blocked, reason = check_command(command, project_path)
-    
-    if is_blocked:
-        # Log the blocked attempt
-        log_blocked_attempt(command, reason, project_path)
-        
-        # Output error message for Claude
-        print(f"\n🛡️  SECURITY HOOK BLOCKED: {reason}\n", file=sys.stderr)
-        print(f"   Command: {command}\n", file=sys.stderr)
-        print("   This destructive command was prevented from executing.\n", file=sys.stderr)
-        print("   If you need to proceed, please ask the user for explicit confirmation.\n", file=sys.stderr)
-        sys.exit(1)
+
+    command = input_data.get("command", "")
+
+    for blocked in BLOCKED_PATTERNS:
+        if re.search(blocked["pattern"], command):
+            log_blocked_attempt(command, blocked["name"])
+            print(
+                f"\n🚫 BLOCKED: This command was prevented from running.\n"
+                f"   Reason: {blocked['description']} ({blocked['name']})\n"
+                f"   Command: {command}\n"
+                f"   If you need to run this, please use a different method or review the command.\n"
+            )
+            sys.exit(1)
+
+    sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
