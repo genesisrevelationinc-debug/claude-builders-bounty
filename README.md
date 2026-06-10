@@ -19,13 +19,9 @@ You're in the right place.
 1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
-You're in the right place.
 
 ---
-## Quick Setup
 
-1. Clone the repository:
-   
 ## Active Bounties
 
 | # | Task | Amount | Status |
@@ -54,4 +50,13 @@ You're in the right place.
 
 ---
 
+# Changelog Generator
+
+This tool automatically generates a structured `CHANGELOG.md` from your git history.
+
+## Setup
+
+1. Copy `changelog.sh` to your project root
+2. Make it executable: `chmod +x changelog.sh`
+3. Run with: `bash changelog.sh`
 *Started by the Claude builder community · March 2026 · MIT License*
