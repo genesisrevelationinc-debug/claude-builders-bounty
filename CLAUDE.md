@@ -1,8 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code.  
-> Paste this at the root of any greenfield Next.js 15 + SQLite project.  
-> Last updated: 2025-01
+> Opinionated project context for Claude Code. Paste this into your repo root.
+> Assumes: Next.js 15 (App Router), TypeScript, Tailwind CSS, better-sqlite3, Zod.
 
 ---
 
@@ -10,16 +9,17 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
-| Runtime | Node.js 20+ | `crypto` global, native fetch, stable ESM |
-| Database | `better-sqlite3` | Synchronous, fast, zero network latency for single-node deploys |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
-| Auth | Lucia + `oslo` | Session-based, works with SQLite, no OAuth lock-in |
-| Styling | Tailwind CSS + `cn()` | Utility-first, no runtime CSS-in-JS overhead |
-| Forms | `react-hook-form` + `zod` | Server validation + client validation share schema |
-| Testing | Vitest + Playwright | Unit + E2E without Jest's cache bugs |
+| Framework | Next.js 15 (App Router) | Server Components by default = simpler data flow |
+| Runtime | Node.js 20+ | `better-sqlite3` requires native bindings, no Edge |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-tenant |
+| ORM/Query | Raw SQL + Zod | No ORM magic. Schema is the source of truth. |
+| Auth | `bcryptjs` + `jose` (JWT) | No external auth service dependency |
+| Styling | Tailwind CSS + `shadcn/ui` | Copy-paste components, full control |
+| Validation | Zod | Same schemas on server and client |
+| Testing | Vitest + Playwright | Unit for logic, E2E for critical paths |
 
-**Non-negotiable:** We do NOT use Prisma with SQLite. Prisma's query engine adds a Rust binary, connection pooling complexity, and slower cold starts for zero benefit on a local-file database.
+**Non-negotiable:** This stack runs on Node.js runtime only. Do NOT use Edge Runtime.
+`better-sqlite3` is native and must run in Node.js. Edge = broken.
 
 ---
 
