@@ -1,58 +1,57 @@
 #!/bin/bash
 
-# Function to display usage
-usage() {
-  echo "Usage: bash changelog.sh [OPTIONS]"
-  echo "Options:"
-  echo "  -h, --help    Display this help message"
-  echo ""
-  echo "This script generates a CHANGELOG.md file from git commit history."
-  echo "It requires git to be initialized in the current directory."
-  exit 1
-}
+set -e
 
-# Check if help is requested
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-  usage
+# Get the latest tag
+latest_tag=$(git describe --tags --abbrev=0 2>/dev/null)
+
+if [ -z "$latest_tag" ]; then
+    # No tags found, use the initial commit as starting point
+    latest_tag=$(git rev-list --max-parents=0 HEAD)
 fi
 
-# Get the last tag or initial commit if no tags exist
-last_ref=$(git describe --tags --abbrev=0 2>/dev/null)
-if [ -z "$last_ref" ]; then
-  last_ref=$(git rev-list --max-parents=0 HEAD)
+# Get the commit hash for the latest tag
+latest_tag_commit=$(git rev-parse $latest%)
+
+# Get all commits since last tag
+if [ -z "$(git rev-list --tags --no-walk --max-count=1 2>/dev/null)" ]; then
+    commits=$(git log --oneline)
+else
+    commits=$(git log --oneline $latest_tag..HEAD)
 fi
 
-# Get commits between last tag and HEAD
-commits=$(git log --oneline "$last_ref"..HEAD)
+# Prepare the changelog file
+changelog_content="# Changelog
+All notable changes to this project will be documented in this file.\n"
 
-# Create or clear the changelog file
-echo "# Changelog" > CHANGELOG.md
-echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
-echo "" >> CHANGELOG.md
-
-# Add unreleased changes section
-echo "## [Unreleased]" >> CHANGELOG.md
-echo "" >> CHANGELOG.md
+# Write the header
+echo -e "$changelog_content" > CHANGELOG.md
 
 # Categorize commits
-added=$(echo "$commits" | grep -i "add\|feat" || true)
-fixed=$(echo "$commits" | grep -i "fix\|bug" || true)
-changed=$(echo "$commits" | grep -i "change\|update\|modify" || true)
-removed=$(echo "$commits" | grep -i "remove\|delete" || true)
+added=$(echo "$commits" | grep -i "add\|feat\|new" | sed 's/^/- /')
+fixed=$(echo "$commits" | grep -i "fix\|bug" | sed 's/^/- /')
+changed=$(echo "$commits" | grep -i "change\|update\|improve" | sed 's/^/- /')
+removed=$(echo "$commits" | grep -i "remove\|delete" | sed 's/^/- /')
 
-# Write categorized changes to the changelog
+# Add to changelog
 if [ -n "$added" ]; then
-  echo "### Added" >> CHANGELOG.md
-  echo "$added" | while read -r line; do
-    echo "- $line" >> CHANGELOG.md
-  done
-  echo "" >> CHANGELOG.md
+    echo "## Added" >> CHANGELOG.md
+    echo "$added" >> CHANGELOG.md
 fi
 
 if [ -n "$fixed" ]; then
-  echo "### Fixed" >> CHANGELOG.md
-  echo "$fixed" | while read -r line; do
-    echo "- $line" >> CHANGELOG.md
-  done
-  echo "" >> CHANGELOG.md
+    echo "## Fixed" >> CHANGELOG.md
+    echo "$fixed" >> CHANGELOG.md
 fi
+
+if [ -n "$changed" ]; then
+    echo "## Changed" >> CHANGELOG.md
+    echo "$changed" >> CHANGELOG.md
+fi
+
+if [ -n "$removed" ]; then
+    echo "## Removed" >> CHANGELOG.md
+    echo "$removed" >> CHANGELOG.md
+fi
+
+echo "Changelog generated in CHANGELOG.md"
