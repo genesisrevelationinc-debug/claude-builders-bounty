@@ -50,4 +50,13 @@ You're in the right place.
 
 ---
 
+# Changelog Generator
+
+## Setup
+
+1. Save the `changelog.sh` script in your project's root directory
+2. Make it executable: `chmod +x changelog.sh`
+3. Run the script: `./changelog.sh`
+
+The script will generate a `CHANGELOG.md` file in the current directory with all notable changes.
 *Started by the Claude builder community · March 2026 · MIT License*
