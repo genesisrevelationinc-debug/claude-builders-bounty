@@ -1,99 +1,54 @@
-#!/usr/bin/env python3
-"""
-Claude Code pre-tool-use hook to block destructive bash commands.
+#!/bin/bash
 
-Place this file at: ~/.claude/hooks/pre-tool-use
-Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
-"""
+# pre-tool-use hook to block destructive bash commands
 
-import json
-import os
-import re
-import sys
-from datetime import datetime, timezone
-from pathlib import Path
+HOOKS_DIR="$HOME/.claude/hooks"
+LOG_FILE="$HOOKS_DIR/blocked.log"
 
+# Create log file if it doesn't exist
+touch "$LOG_FILE"
 
-BLOCKED_PATTERNS = [
-    # rm -rf (any variant with -rf or -fr flags)
-    (r'\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+|.*-[a-zA-Z]*[rf][a-zA-Z]*\s+)', "rm -rf: recursive force delete"),
-    # DROP TABLE
-    (r'\bDROP\s+TABLE\b', "DROP TABLE: database table deletion"),
-    # git push --force or git push -f
-    (r'\bg Untuk push\s+--force\b|\bgit\s+push\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|--force\b)', "git push --force: force push can overwrite remote history"),
-    # TRUNCATE
-    (r'\bTRUNCATE\b', "TRUNCATE: removes all rows from a table"),
-    # DELETE FROM without WHERE
-    (r'\bDELETE\s+FROM\s+\S+(?!.*\bWHERE\b)', "DELETE FROM without WHERE: deletes all rows without filtering"),
-]
+# Function to log blocked commands
+log_blocked() {
+    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local project_path=$(pwd)
+    echo "[$timestamp] Blocked command: $1 (Project: $project_path)" >> "$LOG_FILE"
+}
 
-LOG_FILE = Path.home() / ".claude" / "hooks" / "blocked.log"
+# List of destructive patterns to check
+patterns=(
+    "rm -rf"
+    "DROP TABLE"
+    "git push --force"
+    "TRUNCATE"
+    "DELETE FROM"
+)
 
+# Check if any destructive pattern exists in the command
+for pattern in "${patterns[@]}"; do
+    if [[ "$1" == *"$pattern"* ]]; then
+        # Special handling for DELETE and TRUNCATE to check for missing WHERE clause
+        if [[ "$pattern" == "DELETE FROM" ]] || [[ "$pattern" == "TRUNCATE" ]]; then
+            # If it's a DELETE or TRUNCATE, make sure it has a WHERE clause or is explicitly allowed
+            if [[ "$1" != *"WHERE"* ]] && [[ "$1" != *"where"* ]]; then
+                log_blocked "$1"
+                echo "BLOCKED: '$1' - Destructive command blocked for security. (Logged to $LOG_FILE)"
+                exit 1
+            fi
+        else
+            # For other patterns, block directly
+            log_blocked "$1"
+            echo "BLOCKED: '$1' - Destructive command blocked for security. (Logged to $LOG_FILE)"
+            exit 1
+        fi
+    fi
+done
 
-def log_blocked_attempt(command: str, reason: str):
-    """Log a blocked command attempt with timestamp and project path."""
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    
-    timestamp = datetime.now(timezone.utc).isoformat()
-    project_path = os.getcwd()
-    
-    log_entry = f"[{timestamp}] BLOCKED: {reason} | Command: {command} | Project: {project_path}\n"
-    
-    with open(LOG_FILE, "a") as f:
-        f.write(log_entry)
-
-
-def check_command(command: str) -> tuple[bool, str]:
-    """
-    Check if a command matches any blocked pattern.
-    Returns (is_blocked, reason).
-    """
-    upper_command = command.upper()
-    
-    for pattern, reason in BLOCKED_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True, reason
-    
-    return False, ""
-
-
-def main():
-    # Read the hook input from stdin (JSON)
-    try:
-        hook_data = json.loads(sys.stdin.read())
-    except json.JSONDecodeError:
-        # If we can't parse, let it through
-        sys.exit(0)
-    
-    # Extract the tool use details
-    tool_name = hook_data.get("tool_name", "")
-    tool_input = hook_data.get("tool_input", {})
-    
-    # Only intercept bash tool
-    if tool_name != "bash":
-        sys.exit(0)
-    
-    command = tool_input.get("command", "")
-    
-    is_blocked, reason = check_command(command)
-    
-    if is_blocked:
-        log_blocked_attempt(command, reason)
-        
-        # Print error message to stderr (Claude will see this)
-        print(f"\n🚫 **COMMAND BLOCKED BY SECURITY HOOK**\n", file=sys.stderr)
-        print(f"**Reason:** {reason}\n", file=sys.stderr)
-        print(f"**Blocked command:** `{command}`\n", file=sys.stderr)
-        print(f"This command has been blocked to prevent accidental data loss or destructive operations.", file=sys.stderr)
-        print(f"If you believe this is a mistake, you can run the command manually after reviewing it.", file=sys.stderr)
-        print(f"Attempt logged to: {LOG_FILE}\n", file=sys.stderr)
-        
-        # Exit with non-zero to block the tool execution
-        sys.exit(1)
-    
-    # Allow the command to proceed
-    sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()
+# Special handling for DELETE and TRUNCATE with WHERE clause
+if [[ "$1" == *"DELETE FROM"* ]] || [[ "$1" == *"TRUNCATE"* ]]; then
+    if [[ "$1" != *"WHERE"* ]] && [[ "$1" != *"where"* ]]; then
+        log_blocked "$1"
+        echo "BLOCKED: '$1' - Destructive command blocked for security. (Logged to $LOG_FILE)"
+        exit 1
+    fi
+fi
