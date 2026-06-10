@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec bash "$(dirname "$0")/generate-changelog.sh" "$@"
+#!/usr/bin/env bash
+#
+# generate-changelog.sh
+# Automatically generates a structured CHANGELOG.md from git history.
+#
+# Usage:
+#   bash generate-changelog.sh
+#   ./generate-changelog.sh
+#
+# Features:
+#   - Fetches commits since the last git tag
+#   - Auto-categorizes into: Added / Fixed / Changed / Removed
+#   - Outputs a properly formatted CHANGELOG.md
+#
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Get the directory where the script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHANGELOG_FILE="${SCRIPT_DIR}/CHANGELOG.md"
+
+echo -e "${GREEN}🔍 Generating CHANGELOG...${NC}"
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo -e "${RED}Error: Not a git repository${NC}" >&2
+    exit 1
+fi
+
+# Get the latest tag
+LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+if [ -z "$LATEST_TAG" ]; then
+    echo -e "${YELLOW}⚠️  No tags found. Using all commits.${NC}"
+    COMMIT_RANGE=""
+else
+    echo -e "${GREEN}📌 Latest tag: $LATEST_TAG${NC}"
+    COMMIT_RANGE="${LATEST_TAG}..HEAD"
+fi
+
+# Get commits since last tag (or all commits if no tag)
+if [ -z "$COMMIT_RANGE" ]; then
+    COMMITS=$(git log --pretty=format:"%s" --no-merges)
+else
+    COMMITS=$(git log "$COMMIT_RANGE" --pretty=format:"%s" --no-merges)
+fi
+
+if [ -z "$COMMITS" ]; then
+    echo -e "${YELLOW}⚠️  No commits found since last tag.${NC}"
+    exit 0
+fi
+
+# Initialize category arrays
+declare -a ADDED
+declare -a FIXED
+declare -a CHANGED
+declare -a REMOVED
+declare -a OTHER
+
+# Categorize commits
+while IFS= read -r commit; do
+    # Skip empty lines
+    [ -z "$commit" ] && continue
+    
+    # Normalize to lowercase for matching
+    lower_commit=$(echo "$commit" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ "$lower_commit" =~ ^(feat|feature|add|added|introduce|implement|create|new) ]]; then
+        ADDED+=("$commit")
+    elif [[ "$lower_commit" =~ ^(fix|fixed|bugfix|repair|resolve|patch|hotfix) ]]; then
+        FIXED+=("$commit")
+    elif [[ "$lower_commit" =~ ^(remove|removed|delete|deleted|drop|dropped|cleanup|clean|deprecate|deprecated) ]]; then
+        REMOVED+=("$commit")
+    elif [[ "$lower_commit" =~ ^(change|changed|update|updated|modify|modified|refactor|refactored|improve|improved|enhance|enhanced|upgrade|upgraded|rework|optimize|optimized|restructure|restructured|migrate|migrated|adjust|adjusted|tweak|tweaked) ]]; then
+        CHANGED+=("$commit")
+    else
+        OTHER+=("$commit")
+    fi
+done <<< "$COMMITS"
+
+# Generate CHANGELOG.md
+{
+    echo "# Changelog"
+    echo ""
+    echo "All notable changes to this project will be documented in this file."
+    echo ""
+    echo "## $(date +%Y-%m-%d)"
+    echo ""
+    
+    # Helper function to print a category
+    print_category() {
+        local title="$1"
+        shift
+        if [ $# -gt 0 ]; then
+            echo "### $title"
+            echo ""
+            for item in "$@"; do
+                echo "- $item"
+            done
+            echo ""
+        fi
+    }
+    
+    print_category "Added" "${ADDED[@]}"
+    print_category "Changed" "${CHANGED[@]}"
+    print_category "Fixed" "${FIXED[@]}"
+    print_category "Removed" "${REMOVED[@]}"
+    print_category "Other" "${OTHER[@]}"
+    
+} > "$CHANGELOG_FILE"
+
+echo -e "${GREEN}✅ CHANGELOG.md generated successfully at:${NC} $CHANGELOG_FILE"
+# Generate Changelog Skill
+
+This skill enables automatic generation of a structured `CHANGELOG.md` from git history.
+
+## Commands
+
+### `/generate-changelog`
+
+Generates a `CHANGELOG.md` file by:
+
+1. Finding the latest git tag
+2. Collecting all commits since that tag
+3. Categorizing them into:
+   - **Added** — new features, additions
+   - **Fixed** — bug fixes, patches
+   - **Changed** — updates, refactors, improvements
+   - **Removed** — deletions, deprecations, cleanups
+4. Writing a formatted `CHANGELOG.md`
+
+## Usage
+
