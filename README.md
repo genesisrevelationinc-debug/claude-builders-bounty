@@ -1,25 +1,3 @@
-# Claude PR Reviewer 🤖
-
-An AI-powered PR review agent that analyzes code changes and provides structured feedback.
-
-## Features
-
-- CLI tool for reviewing GitHub PRs
-- GitHub Action integration
-- Structured Markdown output with:
-  - Summary of changes
-  - Identified risks
-  - Improvement suggestions
-  - Confidence score
-
-## Prerequisites
-
-- Python 3.7+
-- A GitHub token with appropriate permissions
-
-## Installation
-
-
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -29,10 +7,19 @@ Want to get paid for contributing to AI projects?
 You're in the right place.
 
 ---
+## claude-review - Pull Request Review Agent
 
-## How it works
+This is a CLI tool and GitHub Action that uses Claude Code to review pull requests and provide structured feedback.
 
-**To post a bounty**
+## Features
+
+- Reviews PR diffs and generates structured feedback
+- Works as both a CLI tool and GitHub Action
+- Provides summary of changes, risk assessment, and improvement suggestions
+
+## Installation
+
+
 1. Open a GitHub issue with a clear description and acceptance criteria
 2. Comment `/opire create $XXX` in the issue to set the reward
 3. Share the link — contributors will find it
