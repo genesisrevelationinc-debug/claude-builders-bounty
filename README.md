@@ -2,24 +2,23 @@
 
 > A community bounty board for Claude Code builders.
 
+## Claude-Review Agent (Pull Request Reviewer)
+
+This agent reviews GitHub pull requests and provides structured feedback.
+
+### Installation
+
+
+
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
 ---
-## claude-review - Pull Request Review Agent
 
-This is a CLI tool and GitHub Action that uses Claude Code to review pull requests and provide structured feedback.
+## How it works
 
-## Features
-
-- Reviews PR diffs and generates structured feedback
-- Works as both a CLI tool and GitHub Action
-- Provides summary of changes, risk assessment, and improvement suggestions
-
-## Installation
-
-
+**To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
 2. Comment `/opire create $XXX` in the issue to set the reward
 3. Share the link — contributors will find it
