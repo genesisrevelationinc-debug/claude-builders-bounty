@@ -1,17 +1,3 @@
-# Claude PR Reviewer
-
-> A GitHub App that reviews PRs and generates structured feedback
-
-## Features
-
-This tool provides:
-- Automated PR reviews with structured feedback
-- Summary of changes, risks, and improvement suggestions
-- Confidence scoring for the review
-
-## Installation
-
-
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -64,4 +50,13 @@ You're in the right place.
 
 ---
 
+# Claude PR Reviewer
+
+This agent analyzes GitHub PRs using Claude Code and generates structured code review comments.
+
+## Setup
+
+1. Clone this repository
+2. Install dependencies:
+   
 *Started by the Claude builder community · March 2026 · MIT License*
