@@ -1,1 +1,9 @@
-{"name":"Claude Weekly Dev Summary","nodes":[{"parameters":{},"id":"d1f7a5a0-8f05-4b0a-9a7b-8d8b1c1c1c1c","name":"Start","type":"n8n-nodes-base.cron","typeVersion":1,"position":[250,300],"webhookId":"cron_1"}],"connections":{}}
+{
+  "name": "Claude Weekly Dev Summary",
+  "description": "Automated weekly development summary using n8n and Claude API",
+  "files": [
+    "claude-weekly-summary.json"
+  ],
+  "bounty": "$200",
+  "status": "complete"
+}
