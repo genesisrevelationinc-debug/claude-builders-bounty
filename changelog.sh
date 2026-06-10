@@ -1,102 +1,54 @@
 #!/bin/bash
 
-# changelog.sh - Generate a structured CHANGELOG.md from git history
+# Exit on any error
+set -e
 
-# Function to display usage
-usage() {
-    echo "Usage: $0 [OPTIONS]"
-    echo "  -h, --help     Display this help message"
-    echo "  No arguments needed to generate changelog"
-}
+# Get the latest tag
+latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
 
-# Get the last tag
-get_last_tag() {
-    git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0"
-}
+# If no tags exist, get all commits from the beginning
+if [ -z "$latest_tag" ]; then
+    range=""
+    since_tag=""
+else
+    range="$latest_tag..HEAD"
+    since_tag="since $latest_tag"
+fi
 
-# Categorize commit based on keywords
-categorize_commit() {
-    local message="$1"
-    if [[ $message == *"add"* ]] || [[ $message == *"feat"* ]] || [[ $message == *"new"* ]]; then
-        echo "Added"
-    elif [[ $message == *"fix"* ]] || [[ $message == *"Fix"* ]] || [[ $message == *"fix" || $message == *"fixed"* ]]; then
-        echo "Fixed"
-    elif [[ $message == *"change"* ]] || [[ $message == *"update"* ]] || [[ $message == *"refactor"* ]]; then
-        echo "Changed"
-    elif [[ $message == *"remove"* ]] || [[ $message == *"delete"* ]] || [[ $message == *"rm"* ]]; then
-        echo "Removed"
-    else
-        echo "Changed"  # Default category
-    fi
-}
+# Get commits in the format: "type: message"
+commits=$(git log $range --pretty=format:"%s" --no-merges)
 
-# Main function to generate changelog
-generate_changelog() {
-    local last_tag=$(get_last_tag)
-    echo "Generating changelog from commits since $last_tag..."
-    
-    # Create a temporary file to store the changelog
-    temp_file=$(mktemp)
-    
-    # Write header
-    echo "# Changelog" > "$temp_file"
-    echo "" >> "$temp_file"
-    
-    # Get commits since last tag and categorize them
-    # Initialize category arrays
-    added_commits=()
-    fixed_commits=()
-    changed_commits=()
-    removed_commits=()
-    
-    # Process each commit
-    while IFS= read -r commit; do
-        category=$(categorize_commit "$commit")
-        case $category in
-            "Added") added_commits+=("$commit") ;;
-            "Fixed") fixed_commits+=("$commit") ;;
-            "Changed") changed_commits+=("$commit") ;;
-            "Removed") removed_commits+=("$commit") ;;
-        esac
-    done < <(git log --oneline "$last_tag"..HEAD --no-merges --pretty=format:"%s")
-    
-    # Write categorized commits to changelog
-    if [ ${#added_commits[@]} -gt 0 ]; then
-        echo "## Added" >> "$temp_file"
-        for commit in "${added_commits[@]}"; do
-            echo "- $commit" >> "$temp_file"
-        done
-        echo "" >> "$tempfile"
-    fi
-    
-    if [ ${#fixed_commits[@]} -gt 0 ]; then
-        echo "## Fixed" >> "$temp_file"
-        for commit in "${fixed_commits[@]}"; do
-            echo "- $commit" >> "$temp_file"
-        done
-        echo "" >> "$temp_file"
-    fi
-    
-    if [ ${#changed_commits[@]} -gt 0 ]; then
-        echo "## Changed" >> "$temp_file"
-        for commit in "${changed_commits[@]}"; do
-            echo "- $commit" >> "$temp_file"
-        done
-        echo "" >> "$temp_file"
-    fi
-    
-    if [ ${#removed_commits[@]} -gt 0 ]; then
-        echo "## Removed" >> "$temp_file"
-        for commit in "${removed_commits[@]}"; do
-            echo "- $commit" >> "$temp_file"
-        done
-        echo "" >> "$temp_file"
-    fi
-    
-    # Output to CHANGELOG.md
-    mv "$temp_file" "CHANGELOG.md"
-    echo "CHANGELOG.md generated successfully!"
-}
+# Initialize sections
+added=""
+fixed=""
+changed=""
+removed=""
 
-# Run the script
-generate_changelog
+# Process each commit and categorize based on prefix
+while read -r line; do
+    if [[ $line == Added:* ]] || [[ $line == feat:* ]] || [[ $line == add:* ]]; then
+        added+="  - $line\n"
+    elif [[ $line == Fixed:* ]] || [[ $line == fix:* ]] || [[ $line == fixes:* ]] || [[ $line == bugfix:* ]]; then
+        fixed+="  - $line\n"
+    elif [[ $line == Changed:* ]] || [[ $line == updated:* ]] || [[ $line == update:* ]]; then
+        changed+="  - $line\n"
+    elif [[ $line == Removed:* ]] || [[ $line == Removed:* ]] || [[ $line == remove:* ]] || [[ $line == delete:* ]] || [[ $line == deleted:* ]]; then
+        removed+="  - $line\n"
+    fi
+done <<< "$commits"
+
+# Create CHANGELOG.md content
+echo "# Changelog" > CHANGELOG.md
+echo "" >> CHANGELOG.md
+if [ -n "$since_tag" ]; then
+    echo "## Changes $since_tag" >> CHANGELOG.md
+else
+    echo "## All Changes" >> CHANGELOG.md
+fi
+echo "" >> CHANGELOG.md
+if [ -n "$added" ]; then echo "### Added" >> CHANGELOG.md && echo -e "$added" >> CHANGELOG.md; fi
+if [ -n "$fixed" ]; then echo "### Fixed" >> CHANGELOG.md && echo -e "$fixed" >> CHANGELOG.md; fi
+if [ -n "$changed" ]; then echo "### Changed" >> CHANGELOG.md && echo -e "$changed" >> CHANGELOG.md; fi
+if [ -n "$removed" ]; then echo "### Removed" >> CHANGELOG.md && echo -e "$removed" >> CHANGELOG.md; fi
+
+echo "CHANGELOG.md has been generated successfully!"
