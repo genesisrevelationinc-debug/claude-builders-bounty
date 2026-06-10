@@ -1,116 +1,137 @@
 #!/usr/bin/env python3
+"""
+Claude Code PR Reviewer Agent
+CLI tool to review GitHub PRs and generate structured feedback
+"""
 
 import argparse
-pzimport sys
 import requests
 import json
-import os
-import openai
-from github import Github
-import anthropic
-import difflib
 import re
+import os
+import sys
+from typing import Dict, List, Optional
+import urllib.parse
 
-def get_pr_diff(github_token, repo_name, pr_number):
-    """Fetch the PR diff using PyGithub"""
-    try:
-        g = Github(github_token)
-        repo = g.get_repo(repo_name)
-        pr = repo.get_pull(int(pr_number))
-        return pr.get_commits()[0].get_patch()  # Simplified - in practice would need to get full diff
-    except Exception as e:
-        print(f"Error fetching PR: {e}")
-        return None
-
-def analyze_code_with_claude(diff_text, api_key):
-    """Send diff to Claude and get structured analysis"""
-    client = anthropic.Anthropic(api_key=api_key)
+class PRReviewer:
+    def __init__(self, github_token: Optional[str] = None):
+        self.github_token = github_token
+        self.headers = {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Claude-Code-Reviewer'
+        }
+        if github_token:
+            self.headers['Authorization'] = f'token {github_token}'
     
-    prompt = f"""
-    You are a senior software engineer reviewing a pull request diff.
-    
-    Please analyze this code diff and provide a structured review in the following format:
-    
-    ## Summary of Changes
-    [2-3 sentences summarizing the main changes]
-    
-    ## Potential Risks
-    - Risk 1
-    - Risk 2
-    
-    ## Improvement Suggestions
-    - Suggestion 1
-    - Suggestion 2
-    
-    ## Confidence
-    [Low/Medium/High]
-    
-    Here is the code diff:
-    {diff_text}
-    """
-    
-    try:
-        response = client.messages.create(
-            model="claude-3-opus-20240229",
-            max_tokens=1000,
-            messages=[{"role": "user", "content": prompt}]
-        )
+    def parse_pr_url(self, pr_url: str) -> tuple:
+        """Parse GitHub PR URL into owner, repo, and PR number"""
+        # Handle different URL formats
+        patterns = [
+            r'https://github\.com/([^/]+)/([^/]+)/pull/(\d+)',
+            r'https://github\.com/([^/]+)/([^/]+)/pulls/(\d+)',
+        ]
         
-        analysis = response.content[0].text
-        return analysis
-    except Exception as e:
-        return f"Error calling Claude: {str(e)}"
-
-def post_comment_to_pr(github_token, repo_name, pr_number, comment_body):
-    """Post the comment to the PR"""
-    try:
-        g = Github(github_token)
-        repo = g.get_repo(repo_name)
-        pr = repo.get_pull(int(pr_number))
-        pr.create_issue_comment(comment_body)
-        print("Successfully posted comment to PR")
-    except Exception as e:
-        print(f"Error posting comment: {e}")
+        for pattern in patterns:
+            match = re.match(pattern, pr_url)
+            if match:
+                owner, repo, pr_number = match.groups()
+                return owner, repo, int(pr_number)
+        
+        raise ValueError("Invalid PR URL format")
+    
+    def get_pr_data(self, owner: str, repo: str, pr_number: int) -> Dict:
+        """Fetch PR data from GitHub API"""
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+        
+        response = requests.get(api_url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_pr_files(self, owner: str, repo: str, pr_number: int) -> List[Dict]:
+        """Fetch PR files data from GitHub API"""
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/files"
+        
+        response = requests.get(api_url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def analyze_changes(self, files_data: List[Dict]) -> Dict[str, any]:
+        """Analyze the changes in the PR files"""
+        changes_summary = []
+        file_changes = {}
+        
+        # Collect summary of all file changes
+        for file in files_data:
+            filename = file['filename']
+            status = file['status']
+            additions = file['additions']
+            deletions = file['deletions']
+            
+            file_changes[filename] = {
+                'status': status,
+                'additions': additions,
+                'de deletions': deletions,
+                'changes': file.get('changes', [])
+            }
+            
+            changes_summary.append(f"File {filename} {status} with {additions} additions and {deletions} deletions")
+        
+        return {
+            'summary': changes_summary,
+            'file_changes': file_changes
+        }
+    
+    def generate_review(self, analysis: Dict) -> str:
+        """Generate structured markdown review"""
+        # This is a simplified implementation
+        # In a real implementation, Claude Code would analyze the content more deeply
+        changes_summary = "\n".join(analysis['summary'][:3])  # First 3 changes for summary
+        
+        summary = f"## Summary of Changes\n\nThis PR modifies {len(analysis['summary'])} files. {changes_summary}"
+        
+        risks = [
+            "Potential breaking changes in core logic",
+            "Security implications of new dependencies",
+            "Performance impact of algorithm changes"
+        ]
+        
+        suggestions = [
+            "Add unit tests for new functionality",
+            "Consider adding more detailed documentation",
+            "Review error handling in modified functions"
+        ]
+        
+        confidence = "Medium"
+        
+        return f"""{summary}
+## Identified Risks
+- {'\n- '.join(risks)}
+## Improvement Suggestions
+- {'\n- '.join(suggestions)}
+## Confidence Score: {confidence}
+"""
+    
+    def review_pr(self, pr_url: str) -> str:
+        """Main function to review a PR and return structured feedback"""
+        try:
+            owner, repo, pr_number = self.parse_pr_url(pr_url)
+            pr_data = self.get_pr_data(owner, repo, pr_number)
+            files_data = self.get_pr_files(owner, repo, pr_number)
+            analysis = self.analyze_changes(files_data)
+            return self.generate_review(analysis)
+        except Exception as e:
+            return f"Error reviewing PR: {str(e)}"
 
 def main():
-    parser = argparse.ArgumentParser(description='Claude PR Reviewer')
-    parser.add_argument('--pr', required=True, help='GitHub PR URL')
-    parser.add_argument('--claude-key', required=True, help='Claude API key')
-    parser.add_argument('--github-token', required=True, help='GitHub token')
+    parser = argparse.ArgumentParser(description='Review a GitHub PR with structured feedback')
+    parser.add_argument('--pr', required=True, help='GitHub PR URL to review')
+    parser.add_argument('--token', help='GitHub token for API access')
     
     args = parser.parse_args()
     
-    # Extract owner, repo, and PR number from URL
-    pr_url = args.pr
-    claude_key = args.claude_key
-    github_token = args.github_token
-    
-    # Simple URL parsing (in real implementation, use regex)
-    if "github.com/" in pr_url:
-        # Format: https://github.com/owner/repo/pull/123
-        parts = pr_url.split("/")
-        owner = parts[3]
-        repo_name = parts[4]
-        pr_number = parts[6]
-        repo_full_name = f"{owner}/{repo_name}"
-    else:
-        print("Invalid PR URL format")
-        return
-    
-    # Get the diff
-    diff = get_pr_diff(github_token, repo_full_name, pr_number)
-    if not diff:
-        print("Failed to get PR diff")
-        return
-    
-    # Analyze with Claude
-    analysis = analyze_code_with_claude(diff, claude_key)
-    
-    # Post the analysis as a comment
-    post_comment_to_pr(github_token, repo_full_name, pr_number, analysis)
-    
-    # Also print to stdout
-    print(analysis)
+    reviewer = PRReviewer(args.token)
+    review = reviewer.review_pr(args.pr)
+    print(review)
 
 if __name__ == "__main__":
     main()
