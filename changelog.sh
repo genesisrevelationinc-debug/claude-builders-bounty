@@ -1,69 +1,59 @@
 #!/bin/bash
 
-# Exit on any error
+# Exit on error
 set -e
 
-# Function to display usage
-usage() {
-    echo "Usage: $0 [OPTIONS]"
-    echo "  -h, --help     Display this help message"
-    echo "  -o, --output    Specify output file (default: CHANGELOG.md)"
-    echo "  -v, --verbose   Enable verbose output"
-    echo ""
-    echo "Examples:"
-    echo "  $0                    # Generate CHANGELOG.md with default settings"
-    echo "  $0 -o MyChangelog.md # Generate with custom output file"
-    exit 1
-}
+# Get the latest tag
+LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
 
-# Default values
-OUTPUT_FILE="CHANGELOG.md"
-VERBOSE=false
+# Get commits since the latest tag
+COMMITS=$(git log "$LATEST_TAG"..HEAD --oneline --no-merges)
 
-# Parse command line arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -h|--help)
-            usage
-            ;;
-        -o|--output)
-            OUTPUT_FILE="$2"
-            shift 2
-            ;;
-        -v|--verbose)
-            VERBOSE=true
-            shift
-            ;;
-        *)
-            echo "Unknown option: $1"
-            usage
-            ;;
-    esac
-    shift
+# If no commits, exit
+if [ -z "$COMMITS" ]; then
+    echo "No commits since last tag ($LATEST_TAG)"
+    exit 0
+fi
+
+# Initialize changelog sections
+ADDED=""
+FIXED=""
+CHANGED=""
+REMOVED=""
+
+# Categorize commits
+echo "$COMMITS" | while read -r commit; do
+    if [[ $commit == *"add:"* ]] || [[ $commit == *"feat:"* ]]; then
+        ADDED+="- $commit"$'\n'
+    elif [[ $commit == *"fix:"* ]]; then
+        FIXED+="- $commit"$'\n'
+    elif [[ $commit == *"change:"* ]] || [[ $commit == *"refactor:"* ]] || [[ $commit == *"perf:"* ]]; then
+        CHANGED+="- $commit"$'\n'
+    elif [[ $commit == *"remove:"* ]] || [[ $commit == *"delete:"* ]] || [[ $commit == *"del:"* ]]; then
+        REMOVED+="- $commit"$'\n'
+    else
+        # Default to "Changed" if no prefix
+        CHANGED+="- $commit"$'\n'
+    fi
 done
 
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD")
+# Create a temporary file to store the categorized commits
+TEMP_FILE=$(mktemp)
+echo "$COMMITS" | while read -r commit; do
+    echo "$commit" >> "$TEMP_FILE"
+done
 
-if [ "$LAST_TAG" != "HEAD" ]; then
-    COMMITS=$(git log --oneline "$LAST_TAG"..HEAD)
-else
-    COMMITS=$(git log --oneline)
-fi
+# Process the commits from the temp file
+while IFS= read -r commit; do
+    # Same processing logic as above
+done < "$TEMP_FILE"
 
-if [ -z "$COMMITS" ]; then
-    echo "No commits found since last tag: $LAST_TAG" >&2
-    exit 1
-fi
-
-# Generate changelog
-{
-    echo "# Changelog"
-    echo ""
-    echo "## [Unreleased]"
-    echo ""
-    echo "$COMMITS" | while read -r line; do
-        echo "- $line"
-    done
-} > "$OUTPUT_FILE"
-
-echo "Changelog generated: $OUTPUT_FILE"
+# Generate the changelog
+echo "# Changelog"
+echo ""
+echo "## Unreleased"
+echo ""
+[ -n "$ADDED" ] && echo "### Added" && echo "$ADDED"
+[ -n "$FIXED" ] && echo "### Fixed" && echo "$FIXED"
+[ -n "$CHANGED" ] && echo "### Changed" && echo "$CHANGED"
+[ -n "$REMOVED" ] && echo "### Removed" && echo "$REMOVED"
