@@ -1,35 +1,112 @@
-#!/bin/bash
+#!/usr/bin/env python3
+"""
+Claude Code pre-tool-use hook to block destructive bash commands.
 
-# Pre-tool-use hook to block destructive commands
+This hook intercepts dangerous bash commands before they are executed
+by Claude Code, preventing accidental data loss.
+"""
 
-set -e
+import json
+import os
+import re
+import sys
+from datetime import datetime
+from pathlib import Path
 
-# List of destructive patterns to block (case insensitive)
-DESTRUCTIVE_PATTERNS=(
-    "rm -rf"
-    "DROP TABLE"
-    "git push --force"
-    "TRUNCATE"
-    "DELETE FROM"
-)
 
-# Get the command being executed
-TOOL_USE_CMD=$(cat)
+# Patterns that are always blocked (unconditionally destructive)
+ALWAYS_BLOCKED = [
+    # rm -rf (removes directories recursively and forcefully)
+    r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+.*',
+    r'\brm\s+.*\s+-[a-zA-Z]*rf[a-zA-Z]*',
+    # git push --force (force overwrites remote history)
+    r'\bgit\s+push\s+.*--force\b',
+    r'\bgit\s+push\s+.*-f\b',
+    # DROP TABLE (deletes entire tables)
+    r'\bDROP\s+TABLE\b',
+    # TRUNCATE (removes all data from table)
+    r'\bTRUNCATE\b',
+]
 
-# Check if command matches any destructive pattern
-for PATTERN in "${DESTRUCTIVE_PATTERS[@]}"; do
-    if [[ "$TOOL_USE_CMD" == *"$PATTERN"* ]]; then
-        echo "Claude, this command has been blocked as it contains a potentially destructive pattern: $PATTERN" >&2
-        
-        # Log the blocked command
-        LOG_FILE="$HOME/.claude/hooks/blocked.log"
-        touch "$LOG_FILE"
-        echo "$(date): $TOOL_USE_CMD" >> "$LOG_FILE"
-        
-        exit 1
-    fi
-done
+# Patterns that require additional checks
+CONDITIONAL_PATTERNS = [
+    # DELETE FROM without WHERE clause
+    (r'\bDELETE\s+FROM\s+(\S+)', 'DELETE FROM without WHERE'),
+]
 
-echo "Blocked destructive command execution" >&2
-exit 1
 
+def get_log_path() -> Path:
+    """Get the path to the blocked log file."""
+    hooks_dir = Path(__file__).parent
+    return hooks_dir / 'blocked.log'
+
+
+def log_blocked_attempt(command: str, reason: str) -> None:
+    """Log a blocked command attempt with timestamp and project path."""
+    log_path = get_log_path()
+    timestamp = datetime.now().isoformat()
+    project_path = os.getcwd()
+    
+    log_entry = f"[{timestamp}] BLOCKED: {reason} | Command: {command} | Project: {project_path}\n"
+    
+    # Ensure log directory exists
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(log_path, 'a') as f:
+        f.write(log_entry)
+
+
+def check_command(command: str) -> tuple[bool, str]:
+    """
+    Check if a command should be blocked.
+    
+    Returns:
+        tuple of (is_blocked, reason)
+    """
+    upper_command = command.upper()
+    
+    # Check always-blocked patterns
+    for pattern in ALWAYS_BLOCKED:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, f"Destructive pattern detected: {pattern}"
+    
+    # Check conditional patterns
+    for pattern, description in CONDITIONAL_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            # For DELETE FROM, check if WHERE clause exists
+            if 'DELETE' in upper_command and 'WHERE' not in upper_command:
+                return True, f"Dangerous SQL: {description} — missing WHERE clause"
+    
+    return False, ""
+
+
+def main() -> None:
+    """Main entry point for the hook."""
+    # Read the tool use data from stdin (Claude Code passes JSON)
+    try:
+        data = json.load(sys.stdin)
+    except json.JSONDecodeError:
+        # Not a valid JSON, allow to proceed
+        sys.exit(0)
+    
+    # Check if this is a bash tool
+    if data.get('tool_name') != 'bash':
+        sys.exit(0)
+    
+    command = data.get('command', '')
+    
+    is_blocked, reason = check_command(command)
+    
+    if is_blocked:
+        log_blocked_attempt(command, reason)
+        print(f"🚫 BLOCKED: This command was prevented from running.\n\nReason: {reason}\n\n"
+              f"Command: {command}\n\n"
+              f"If you need to run this command, please review it carefully and consider using "
+              f"a safer alternative or running it manually after verification.", file=sys.stderr)
+        sys.exit(1)
+    
+    sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
