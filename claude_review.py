@@ -1,101 +1,116 @@
 #!/usr/bin/env python3
 
 import argparse
+pzimport sys
 import requests
 import json
-import sys
 import os
-from urllib.parse import urlparse, parse_qs
+import openai
+from github import Github
+import anthropic
+import difflib
+import re
 
-def parse_github_pr_url(url):
-    """Parse GitHub PR URL to extract owner, repo, and pull request number"""
-    parsed = urlparse(url)
-    path_parts = parsed.path.strip('/').split('/')
-    if len(path_parts) < 3:
-        raise ValueError("Invalid GitHub PR URL")
-    
-    owner = path_parts[0]
-    repo = path_parts[1]
-    pr_number = path_parts[3] if len(path_parts) > 3 else None
-    
-    if not pr_number and parsed.query:
-        query_params = parse_qs(parsed.query)
-        if 'pull' in query_params:
-            pr_number = query_params['pull'][0]
-    
-    return owner, repo, pr_number
+def get_pr_diff(github_token, repo_name, pr_number):
+    """Fetch the PR diff using PyGithub"""
+    try:
+        g = Github(github_token)
+        repo = g.get_repo(repo_name)
+        pr = repo.get_pull(int(pr_number))
+        return pr.get_commits()[0].get_patch()  # Simplified - in practice would need to get full diff
+    except Exception as e:
+        print(f"Error fetching PR: {e}")
+        return None
 
-def get_pr_diff(owner, repo, pr_number, token=None):
-    """Fetch the diff of a pull request from GitHub API"""
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    headers = {
-        'Accept': 'application/vnd.github.v3.diff',
-        'User-Agent': 'Claude-PR-Reviewer'
-    }
+def analyze_code_with_claude(diff_text, api_key):
+    """Send diff to Claude and get structured analysis"""
+    client = anthropic.Anthropic(api_key=api_key)
     
-    if token:
-        headers['Authorization'] = f'token {token}'
+    prompt = f"""
+    You are a senior software engineer reviewing a pull request diff.
     
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    return response.text
+    Please analyze this code diff and provide a structured review in the following format:
+    
+    ## Summary of Changes
+    [2-3 sentences summarizing the main changes]
+    
+    ## Potential Risks
+    - Risk 1
+    - Risk 2
+    
+    ## Improvement Suggestions
+    - Suggestion 1
+    - Suggestion 2
+    
+    ## Confidence
+    [Low/Medium/High]
+    
+    Here is the code diff:
+    {diff_text}
+    """
+    
+    try:
+        response = client.messages.create(
+            model="claude-3-opus-20240229",
+            max_tokens=1000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        analysis = response.content[0].text
+        return analysis
+    except Exception as e:
+        return f"Error calling Claude: {str(e)}"
 
-def analyze_code(diff_text):
-    """Analyze code changes and return structured review"""
-    # This is a simplified analysis - in a real implementation, 
-    # you would integrate with Claude Code API here
-    summary = "This pull request includes modifications to improve code quality and add new functionality."
-    risks = [
-        "Potential performance issues in loops with large datasets",
-        "Missing input validation for new API endpoints",
-        "Possible security vulnerabilities in authentication logic"
-    ]
-    suggestions = [
-        "Consider adding more unit tests for the new functionality",
-        "Review error handling in critical paths",
-        "Add input sanitization for user-provided data"
-    ]
-    
-    # Simplified confidence scoring
-    confidence = "Medium"
-    
-    return {
-        "summary": summary,
-        "risks": risks,
-        "suggestions": suggestions,
-        "confidence": confidence
-    }
-
-def format_markdown_review(analysis):
-    """Format the analysis into a structured markdown comment"""
-    md = []
-    md.append("## Code Review\n")
-    md.append(f"**Summary:** {analysis['summary']}\n")
-    md.append("### Identified Risks:\n")
-    for risk in analysis['risks']:
-        md.append(f"- {risk}")
-    md.append("\n### Improvement Suggestions:\n")
-    for suggestion in analysis['suggestions']:
-        md.append(f"- {suggestion}")
-    md.append(f"\n**Confidence Score:** {analysis['confidence']}")
-    return "\n".join(md)
+def post_comment_to_pr(github_token, repo_name, pr_number, comment_body):
+    """Post the comment to the PR"""
+    try:
+        g = Github(github_token)
+        repo = g.get_repo(repo_name)
+        pr = repo.get_pull(int(pr_number))
+        pr.create_issue_comment(comment_body)
+        print("Successfully posted comment to PR")
+    except Exception as e:
+        print(f"Error posting comment: {e}")
 
 def main():
-    parser = argparse.ArgumentParser(description='Claude Code PR Reviewer')
+    parser = argparse.ArgumentParser(description='Claude PR Reviewer')
     parser.add_argument('--pr', required=True, help='GitHub PR URL')
-    parser.add_argument('--token', help='GitHub Personal Access Token')
+    parser.add_argument('--claude-key', required=True, help='Claude API key')
+    parser.add_argument('--github-token', required=True, help='GitHub token')
     
     args = parser.parse_args()
     
-    try:
-        owner, repo, pr_number = parse_github_pr_url(args.pr)
-        diff = get_pr_diff(owner, repo, pr_number, args.token)
-        analysis = analyze_code(diff)
-        markdown_review = format_markdown_review(analysis)
-        print(markdown_review)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    # Extract owner, repo, and PR number from URL
+    pr_url = args.pr
+    claude_key = args.claude_key
+    github_token = args.github_token
+    
+    # Simple URL parsing (in real implementation, use regex)
+    if "github.com/" in pr_url:
+        # Format: https://github.com/owner/repo/pull/123
+        parts = pr_url.split("/")
+        owner = parts[3]
+        repo_name = parts[4]
+        pr_number = parts[6]
+        repo_full_name = f"{owner}/{repo_name}"
+    else:
+        print("Invalid PR URL format")
+        return
+    
+    # Get the diff
+    diff = get_pr_diff(github_token, repo_full_name, pr_number)
+    if not diff:
+        print("Failed to get PR diff")
+        return
+    
+    # Analyze with Claude
+    analysis = analyze_code_with_claude(diff, claude_key)
+    
+    # Post the analysis as a comment
+    post_comment_to_pr(github_token, repo_full_name, pr_number, analysis)
+    
+    # Also print to stdout
+    print(analysis)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
