@@ -1,16 +1,3 @@
-# Git Changelog Generator 📝
-
-This tool automatically generates a structured `CHANGELOG.md` from your git history.
-
-## Setup
-
-1. Run `chmod +x changelog.sh` to make the script executable
-2. Execute with `./changelog.sh` 
-3. Or use the Claude Code command `/generate-changelog`
-
-# Sample Output
-
-
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -63,4 +50,15 @@ You're in the right place.
 
 ---
 
+# Generate Changelog
+
+This skill generates a structured `CHANGELOG.md` from a project's git history.
+
+## Setup
+
+1. Make sure you have git installed
+2. Make the script executable: `chmod +x changelog.sh`
+3. Run the script: `./changelog.sh`
+
+The script will automatically create or update a `CHANGELOG.md` file in the current directory.
 *Started by the Claude builder community · March 2026 · MIT License*
