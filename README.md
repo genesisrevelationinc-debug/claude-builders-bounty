@@ -2,6 +2,18 @@
 
 > A community bounty board for Claude Code builders.
 
+## Generate Changelog
+
+This repository includes a script to automatically generate a structured `CHANGELOG.md` from git history.
+
+### Setup
+
+1. Make the script executable:
+   
+# Claude Builders Bounty 🤖
+
+> A community bounty board for Claude Code builders.
+
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
@@ -50,10 +62,4 @@ You're in the right place.
 
 ---
 
-# Changelog Generator
-
-## Setup
-
-1. Make the script executable:
-   
 *Started by the Claude builder community · March 2026 · MIT License*
