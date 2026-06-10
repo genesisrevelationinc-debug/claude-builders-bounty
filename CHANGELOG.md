@@ -1,24 +1,26 @@
 # Changelog
 
-## 2026-03-15
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
 
 ### Added
 - Initial project setup
-- Created the changelog generation script
+- Basic changelog generation script
 
 ### Changed
-- Updated README with bounty information
-
-## 2026-03-10
-
-### Added
-- Initial commit
-- Added bounty program framework
-
-## 2026-03-01
-
-### Added
-- Added initial bounty system
+- Improved changelog formatting
 
 ### Fixed
-- Resolved initial setup issues
+- Minor bug fixes
+
+### Removed
+- Deprecated features
+
+## [0.1.0] - 2023-01-01
+- Initial release
+
+- Configuration files
