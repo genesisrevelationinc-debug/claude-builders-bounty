@@ -1,82 +1,55 @@
-#!/usr/bin/env python3
-import sys
-import json
-import os
-import re
-from datetime import datetime
+#!/bin/bash
 
-def block_destructive_command(command):
-    """Check if command matches destructive patterns"""
-    destructive_patterns = [
-        r'rm\s+-rf\s+/*$',
-        r'DROP\s+TABLE',
-        r'git\s+push\s+--force',
-        r'TRUNCATE\s+\w+',
-        r'DELETE\s+FROM\s+\w+\s*;?$'
-    ]
-    
-    for pattern in destructive_patterns:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True
-    return False
+set -e
 
-def log_blocked_command(command, project_path):
-    """Log blocked command to file"""
-    log_file = os.path.expanduser('~/.claude/hooks/blocked.log')
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
-    # Create log directory if it doesn't exist
-    os.makedirs(os.path.dirname(log_file), exist_ok=True)
-    
-    with open(log_file, 'a') as f:
-        f.write(f"[{timestamp}] Blocked command: {command} (Project: {project_path})\n")
+# Log file location
+LOG_FILE="$HOME/.claude/hooks/blocked.log"
 
-def main():
-    # Read the hook input
-    if len(sys.argv) != 2:
-        print("Usage: pre_tool_use '<command>'")
-        sys.exit(1)
-    
-    command = sys.argv[1]
-    
-    # Get project path from environment variable or current directory
-    project_path = os.environ.get('PROJECT_PATH', os.getcwd())
-    
-    # Check if command is destructive
-    if block_destructive_command(command):
-        log_blocked_command(command, project_path)
-        
-        # Block message for Claude
-        print("🚫 Destructive command blocked!")
-        print("=================================")
-        print(f"Command blocked: {command}")
-        print("Reason: This command was blocked because it was classified as potentially destructive.")
-        print("Allowed commands: Only non-destructive bash commands are allowed.")
-        print("\nIf you need to run this command, please execute it in a different environment.")
-        sys.exit(1)
-    
-    # If command is safe, allow it
-    print("✅ Command allowed")
-    sys.exit(0)
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")"
 
-if __name__ == "__main__":
-    # Check if we're running as a hook
-    if os.environ.get('CLAUDE_HOOK') == '1':
-        main()
-    else:
-        # Running as standalone script
-        if len(sys.argv) > 1:
-            command = ' '.join(sys.argv[1:])
-            if block_destructive_command(command):
-                log_blocked_command(command, os.getcwd())
-                print("🚫 Destructive command blocked!")
-                print(f"Command: {command}")
-                print("Reason: This command was classified as potentially destructive.")
-                print("Allowed: Only non-destructive bash commands are allowed.")
-                sys.exit(1)
-            else:
-                print("✅ Command allowed")
-                sys.exit(0)
-        else:
-            print("No command provided")
-            sys.exit(1)
+# Get the command being executed
+TOOL_NAME="$1"
+shift
+TOOL_ARGS="$*"
+
+# Only intercept bash commands
+if [ "$TOOL_NAME" = "bash" ]; then
+    # Check for destructive patterns in the bash command
+    COMMAND_LINE="$*"
+    
+    # Define dangerous patterns (case insensitive)
+    DANGEROUS_PATTERNS=(
+        "rm -rf"
+        "DROP TABLE"
+        "git push --force"
+        "TRUNCATE"
+        "DELETE FROM"
+    )
+    
+    # Check if any dangerous pattern exists in command
+    for PATTERN in "${DANGEROUS_PATTERNS[@]}"; do
+        if echo "$COMMAND_LINE" | grep -qi "$PATTERN"; then
+            TIMESTAMP=$(date -Iseconds)
+            PROJECT_PATH=$(pwd)
+            BLOCKED_COMMAND="$TOOL_NAME $TOOL_ARGS"
+            
+            # Log the blocked command
+            echo "[$TIMESTAMP] Blocked command: $BLOCKED_COMMAND in project: $PROJECT_PATH" >> "$LOG_FILE"
+            
+            # Display message to Claude
+            echo "⚠️  BLOCKED: The command '$COMMAND_LINE' has been blocked for security reasons."
+            echo "Reason: Potentially destructive command detected ($PATTERN)"
+            echo "Blocked commands are logged in $LOG_FILE"
+            
+            # Exit with error to prevent execution
+            exit 1
+        fi
+    done
+    
+    # If we get here, no dangerous patterns were found
+    echo "Command passed security check: $TOOL_NAME $TOOL_ARGS"
+fi
+
+# If not a bash command or not blocked, proceed normally
+exec "$TOOL_NAME" $TOOL_ARGS
