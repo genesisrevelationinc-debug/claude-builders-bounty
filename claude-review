@@ -1,122 +1,121 @@
-#!/usr/bin/env node
+#!/usr/bin/env python3
 
-const { Octokit } = require('@octokit/rest');
-const { program } = require('commander');
-const fs = require('fs');
+import argparse
+import requests
+import json
+import sys
+import os
 
-// Parse command line arguments
-program
-  .version('1.0.0')
-  .description('Claude Code PR Reviewer - Analyze PRs and generate structured review comments')
-  .option('-p, --pr <url>', 'GitHub PR URL to review')
-  .option('-t, --token <token>', 'GitHub personal access token')
-  .parse();
+def get_pr_details(api_url, token, repo, pr_number):
+    headers = {"Authorization": f"token {token}"} if token else {}
+    
+    # Get PR details
+    pr_url = f"{api_url}/repos/{repo}/pulls/{pr_number}"
+    pr_response = requests.get(pr_url, headers=headers)
+    pr_response.raise_for_status()
+    pr_data = pr_response.json()
+    
+    # Get PR files (for diff)
+    files_url = f"{pr_url}/files"
+    files_response = requests.get(files_url, headers=headers)
+    files_response.raise_for_status()
+    files_data = files_response.json()
+    
+    return {
+        "title": pr_data["title"],
+        "description": pr_data["body"] or "",
+        "files": files_data
+    }
 
-const options = program.opts();
+def analyze_diff(files):
+    changes = []
+    risks = []
+    suggestions = []
+    
+    for file in files:
+        filename = file["filename"]
+        patch = file["patch"] if "patch" in file else ""
+        changes.append(f"Modified {filename}")
+        
+        # Simple risk heuristics
+        if "package-lock.json" in filename or "requirements.txt" in filename:
+            risks.append("Dependency changes detected - check for unintended version updates")
+        if "Dockerfile" in filename:
+            risks.append("Docker configuration changes - verify container build process")
+        if ".env" in filename:
+            risks.append("Environment file changes - check for exposed secrets")
+        
+        # Simple suggestion heuristics
+        if filename.endswith((".js", ".ts", ".py")):
+            suggestions.append(f"Consider adding tests for logic changes in {filename}")
+        if filename.endswith((".html", ".css")):
+            suggestions.append(f"Verify UI changes in {filename} across different browsers")
+            
+    return changes, risks, suggestions
 
-// Validate required arguments
-if (!options.pr) {
-  console.error('Error: PR URL is required. Use --pr option to specify a GitHub PR URL');
-  process.exit(1);
-}
+def generate_review(changes, risks, suggestions):
+    change_summary = " ".join(changes[:3]) + ("..." if len(changes) > 3 else "")
+    
+    # Determine confidence based on complexity
+    confidence = "Medium"
+    if len(risks) > 3:
+        confidence = "Low"
+    elif len(risks) == 0 and len(suggestions) == 0:
+        confidence = "High"
+    
+    review = f"""## Code Review
 
-// Extract owner, repo, and pull number from URL
-const prUrl = options.pr;
-const urlMatch = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-if (!urlMatch) {
-  console.error('Invalid GitHub PR URL format');
-  process.exit(1);
-}
-
-const owner = urlMatch[1];
-const repo = urlMatch[2];
-const pullNumber = parseInt(urlMatch[3]);
-
-// Get GitHub token from flag or environment variable
-const token = options.token || process.env.GITHUB_TOKEN;
-if (!token) {
-  console.error('Error: GitHub token is required. Set GITHUB_TOKEN environment variable or use --token option');
-  process.exit(1);
-}
-
-const octokit = new Octokit({ auth: token });
-
-async function getPRDiff(octokit, owner, repo, pullNumber) {
-  const { data: diff } = await octokit.pulls.get({
-    owner,
-    repo,
-    pull_number: pullNumber,
-    mediaType: {
-      format: "diff",
-    },
-  });
-  return diff.data;
-}
-
-function analyzeCode(changes) {
-  // This is a simplified analysis
-  // In a real implementation, this would be more sophisticated
-  const fileChanges = changes.split('diff --git').slice(1);
-  
-  return {
-    summary: `This pull request modifies ${fileChanges.length} file(s) with various code changes.`,
-    risks: [
-      'Potential security vulnerabilities in user input handling',
-      'Performance implications of new algorithms',
-      'Breaking changes to existing APIs'
-    ],
-    suggestions: [
-      'Add input validation for user-provided data',
-      'Consider caching strategies for improved performance',
-      'Add comprehensive tests for new functionality'
-    ],
-    confidence: 'Medium'
-  };
-}
-
-function generateMarkdownReport(analysis) {
-  return `## Code Review
 ### Summary of Changes
-${analysis.summary}
+{change_summary}
 
 ### Identified Risks
-${analysis.risks.map(risk => `- ${risk}`).join('
-') || 'None'}
-
+"""
+    
+    if risks:
+        for risk in risks:
+            review += f"- {risk}\n"
+    else:
+        review += "- No significant risks identified\n"
+    
+    review += """
 ### Improvement Suggestions
-${analysis.suggestions.map(suggestion => `- ${suggestion}`).join('
-') || 'None'}
+"""
+    
+    if suggestions:
+        for suggestion in suggestions:
+            review += f"- {suggestion}\n"
+    else:
+        review += "- No suggestions at this time\n"
+    
+    review += f"""
+### Confidence Score
+{confidence}
+"""
+    
+    return review
 
-### Confidence: ${analysis.confidence}
-`;
-}
+def main():
+    parser = argparse.ArgumentParser(description="Claude Code PR Reviewer")
+    parser.add_argument("--pr", required=True, help="GitHub PR URL")
+    args = parser.parse_args()
+    
+    # Parse PR URL
+    parts = args.pr.split("/")
+    repo = f"{parts[-3]}/{parts[-2]}"
+    pr_number = parts[-1]
+    
+    # Use GITHUB_TOKEN from environment if available
+    token = os.environ.get("GITHUB_TOKEN")
+    api_url = "https://api.github.com"
+    
+    try:
+        pr_details = get_pr_details(api_url, token, repo, pr_number)
+        changes, risks, suggestions = analyze_diff(pr_details["files"])
+        review = generate_review(changes, risks, suggestions)
+        print(review)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
-async function postComment(octokit, owner, repo, pullNumber, body) {
-  await octokit.issues.createComment({
-    owner,
-    repo,
-    issue_number: pullNumber,
-    body
-  });
-}
-
-async function main() {
-  try {
-    const diff = await getPRDiff(octokit, owner, repo, pullNumber);
-    const analysis = analyzeCode(diff);
-    const report = generateMarkdownReport(analysis);
-    console.log('Generated review comment:');
-    console.log(report);
-    await postComment(octokit, owner, repo, pullNumber, report);
-    console.log('Comment posted successfully');
-  } catch (error) {
-    console.error('Error:', error.message);
-    process.exit(1);
-  }
-}
-
-if (require.main === module) {
-  main();
-}
-
-module.exports = { analyzeCode, generateMarkdownReport };
+if __name__ == "__main__":
+    main()
