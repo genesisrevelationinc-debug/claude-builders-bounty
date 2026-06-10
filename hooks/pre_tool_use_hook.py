@@ -1,48 +1,61 @@
 #!/usr/bin/env python3
+"""
+Pre-tool-use hook that blocks destructive bash commands.
 
-import sys
+Installation:
+1. Make executable: chmod +x pre_tool_use_hook.py
+2. Move to ~/.claude/hooks/
+"""
+
 import os
-import datetime
-import json
+import sys
 import re
+from datetime import datetime
+import subprocess
 
+# Dangerous command patterns to block
 DANGEROUS_PATTERNS = [
     r'rm\s+-rf',
-    r'drop\s+table',
-    r'git\s+push\s+--force',
-    r'truncate',
-    r'delete\s+from\s+(?!.*\bwhere\b)'
+    r'rm\s+-fr',
+    r'DROP\s+TABLE',
+    r'TRUNCATE\s+(?!TABLE).*',
+    r'DELETE\s+FROM(?:(?!\bWHERE\b).)*$',
+    r'git\s+push\s+--force'
 ]
 
-def main():
-    try:
-        data = json.load(sys.stdin)
-    except json.JSONDecodeError:
-        print("Error: Invalid JSON input")
-        sys.exit(1)
-
-    command = data.get('command', '')
-    cwd = data.get('cwd', 'Unknown')
+def log_blocked_command(command, project_path):
+    """Log blocked command to the log file"""
+    log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    
+    with open(log_file, "a") as f:
+        f.write(f"[{timestamp}] Command: {command.strip()}; Project: {project_path}\n")
+
+def main():
+    # Read the command from stdin
+    command = sys.stdin.read().strip()
+    
+    # Get the project path from environment variable or current directory
+    project_path = os.environ.get("PROJECT_PATH", os.getcwd())
+    
+    # Check if command matches any dangerous patterns
     for pattern in DANGEROUS_PATTERNS:
         if re.search(pattern, command, re.IGNORECASE):
-            log_blocked_command(command, cwd)
-            print(f"Blocked potentially destructive command: {command}")
+            # Log the blocked command
+            log_blocked_command(command, project_path)
+            
+            # Explain why the command was blocked
+            print("❌ BLOCKED DESTRUCTIVE COMMAND", file=sys.stderr)
+            print(f"Command blocked: {command}", file=sys.stderr)
+            print("Reason: This command contains potentially destructive patterns", file=sys.stderr)
+            print("Blocked patterns: rm -rf, DROP TABLE, TRUNCATE, DELETE FROM (without WHERE), git push --force", file=sys.stderr)
             sys.exit(1)
     
-    print(json.dumps(data))
+    # If we get here, the command is safe to execute
+    sys.exit(0)
 
-def log_blocked_command(cmd, project_path):
-    log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(log_file, "a") as f:
-        f.write(f"[{timestamp}] {cmd} - {project_path}\n")
-        
 if __name__ == "__main__":
     main()
-
-def log_blocked_command(cmd, project_path):
-    log_file = os.path.expanduser("~/.claude/hooks/blocked.log")
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(log_file, "a") as f:
-        f.write(f"[{timestamp}] {cmd} - {project_path}\n")
