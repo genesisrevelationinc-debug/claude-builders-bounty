@@ -19,9 +19,13 @@ You're in the right place.
 1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
+You're in the right place.
 
 ---
+## Quick Setup
 
+1. Clone the repository:
+   
 ## Active Bounties
 
 | # | Task | Amount | Status |
