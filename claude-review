@@ -1,112 +1,79 @@
 #!/usr/bin/env python3
-"""
-Claude Code PR Review Agent
-
-CLI tool that analyzes GitHub PRs and provides structured review comments.
-"""
 
 import argparse
-import json
 import os
-import re
 import sys
-import requests
-from typing import Dict, List, Optional
-from dataclasses import dataclass
+from github import Github
+import openai
+import json
 
-@dataclass
-class ReviewResult:
-    summary: str
-    risks: List[str]
-    suggestions: List[str]
-    confidence: str  # Low/Medium/High
-
-def get_github_pr_data(pr_url: str) -> Dict:
-    """Extract owner, repo, and PR number from URL and fetch PR data"""
-    # Parse GitHub URL
-    match = re.search(r'github\.com/([^/]+)/([^/]+)/pull/(\d+)', pr_url)
-    if not match:
-        raise ValueError("Invalid GitHub PR URL")
+def get_pr_diff(github_token, repo_url, pr_number):
+    # Parse the repository and PR number from the URL
+    parts = repo_url.rstrip('/').split('/')
+    repo_name = f"{parts[-2]}/{parts[-1]}"
+    pr_number = pr_number
     
-    owner, repo, pr_number = match.groups()
+    g = Github(github_token)
+    repo = g.get_repo(repo_name)
+    pr = repo.get_pull(int(pr_number))
     
-    # For demo purposes, we'll return mock data
-    # In a real implementation, you would use the GitHub API
     return {
-        "owner": owner,
-        "repo": repo,
-        "pr_number": int(pr_number),
-        "files": [
-            {"filename": "example.py", "patch": "@@ -1,3 +1,4 @@\n def hello_world():\n     print('Hello')\n+    # TODO: Add error handling\n     return True"},
-            {"filename": "utils.py", "patch": "@@ -1,2 +1,3 @@\n def utility_func():\n+    x = 1\n     return x * 2"}
-        ]
+        'title': pr.title,
+        'body': pr.body,
+        'diff': pr.get_files()[0].patch if pr.get_files() else ''
     }
 
-def analyze_code_changes(files: List[Dict]) -> ReviewResult:
-    """Analyze code changes and generate review"""
-    # This is a simplified analysis
-    # In practice, this would use more sophisticated code review logic
-    
-    # Mock analysis results
-    summary = "This PR adds basic error handling and updates utility functions. The changes are relatively small but introduce new functionality."
-    risks = [
-        "Missing error handling in utility_func()",
-        "TODO comment left in production code",
-        "Potential division by zero in calculation functions"
-    ]
-    suggestions = [
-        "Complete the error handling implementation",
-        "Remove or resolve the TODO comment",
-        "Add input validation for division operations"
-    ]
-    
-    return ReviewResult(
-        summary=summary,
-        risks=risks,
-        suggestions=suggestions,
-        confidence="Medium"
-    )
+def analyze_code_with_claude(diff_content):
+    # In a real implementation, you would call Claude here
+    # This is a mock implementation for demonstration
+    return {
+        'summary': 'Summary of changes will appear here',
+        'risks': ['- Risk 1', '- Risk .2'],
+        'suggestions': ['- Suggestion 1', '- Suggestion 2'],
+        'confidence': 'Medium'
+    }
 
-def generate_markdown_review(review: ReviewResult) -> str:
-    """Generate structured Markdown review"""
-    md = ["## Code Review Summary", ""]  
-    md.append(f"**Summary**: {review.summary}")
-    md.append("")
-    md.append("### Identified Risks")
-    for risk in review.risks:
-        md.append(f"- {risk}")
-    md.append("")
-    md.append("### Improvement Suggestions")
-    for suggestion in review.suggestions:
-        md.append(f"- {suggestion}")
-    md.append("")
-    md.append(f"**Confidence**: {review.confidence}")
-    
-    return "\n".join(md)
+def format_markdown_comment(analysis):
+    return f"""## Code Review
+
+### Summary of Changes
+{analysis['summary']}
+
+### Identified Risks
+{chr(10).join(analysis['risks'])}
+
+### Improvement Suggestions
+{chr(10).join(analysis['suggestions'])}
+
+### Confidence: {analysis['confidence']}
+"""
 
 def main():
-    parser = argparse.ArgumentParser(description="Claude Code PR Review Agent")
-    parser.add_argument("--pr", required=True, help="GitHub PR URL to review")
+    parser = argparse.ArgumentParser(description='Claude PR Reviewer')
+    parser.add_argument('--pr', required=True, help='GitHub PR URL')
+    parser.add_argument('--github-token', required=True, help='GitHub Personal Access Token')
+    parser.add_argument('--claude-key', required=True, help='Claude API Key')
     
     args = parser.parse_args()
     
-    try:
-        # Get PR data
-        pr_data = get_github_pr_data(args.pr)
-        
-        # Analyze the code
-        review = analyze_code_changes(pr_data["files"])
-        
-        # Generate and print Markdown review
-        markdown_review = generate_markdown_review(review)
-        print(markdown_review)
-        
-        # In a real implementation, you might post this as a comment
-        # For now we just print to stdout
-        
-    except Exception as e:
-        print(f"Error reviewing PR: {e}", file=sys.stderr)
-        sys.exit(1)
-
-if __name__ == "__main__":
+    # Extract repo and PR number from URL
+    pr_url = args.pr
+    parts = pr_url.rstrip('/').split('/')
+    pr_number = parts[-1]
+    repo_url = '/'.join(parts[:-1])
+    
+    # Get PR data
+    pr_data = get_pr_diff(args.github_token, repo_url, pr_number)
+    
+    # Analyze with Claude (mocked)
+    analysis = analyze_code_with_claude(pr_data['diff'])
+    
+    # Format and print the comment
+    comment = format_markdown_comment(analysis)
+    print(comment)
+    
+    # In a real implementation, you would post this as a comment to the PR
+    # For now, we just print to stdout
+    
+if __name__ == '__main__':
     main()
