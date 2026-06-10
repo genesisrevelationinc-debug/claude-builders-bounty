@@ -1,10 +1,6 @@
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
-## Hook Implementation
-
-### Installation
-
 
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
@@ -54,4 +50,20 @@ You're in the right place.
 
 ---
 
+# Pre-tool-use Hook for Destructive Command Blocking
+
+This hook intercepts dangerous bash commands before they are executed and blocks them if they match known destructive patterns.
+
+## Installation
+
+1. Create a new file at `~/.claude/hooks/pre-tool-use`
+2. Make the hook file executable: `chmod +x ~/.claude/hooks/pre-tool-use`
+
+## Supported Patterns to Block
+
+- `rm -rf`
+- `DROP TABLE`
+- `git push --force`
+- `TRUNCATE TABLE` (without WHERE clause)
+- `DELETE FROM` (without WHERE clause)
 *Started by the Claude builder community · March 2026 · MIT License*
