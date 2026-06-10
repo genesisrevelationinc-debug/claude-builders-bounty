@@ -1,23 +1,24 @@
 {
-  "name": "claude-pr-reviewer",
+  "name": "claude-pr-review",
   "version": "1.0.0",
-  "description": "Claude Code agent that reviews PRs and provides structured feedback",
+  "description": "Claude Code PR reviewer that generates structured Markdown comments",
   "main": "claude-review",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "bin": {
     "claude-review": "./claude-review"
   },
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.5.0",
-    "@octokit/rest": "^19.0.0",
-    "commander": "^9.0.0"
+  "scripts": {
+    "start": "node claude-review",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [
-    "claude",
-    "github",
-    "pr",
-    "review"
-  ]
+  "keywords": ["claude", "code", "review", "github", "pr"],
+  "author": "Claude Builder",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^19.0.7",
+    "commander": "^9.4.0"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git"
+  }
 }
