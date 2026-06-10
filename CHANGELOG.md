@@ -8,19 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial project setup
-- Basic changelog generation script
+- Initial project structure
+- README and LICENSE files
 
 ### Changed
-- Improved changelog formatting
 
 ### Fixed
-- Minor bug fixes
 
 ### Removed
-- Deprecated features
 
-## [0.1.0] - 2023-01-01
-- Initial release
+## [1.0.0] - 2026-03-01
 
-- Configuration files
+### Added
+- Initial release of the Claude Builders Bounty repository
+
+[Unreleased]: https://github.com/claude-builders-bounty/claude-builders-bounty/compare/v1.0.0...HEAD
