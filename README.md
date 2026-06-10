@@ -1,3 +1,8 @@
+## Destructive Command Blocker Hook
+
+### Installation
+
+
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -49,12 +54,5 @@ You're in the right place.
 - 📧 Contact: claudebounty@gmail.com
 
 ---
-
-# Destructive Command Prevention Hook
-
-This hook prevents Claude Code from executing potentially destructive bash commands.
-
-## Installation
-
 
 *Started by the Claude builder community · March 2026 · MIT License*
