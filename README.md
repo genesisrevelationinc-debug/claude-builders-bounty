@@ -1,5 +1,27 @@
+# Claude PR Reviewer 🤖
+
+An AI-powered PR review agent that analyzes code changes and provides structured feedback.
+
+## Features
+
+- CLI tool for reviewing GitHub PRs
+- GitHub Action integration
+- Structured Markdown output with:
+  - Summary of changes
+  - Identified risks
+  - Improvement suggestions
+  - Confidence score
+
+## Prerequisites
+
+- Python 3.7+
+- A GitHub token with appropriate permissions
+
+## Installation
+
+
 # Claude Builders Bounty 🤖
- 
+
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
@@ -30,26 +52,12 @@ You're in the right place.
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
 
-## Sample Agent Output
-
-This agent generates structured PR review comments like this:
-
-> **Summary:** This PR refactors the authentication module to improve security and performance. The changes include updating dependencies and adding input validation.
-> 
-> **Risks:** 
-> - Potential breaking changes in authentication flow
-> - New dependencies may introduce vulnerabilities
-> 
-> **Suggestions:**
-> - Add unit tests for new validation logic
-> - Consider caching strategies for improved performance
-> 
-> **Confidence:** High
-
 ## Rules
+
 - Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
