@@ -1,7 +1,8 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production SaaS built with Next.js 15 App Router and SQLite.
-> Paste this into your project root. Claude Code reads it automatically.
+> Opinionated project context for Claude Code.  
+> Paste this at the root of any greenfield Next.js 15 + SQLite project.  
+> Last updated: 2025-01
 
 ---
 
@@ -9,18 +10,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
-| Runtime | Node.js 20+ | Required for `crypto` global, native fetch, stable `node:` prefixes |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead, perfect for single-tenant SaaS |
-| ORM/Query | Raw SQL + `better-sqlite3` | No abstraction tax; schema is the source of truth |
-| Migrations | Custom Node.js scripts | One less dependency; total control over transaction boundaries |
-| Auth | `iron-session` + bcrypt | Stateless sessions, no Redis/DB session table needed |
-| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime overhead, design system via config |
-| Forms | Server Actions + `useActionState` | No client-side form libraries; progressive enhancement by default |
-| Validation | Zod | Type-safe schemas shared between server and client |
-| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical flows |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
+| Runtime | Node.js 20+ | `crypto` global, native fetch, stable ESM |
+| Database | `better-sqlite3` | Synchronous, fast, zero network latency for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
+| Auth | Lucia + `oslo` | Session-based, works with SQLite, no OAuth lock-in |
+| Styling | Tailwind CSS + `cn()` | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | `react-hook-form` + `zod` | Server validation + client validation share schema |
+| Testing | Vitest + Playwright | Unit + E2E without Jest's cache bugs |
 
-**Non-negotiable:** We do not use `turso` or any remote SQLite. The whole point of SQLite is zero network latency. If you need multi-region, use Postgres.
+**Non-negotiable:** We do NOT use Prisma with SQLite. Prisma's query engine adds a Rust binary, connection pooling complexity, and slower cold starts for zero benefit on a local-file database.
 
 ---
 
