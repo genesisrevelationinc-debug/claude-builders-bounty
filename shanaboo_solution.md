@@ -1,192 +1,183 @@
- ```diff
+```diff
 --- /dev/null
-+++ b/workflows/n8n-claude-weekly-summary/README.md
-@@ -0,0 +1,45 @@
-+# n8n + Claude Weekly Dev Summary Workflow
-+
-+Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
-+
-+## Setup (5 steps)
-+
-+1. **Import workflow**: In n8n, click **Add Workflow** → **Import from File** → select `weekly-dev-summary.json`
-+2. **Set credentials**: Add your GitHub token, Claude API key, and webhook URL in **Settings → Credentials**
-+3. **Configure variables**: Open the **Set Variables** node and set `repo`, `channel`, and `language`
-+4. **Activate**: Toggle the workflow to **Active**
-+5. **Test**: Click **Execute Workflow** or wait for the Friday 5pm cron trigger
-+
-+## Required Credentials
-+
-+- **GitHub API**: Personal access token with `repo` scope
-+- **Claude API**: Anthropic API key (https://console.anthropic.com)
-+- **Webhook**: Discord or Slack incoming webhook URL
-+
-+## Variables
-+
-+| Variable | Description | Example |
-+|----------|-------------|---------|
-+| `repo` | GitHub repository (owner/repo) | `claude-builders-bounty/claude-builders-bounty` |
-+| `channel` | Webhook destination URL | `https://hooks.slack.com/services/...` |
-+| `language` | Summary language | `EN` or `FR` |
-+
-+## What It Does
-+
-+1. Triggers every Friday at 5:00 PM
-+2. Fetches commits, closed issues, and merged PRs from the past 7 days
-+3. Sends data to Claude API for narrative summarization
-+4. Posts the formatted summary to your configured channel
-+
-+## Screenshot
-+
-+![Successful Execution](screenshot.png)
-+
-+*Include a screenshot of a successful execution from your n8n instance here.*
-+
-+## Files
-+
-+- `weekly-dev-summary.json` — Importable n8n workflow
-+- `README.md` — This file
-+
-+---
-+
-+Built for [Claude Builders Bounty](https://github.com/claude-builders-bounty/claude-builders-bounty)
---- /dev/null
-+++ b/workflows/n8n-claude-weekly-summary/weekly-dev-summary.json
-@@ -0,0 +1,594 @@
++++ b/claude-weekly-dev-summary.json
+@@ -0,0 +1,700 @@
 +{
-+  "name": "Weekly Dev Summary - Claude + n8n",
++  "name": "Claude Weekly Dev Summary",
 +  "nodes": [
 +    {
-+      "parameters": {
-+        "rule": {
-+          "interval": [
-+            {
-+              "field": "weeks",
-+              "expression": "1"
-+            }
-+          ]
-+        }
-+      },
-+      "id": "trigger-cron",
-+      "name": "Weekly Trigger",
-+      "type": "n8n-nodes-base.scheduleTrigger",
++      "parameters": {},
++      "id": "Schedule",
++      "name": "Schedule",
++      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
 +        250,
 +        300
-+      ],
-+      "webhookId": "weekly-trigger"
++      ]
++    },
++    {
++      "parameters": {
++        "resource": "get",
++        "owner": "={ { $json[\"repo_owner\"] } }",
++        "repo": "={ { $json[\"repo_name\"] } }",
++        "fieldSelectors": [
++          {
++            "field": "commits",
++            "active": true,
++            "operation": "searchCommits",
++            "parameters": {
++              "since": "={ { $json[\"since\"] } }",
++              "until": "={ { $json[\"until\"] } }"
++            }
++          },
++          {
++            "field": "pulls",
++            "active": true,
++            "operation": "getAll",
++            "parameters": {
++              "state": "closed",
++              "sort": "updated",
++              "direction": "desc"
++            }
++          },
++          {
++            "field": "issues",
++            "active": true,
++            "operation": "getAll",
++            "parameters": {
++              "state": "closed",
++              "sort": "updated",
++              "direction": "desc"
++            }
++          }
++        ]
++      },
++      "id": "GitHub",
++      "name": "GitHub",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [
++        550,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "model": "claude-3-sonnet-4-20250514",
++        "options": {
++          "maxTokens": 4000,
++          "temperature": 0.7,
++          "topP": 1,
++          "topK": 5
++        },
++        "system_prompt": "={ { $json[\"system_prompt\"] } }",
++        "messages": "=[ {\"role\": \"user\", \"content\": \"={ { $json[\"prompt\"] } }\"} ]",
++        "responseProperty": "claude_response"
++      },
++      "id": "Claude_API",
++      "name": "Claude API",
++      "type": "n8n-nodes-base.claude",
++      "typeVersion": 1,
++      "position": [
++        850,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "subject": "={ { $json[\"email_subject\"] } }",
++        "to": "={ { $json[\"email_to\"] } }",
++        "body": "={ { $json[\"email_body\"] } }"
++      },
++      "id": "Send_Email",
++      "name": "Send Email",
++      "type": "n8n-nodes-base.emailSend",
++      "typeVersion": 1,
++      "position": [
++        1150,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "keepOnlySet": true,
++        "values": {
++          "string": [
++            {
++              "name": "repo_owner",
++              "value": "claude-builders-bounty"
++            },
++            {
++              "name": "repo_name",
++              "value": "claude-builders-bounty"
++            },
++            "name": "system_prompt",
++              "value": "You are a helpful assistant that summarizes weekly development activity in a clear, concise, and well-structured way. Please create a summary of the development activity for the week based on the GitHub data provided. Organize it in a narrative format with clear sections for commits, issues, and pull requests. Highlight key changes and contributions."
++            },
++            {
++              "name": "email_to",
++              "value": "team@example.com"
++            },
++            {
++              "name": "email_subject",
++              "value": "Weekly Development Summary - {{new Date().toISOString().split('T')[0]}}"
++            }
++          ]
++        }
++      },
++      "id": "Set",
++      "name": "Set",
++      "type": "n8n-nodes-base.set",
++      "typeVersion": 1,
++      "position": [
++        400,
++        300
++      ]
 +    },
 +    {
 +      "parameters": {
 +        "values": {
 +          "string": [
 +            {
-+              "name": "repo",
-+              "value": "={{ $env.GITHUB_REPO || \"claude-builders-bounty/claude-builders-bounty\" }}"
++              "name": "since",
++              "value": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }}"
 +            },
 +            {
-+              "name": "channel",
-+              "value": "={{ $env.WEBHOOK_URL }}"
-+            },
-+            {
-+              "name": "language",
-+              "value": "={{ $env.SUMMARY_LANGUAGE || \"EN\" }}"
++              "name": "until",
++              "value": "={{ new Date().toISOString().split('T')[0] }}"
 +            }
 +          ]
 +        }
 +      },
-+      "id": "set-variables",
-+      "name": "Set Variables",
++      "id": "Date_Helper",
++      "name": "Date Helper",
++      "type": "n8n-nodes-base.function",
++      "typeVersion": 1,
++      "position": [
++      550,
++      150
++      ]
++    },
++    {
++      "parameters": {
++        "values": {
++          "string": [
++            {
++              "name": "prompt",
++              "value": "Please summarize the following development activity for the week:\n\nCommits:\n{{ $json[\"commits\"] }}\n\nIssues:\n{{ $json[\"issues\"] }}\n\nPull Requests:\n{{ $json[\"pulls\"] }}\n\nCreate a narrative summary organized by category with key highlights and statistics."
++            }
++          ]
++        }
++      },
++      "id": "Prompt_Builder",
++      "name": "Prompt Builder",
 +      "type": "n8n-nodes-base.set",
 +      "typeVersion": 1,
 +      "position": [
-+        450,
++        700,
 +        300
 +      ]
 +    },
 +    {
-+      "parameters": {
-+        "jsCode": "const now = new Date();\nconst sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\nconst since = sevenDaysAgo.toISOString().split('T')[0];\nreturn [{ json: { since, now: now.toISOString() } }];"
-+      },
-+      "id": "calculate-dates",
-+      "name": "Calculate Dates",
-+      "type": "n8n-nodes-base.code",
-+      "typeVersion": 1,
-+      "position": [
-+        650,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "url": "=https://api.github.com/repos/{{ $json.repo }}/commits",
-+        "sendQuery": true,
-+        "queryParameters": {
-+          "parameters": [
-+            {
-+              "name": "since",
-+              "value": "={{ $json.since }}"
-+            },
-+            {
-+              "name": "per_page",
-+              "value": "100"
-+            }
-+          ]
-+        },
-+        "options": {}
-+      },
-+      "id": "fetch-commits",
-+      "name": "Fetch Commits",
-+      "type": "n8n-nodes-base.httpRequest",
-+      "typeVersion": 4.1,
-+      "position": [
-+        850,
-+        200
-+      ],
-+      "credentials": {
-+        "httpHeaderAuth": {
-+          "id": "github-api",
-+          "name": "GitHub API"
-+        }
-+      }
-+    },
-+    {
-+      "parameters": {
-+        "url": "=https://api.github.com/repos/{{ $json.repo }}/issues",
-+        "sendQuery": true,
-+        "queryParameters": {
-+          "parameters": [
-+            {
-+              "name": "state",
-+              "value": "closed"
-+            },
-+            {
-+              "name": "since",
-+              "value": "={{ $json.since }}"
-+            },
-+            {
-+              "name": "per_page",
-+              "value": "100"
-+            }
-+          ]
-+        },
-+        "options": {}
-+      },
-+      "id": "fetch-issues",
-+      "name": "Fetch Closed Issues",
-+      "type": "n8n-nodes-base.httpRequest",
-+      "typeVersion": 4.1,
-+      "position": [
-+        850,
-+        400
-+      ],
-+      "credentials": {
-+        "httpHeaderAuth": {
-+          "id": "github-api",
-+          "name": "GitHub API"
-+        }
-+      }
-+    },
-+    {
-+      "parameters": {
-+       
++      "parameters
