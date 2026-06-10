@@ -1,23 +1,47 @@
 # n8n Weekly Dev Summary Workflow
 
-Automated weekly narrative summary of a GitHub repo's activity, powered by Claude API.
+Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
 
 ## Setup (5 steps)
 
-1. **Import workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
-2. **Set credentials**: Add your GitHub Personal Access Token and Claude API key in *Settings* → *Credentials*
-3. **Configure variables**: Open the workflow and edit the **Set Config** node — set `repo`, `channelWebhook`, and `language`
-4. **Activate**: Toggle the workflow to *Active* in the top-right corner
-5. **Test run**: Click *Execute Workflow* to verify, or wait for the scheduled Friday 5 PM run
-
-## Delivery Options
-
-The workflow defaults to **Discord webhook** for delivery. To switch to **Slack**, change the HTTP Request node URL to your Slack incoming webhook. To use **email**, replace the webhook node with an n8n *Send Email* node.
+1. **Import** `workflow.json` into your n8n instance (Settings → Workflows → Import)
+2. **Configure** credentials: GitHub API (optional, for public repos) and Anthropic API
+3. **Set** the `repo` parameter to your `owner/repo` and choose `language` (EN/FR)
+4. **Configure** delivery: set `webhookUrl` for Discord/Slack, or `email` for SMTP
+5. **Activate** the workflow — it runs Fridays at 5 PM automatically
 
 ## Required Credentials
 
-- `githubApi`: GitHub Personal Access Token (classic) with `repo` scope
-- `claudeApi`: Anthropic API key (starts with `sk-ant-`)
+| Service | Credential Type | How to Get |
+|---------|----------------|------------|
+| Anthropic | API Key | [console.anthropic.com](https://console.anthropic.com) |
+| GitHub | Personal Access Token | [github.com/settings/tokens](https://github.com/settings/tokens) (optional for public repos) |
+| SMTP (email) | SMTP credentials | Your email provider settings |
 
-## Workflow Overview
+## Parameters
 
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `repo` | GitHub repository (owner/repo format) | `claude-builders-bounty/claude-builders-bounty` |
+| `language` | Output language: `EN` or `FR` | `EN` |
+| `webhookUrl` | Discord/Slack webhook URL | — |
+| `email` | Destination email address | — |
+
+## Delivery Options
+
+- **Discord/Slack**: Set `webhookUrl` to your channel's webhook URL
+- **Email**: Configure SMTP credentials and set the `email` parameter
+
+## Testing
+
+1. Set all parameters in the workflow settings
+2. Click "Execute Workflow" to run manually
+3. Check your delivery channel for the summary
+
+## Screenshot
+
+![Successful Execution](screenshot.png)
+
+---
+
+*Built for the Claude Builders Bounty — MIT License*
