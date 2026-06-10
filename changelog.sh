@@ -1,59 +1,58 @@
 #!/bin/bash
 
-# Exit on error
-set -e
+# Function to display usage
+usage() {
+  echo "Usage: bash changelog.sh [OPTIONS]"
+  echo "Options:"
+  echo "  -h, --help    Display this help message"
+  echo ""
+  echo "This script generates a CHANGELOG.md file from git commit history."
+  echo "It requires git to be initialized in the current directory."
+  exit 1
+}
 
-# Get the latest tag
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-
-# Get commits since the latest tag
-COMMITS=$(git log "$LATEST_TAG"..HEAD --oneline --no-merges)
-
-# If no commits, exit
-if [ -z "$COMMITS" ]; then
-    echo "No commits since last tag ($LATEST_TAG)"
-    exit 0
+# Check if help is requested
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+  usage
 fi
 
-# Initialize changelog sections
-ADDED=""
-FIXED=""
-CHANGED=""
-REMOVED=""
+# Get the last tag or initial commit if no tags exist
+last_ref=$(git describe --tags --abbrev=0 2>/dev/null)
+if [ -z "$last_ref" ]; then
+  last_ref=$(git rev-list --max-parents=0 HEAD)
+fi
+
+# Get commits between last tag and HEAD
+commits=$(git log --oneline "$last_ref"..HEAD)
+
+# Create or clear the changelog file
+echo "# Changelog" > CHANGELOG.md
+echo "All notable changes to this project will be documented in this file." >> CHANGELOG.md
+echo "" >> CHANGELOG.md
+
+# Add unreleased changes section
+echo "## [Unreleased]" >> CHANGELOG.md
+echo "" >> CHANGELOG.md
 
 # Categorize commits
-echo "$COMMITS" | while read -r commit; do
-    if [[ $commit == *"add:"* ]] || [[ $commit == *"feat:"* ]]; then
-        ADDED+="- $commit"$'\n'
-    elif [[ $commit == *"fix:"* ]]; then
-        FIXED+="- $commit"$'\n'
-    elif [[ $commit == *"change:"* ]] || [[ $commit == *"refactor:"* ]] || [[ $commit == *"perf:"* ]]; then
-        CHANGED+="- $commit"$'\n'
-    elif [[ $commit == *"remove:"* ]] || [[ $commit == *"delete:"* ]] || [[ $commit == *"del:"* ]]; then
-        REMOVED+="- $commit"$'\n'
-    else
-        # Default to "Changed" if no prefix
-        CHANGED+="- $commit"$'\n'
-    fi
-done
+added=$(echo "$commits" | grep -i "add\|feat" || true)
+fixed=$(echo "$commits" | grep -i "fix\|bug" || true)
+changed=$(echo "$commits" | grep -i "change\|update\|modify" || true)
+removed=$(echo "$commits" | grep -i "remove\|delete" || true)
 
-# Create a temporary file to store the categorized commits
-TEMP_FILE=$(mktemp)
-echo "$COMMITS" | while read -r commit; do
-    echo "$commit" >> "$TEMP_FILE"
-done
+# Write categorized changes to the changelog
+if [ -n "$added" ]; then
+  echo "### Added" >> CHANGELOG.md
+  echo "$added" | while read -r line; do
+    echo "- $line" >> CHANGELOG.md
+  done
+  echo "" >> CHANGELOG.md
+fi
 
-# Process the commits from the temp file
-while IFS= read -r commit; do
-    # Same processing logic as above
-done < "$TEMP_FILE"
-
-# Generate the changelog
-echo "# Changelog"
-echo ""
-echo "## Unreleased"
-echo ""
-[ -n "$ADDED" ] && echo "### Added" && echo "$ADDED"
-[ -n "$FIXED" ] && echo "### Fixed" && echo "$FIXED"
-[ -n "$CHANGED" ] && echo "### Changed" && echo "$CHANGED"
-[ -n "$REMOVED" ] && echo "### Removed" && echo "$REMOVED"
+if [ -n "$fixed" ]; then
+  echo "### Fixed" >> CHANGELOG.md
+  echo "$fixed" | while read -r line; do
+    echo "- $line" >> CHANGELOG.md
+  done
+  echo "" >> CHANGELOG.md
+fi
