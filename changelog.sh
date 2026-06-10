@@ -1,64 +1,101 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# changelog.sh - Generate a structured CHANGELOG.md from git history
+# changelog.sh — Generate a structured CHANGELOG.md from git history
+# Usage: bash changelog.sh
 
-# Get the last tag, or initial commit if no tags exist
-LAST_TAG=$(git describe --tags --abbrev=0 --always)
-if [ -z "$LAST_TAG" ] || [ "$LAST_TAG" = "" ]; then
-  LAST_TAG=$(git rev-list --max-parents=0 HEAD)
-fi
+CHANGELOG_FILE="CHANGELOG.md"
+DATE=$(date +%Y-%m-%d)
 
-# Get commit types for categorization
-get_commit_type() {
-  local message="$1"
-  if [[ $message == *"fix"* ]] || [[ $message == *"Fix"* ]] || [[ $message == *"bug"* ]] || [[ $message == *"Bug"* ]] || [[ $message == *"resolve"* ]] || [[ $message == *"Resolve"* ]]; then
-    echo "Fixed"
-  elif [[ $message == *"remove"* ]] || [[ $message == *"Remove"* ]] || [[ $message == *"delete"* ]] || [[ $message == *"Delete"* ]]; then
-    echo "Removed"
-  elif [[ $message == *"change"* ]] || [[ $message == *"Change"* ]] || [[ $message == *"update"* ]] || [[ $message == *"Update"* ]] || [[ $message == *"refactor"* ]] || [[ $message == *"Refactor"* ]]; then
-    echo "Changed"
-  else
-    echo "Added"
-  fi
-}
+# Get the last git tag, or empty if no tags exist
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
 
-# Get the commits between the last tag and HEAD
-if [ "$LAST_TAG" = "$(git rev-list --max-parents=0 HEAD)" ]; then
-  COMMITS=$(git log --pretty=format:"%s" $LAST_TAG..HEAD)
+if [ -z "$LAST_TAG" ]; then
+    echo "ℹ️  No tags found. Using all commits."
+    COMMIT_RANGE="HEAD"
+    VERSION="v0.0.0"
 else
-  COMMITS=$(git log --pretty=format:"%s" $LAST_TAG..HEAD)
+    COMMIT_RANGE="${LAST_TAG}..HEAD"
+    VERSION="$LAST_TAG"
 fi
 
-# If no new commits since last tag, create an empty changelog
+# Get commits since last tag (or all if no tag)
+COMMITS=$(git log "$COMMIT_RANGE" --pretty=format:"%s" 2>/dev/null || true)
+
 if [ -z "$COMMITS" ]; then
-  echo "# Changelog" > CHANGELOG.md
-  echo "" >> CHANGELOG.md
-  echo "## [Unreleased]" >> CHANGELOG.md
-  echo "" >> CHANGELOG.md
-  echo "### Added" >> CHANGELOG.md
-  echo "" >> CHANGELOG.md
-  echo "### Fixed" >> CHANGELOG.md
-  echo "" >> CHANGELOG.md
-  echo "### Changed" >> CHANGELOG.md
-  echo "" >> CHANGELOG.md
-  echo "### Removed" >> CHANGELOG.md
-  echo "" >> CHANGELOG.md
-  exit 0
+    echo "ℹ️  No new commits since $VERSION."
+    exit 0
 fi
 
-# Generate the changelog
-{
-  echo "# Changelog"
-  echo ""
-  echo "## [Unreleased]"
-  echo ""
-  echo "### Added"
-  echo ""
-  echo "### Fixed"
-  echo ""
-  echo "### Changed"
-  echo ""
-  echo "### Removed"
-} > CHANGELOG.md
+# Categorize commits
+ADDED=""
+FIXED=""
+CHANGED=""
+REMOVED=""
+OTHER=""
 
-echo "CHANGELOG.md has been generated!"
+while IFS= read -r line; do
+    # Skip empty lines
+    [ -z "$line" ] && continue
+
+    # Categorize based on conventional commit prefixes or keywords
+    lower_line=$(echo "$line" | tr '[:upper:]' '[:lower:]')
+
+    if echo "$lower_line" | grep -qE '^(feat|add|new|introduce|implement)'; then
+        ADDED="${ADDED}- ${line}"$'\n'
+    elif echo "$lower_line" | grep -qE '^(fix|bugfix|hotfix|patch|resolve)'; then
+        FIXED="${FIXED}- ${line}"$'\n'
+    elif echo "$lower_line" | grep -qE '^(remove|delete|drop|deprecate|revert)'; then
+        REMOVED="${REMOVED}- ${line}"$'\n'
+    elif echo "$lower_line" | grep -qE '^(change|update|modify|refactor|improve|enhance|upgrade|chore|docs|style|test|perf)'; then
+        CHANGED="${CHANGED}- ${line}"$'\n'
+    else
+        # Default to Changed for uncategorized
+        CHANGED="${CHANGED}- ${line}"$'\n'
+    fi
+done <<< "$COMMITS"
+
+# Build the new changelog section
+NEW_SECTION="## [Unreleased] - ${DATE}
+
+"
+
+if [ -n "$ADDED" ]; then
+    NEW_SECTION="${NEW_SECTION}### Added
+
+${ADDED}
+"
+fi
+
+if [ -n "$CHANGED" ]; then
+    NEW_SECTION="${NEW_SECTION}### Changed
+
+${CHANGED}
+"
+fi
+
+if [ -n "$FIXED" ]; then
+    NEW_SECTION="${NEW_SECTION}### Fixed
+
+${FIXED}
+"
+fi
+
+if [ -n "$REMOVED" ]; then
+    NEW_SECTION="${NEW_SECTION}### Removed
+
+${REMOVED}
+"
+fi
+
+# Prepend to existing CHANGELOG or create new one
+if [ -f "$CHANGELOG_FILE" ]; then
+    EXISTING=$(cat "$CHANGELOG_FILE")
+    echo -e "# Changelog\n\n${NEW_SECTION}\n${EXISTING#*$'# Changelog\n\n'}" > "$CHANGELOG_FILE"
+else
+    echo -e "# Changelog\n\n${NEW_SECTION}" > "$CHANGELOG_FILE"
+fi
+
+echo "✅ CHANGELOG.md generated successfully!"
+echo "   Version: $VERSION → Unreleased"
+echo "   Commits processed: $(echo "$COMMITS" | wc -l | tr -d ' ')"
