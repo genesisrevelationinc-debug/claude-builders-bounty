@@ -1,68 +1,68 @@
 #!/bin/bash
 
-# Script to generate a CHANGELOG.md from git history
+# Exit on error
+set -e
 
-# Get the latest tag or default to empty if no tags exist
-if ! git describe --tags --abbrev=0 >/dev/null 2>&1; then
-  echo "No existing tags, using all commits from HEAD"
-  from_commit=$(git rev-list --max-parents=0 HEAD)
-else
-  latest_tag=$(git describe --tags --abbrev=0)
-  from_commit=$(git rev-list --boundary $latest_tag...HEAD | head -1)
-fi
+# Get the directory where the script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 
-# Get commit range from last tag to HEAD
-commits=$(git log --oneline $from_commit..HEAD)
+# Change to that directory
+cd "$SCRIPT_DIR" || exit 1
 
-# Create temporary file to process commits
-tmp_file=$(mktemp)
-echo "$commits" > $tmp_file
+# Get the last tag
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
 
-# Initialize categories
-added_commits=""
-fixed_commits=""
-changed_commits=""
-removed_commits=""
+# Get commit hash of the last tag
+LAST_TAG_COMMIT=$(git rev-list -n 1 "$LAST_TAG" 2>/dev/null || echo "HEAD")
 
-# Categorize commits
-while IFS= read -r line; do
-  # Categorize based on conventional commit messages
-  if [[ $line == *"feat:"* ]] || [[ $line == *"add:"* ]]; then
-    added_commits="$added_commits- $line\n"
-  elif [[ $line == *"fix:"* ]]; then
-    fixed_commits="$fixed_commits- $line\n"
-  elif [[ $line == *"chore:"* ]] || [[ $line == *"refactor:"* ]] || [[ $line == *"style:"* ]] || [[ $line == *"docs:"* ]]; then
-    changed_commits="$changed_commits- $line\n"
-  elif [[ $line == *"remove:"* ]]; then
-    removed_commits="$removed_commits- $line\n"
-  else
-    # Default to 'Changed' if no conventional commit pattern matched
-    changed_commits="$line\n$changed_comm0its"
-  fi
-done < <cat $tmp_file
+# Get commits since last tag
+COMMITS=$(git log --pretty=format:"%s" "$LAST_TAG_COMMIT"..HEAD)
 
+# For generating changelog we only want the commits from last tag to head
+COMMITS_TO_HEAD=$(git log --pretty=format:"%h|%an|%s" "$LAST_TAG_COMMIT"..HEAD)
 
-# Generate the changelog content
-changelog="## Changelog\n\n"
+# Create a temporary file to store the commits
+TEMP_FILE=$(mktemp)
+echo "$COMMITS_TO_HEAD" > "$TEMP_FILE"
 
-if [ -n "$added_commits" ]; then
-  changelog="$changelog### Added\n$added_commits\n"
-fi
+# Create the initial CHANGELOG.md content
+{
+  echo "# Changelog"
+  echo ""
+  echo "All notable changes to this project will be documented in this file."
+  echo ""
+  echo "## [Unreleased]"
+  echo ""
+  echo "### Added"
+  echo ""
+  echo "### Fixed"
+  echo ""
+  echo "### Changed"
+  echo ""
+  echo "### Removed"
+  echo ""
+  
+  # Process commits and categorize them
+  while IFS='|' read -r hash author message; do
+    if [[ $message == *"add:"* ]] || [[ $message == *"feat:"* ]] || [[ $message == *"new:"* ]] || [[ $message == *"Add:"* ]] || [[ $message == *"ADD:"* ]] || [[ $message == *"add "* ]] || [[ $message == *"feat "* ]] || [[ $message == *"new "* ]]; then
+      echo "### Added"
+      echo "- $message"
+    elif [[ $message == *"fix:"* ]] || [[ $message == *"Fix:"* ]] || [[ $message == *"fix "* ]] || [[ $message == *"bug"* ]]; then
+      echo "### Fixed"
+      echo "- $message"
+    elif [[ $message == *"change:"* ]] || [[ $message == *"Change:"* ]] || [[ $message == *"CHANGE:"* ]] || [[ $message == *"change "* ]] || [[ $message == *"update"* ]] || [[ $message == *"refactor"* ]]; then
+      echo "### Changed"
+      echo "- $message"
+    elif [[ $message == *"remove:"* ]] || [[ $message == *"delete:"* ]] || [[ $message == *"Remove:"* ]] || [[ $message == *"Delete:"* ]] || [[ $message == *"remove "* ]] || [[ $message == *"delete "* ]]; then
+      echo "### Removed"
+      echo "- $message"
+    fi
+  done < "$TEMP_FILE"
+  
+  echo ""
+} > CHANGELOG.md
 
-if [ -n "$fixed_commits" ]; then
-  changelog="$changelog### Fixed\n$fixed_commits\n"
-fi
+# Clean up
+rm "$TEMP_FILE"
 
-if [ -n "$changed_commits" ]; then
-  changit+log="$changelog### Changed\n$changed_commits\n"
-fi
-
-if [ -n "$removed_commits" ]; then
-  changelog="$changelog### Removed\n$removed_commits\n"
-fi
-
-# Write to CHANGELOG.md
-echo -e "$changelog" > CHANGELOG.md
-
-# Cleanup
-rm $tmp_file
+echo "CHANGELOG.md has been generated successfully."
