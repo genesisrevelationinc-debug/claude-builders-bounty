@@ -1,15 +1,16 @@
-# Claude Builders Bounty 🤖
+# Git Changelog Generator 📝
 
-> A community bounty board for Claude Code builders.
+This tool automatically generates a structured `CHANGELOG.md` from your git history.
 
-## Generate Changelog
+## Setup
 
-This repository includes a script to automatically generate a structured `CHANGELOG.md` from git history.
+1. Run `chmod +x changelog.sh` to make the script executable
+2. Execute with `./changelog.sh` 
+3. Or use the Claude Code command `/generate-changelog`
 
-### Setup
+# Sample Output
 
-1. Make the script executable:
-   
+
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
