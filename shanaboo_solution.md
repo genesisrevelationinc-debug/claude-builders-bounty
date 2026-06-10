@@ -1,32 +1,50 @@
 ```diff
 --- /dev/null
-+++ b/claude-weekly-summary.json
-@@ -0,0 +1,1404 @@
++++ b/Claude_Weekly_Dev_Summary.json
+@@ -0,0 +1,1000 @@
 +{
-+  "name": "Claude Weekly Dev Summary",
++  "meta": {
++    "instanceId": "06a177a3-4d0d-4193-b27c-1e71c8b8d1e7"
++  },
 +  "nodes": [
 +    {
-+      "parameters": {},
-+      "id": "1",
-+      "name": "Start",
++      "parameters": {
++        "rule": {
++          "interval": "weeks",
++          "mode": "everyWeekOn",
++          "weekdays": [
++            {
++              "weekdays": [
++                "5"
++              ],
++              "time": "17:00"
++            }
++          ]
++        }
++      },
++      "id": "Schedule Trigger",
++      "name": "Weekly Trigger",
 +      "type": "n8n-nodes-base.cron",
 +      "typeVersion": 1,
 +      "position": [
 +        250,
 +        300
-+      ],
-+      "webhookId": "b8c9f0d1-1a2b-3c4d-5e6f-7a8b9c0d1e2f"
++      ]
 +    },
 +    {
 +      "parameters": {
-+        "rule": {
-+          "interval": "week",
-+          "timezone": "America/New_York"
++        "owner": "={{ $parameter[\"repoOwner\"] }}",
++        "repository": "={{ $parameter[\"repoName\"] }}",
++        "operation": "get",
++        "returnAll": true,
++        "filters": {
++          "since": "={{ $parameter[\"sinceDate\"] }}",
++          "until": "={{ $parameter[\"untilDate\"] }}"
 +        }
 +      },
-+      "id": "2",
-+      "name": "Cron",
-+      "type": "n8n-nodes-base.cron",
++      "id": "GitHub1",
++      "name": "Get Commits",
++      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
 +        450,
@@ -35,140 +53,139 @@
 +    },
 +    {
 +      "parameters": {
-+        "resource": "commit",
-+        "methodName": "/repos/{owner}/{repo}/commits"
++        "owner": "={{ $parameter[\"repoOwner\"] }}",
++        "repository": "={{ $parameter[\"repoName\"] }}",
++        "operation": "getAll",
++        "returnAll": true,
++        "filters": {
++          "state": "closed",
++          "since": "={{ $parameter[\"sinceDate\"] }}",
++          "until": "={{ $parameter[\"untilDate\"] }}"
++        }
 +      },
-+      "id": "3",
-+      "name": "Get Commits",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [
-+        650,
-+        300
-+      ]
-+    },
-+    {
-+      "parameters": {
-+        "resource": "issue",
-+        "methodName": "/repos/{owner}/{repo}/issues",
-+        "state": "closed",
-+        "sort": "created",
-+        "direction": "desc"
-+      },
-+      "id": "4",
++      "id": "GitHub2",
 +      "name": "Get Closed Issues",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        650,
++        450,
 +        450
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "pulls",
-+        "methodName": "/repos/{owner}/{repo}/pulls",
-+        "state": "closed",
-+        "sort": "updated",
-+        "direction": "desc"
++        "owner": "={{ $parameter[\"repoOwner\"] }}",
++        "repository": "={{ $parameter[\"repoName\"] }}",
++        "operation": "getAll",
++        "returnAll": true,
++        "filters": {
++          "state": "closed",
++          "base": "",
++          "sort": "updated",
++          "direction": "desc"
++        }
 +      },
-+      "id": "5",
++      "id": "GitHub3",
 +      "name": "Get Merged PRs",
 +      "type": "n8n-nodes-base.github",
 +      "typeVersion": 1,
 +      "position": [
-+        650,
++        450,
 +        600
 +      ]
 +    },
 +    {
 +      "parameters": {
 +        "model": "claude-sonnet-4-20250514",
-+        "prompt": "Generate a narrative summary of the following GitHub activity for the past week:\n\nCommits:\n{% for commit in [{$json[\"commits\"]['data']}}\n- {{commit.commit.message}} (by {{commit.author.login}})\n{% endfor %}\n\nClosed Issues:\n{% for issue in [{$json[\"issues\"]['data']}}\n- {{issue.title}} (#{{issue.number}})\n{% endfor %}\n\nMerged PRs:\n{% for pr in [{$json[\"pulls\"]['data']}}\n- {{pr.title}} (#{{pr.number}}) by {{pr.user.login}}\n{% endfor %}\n\nPlease provide a concise, narrative summary of the key developments this week.",
-+        "max_tokens": 1000,
-+        "temperature": 0.7
++        "prompt": "={{ $json[\"prompt\"] }}",
++        "options": {
++          "temperature": 0.7,
++          "maxTokens": 1000
++        }
 +      },
-+      "id": "6",
-+      "name": "Claude AI",
++      "id": "Claude API",
++      "name": "Claude API",
 +      "type": "n8n-nodes-base.anthropic",
 +      "typeVersion": 1,
 +      "position": [
-+        1050,
++        900,
 +        300
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "url": "={{ $json[\"repo\"] }}",
-+        "method": "GET",
-+        "queryParameters": {
-+          "state": "all",
-+          "sort": "created",
-+          "direction": "desc"
-+        }
++        "fromEmail": "={{ $parameter[\"fromEmail\"] }}",
++        "to": "={{ $parameter[\"toEmail\"] }}",
++        "subject": "={{ $parameter[\"emailSubject\"] }}",
++        "body": "={{ $parameter[\"emailBody\"] }}",
++        "attachments": "={{ $parameter[\"attachments\"] }}"
 +      },
-+      "id": "7",
-+      "name": "GitHub Request",
-+      "type": "n8n-nodes-base.httpRequest",
++      "id": "Send Email",
++      "name": "Send Email",
++      "type": "n8n-nodes-base.emailSend",
++      "type0": "n8n-nodes-base.emailSend",
 +      "typeVersion": 1,
 +      "position": [
-+        850,
++        1100,
 +        300
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "issue",
-+        "methodName": "/repos/{owner}/{repo}/issues"
++        "operation": "append",
++        "datasetName": "={{ $parameter[\"datasetName\"] }}",
++        "sheetName": "={{ $parameter[\"sheetName\"] }}",
++        "columns": "={{ $parameter[\"columns\"] }}",
++        "dataMode": "autoMapInputs",
++        "options": {}
 +      },
-+      "id": "8",
-+      "name": "Get All Issues",
-+      "type": "n8n-nodes-base.github",
++      "id": "Google Sheets",
++      "name": "Google Sheets",
++      "type": "n8n-nodes-base.googleSheets",
 +      "typeVersion": 1,
 +      "position": [
-+        650,
-+        750
++        1100,
++        450
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "pulls",
-+        "methodName": "/repos/{owner}/{repo}/pulls"
++        "keepOnlySet": true
 +      },
-+      "id": "9",
-+      "name": "Get All PRs",
-+      "type": "n8n-nodes-base.github",
++      "id": "Set",
++      "name": "Set",
++      "type": "n8n-nodes-base.set",
 +      "typeVersion": 1,
 +      "position": [
-+        650,
-+        900
++        700,
++        300
 +      ]
 +    },
 +    {
 +      "parameters": {
-+        "resource": "repository",
-+        "methodName": "/repos/{owner}/{repo}",
-+        "owner": "={{ $json[\"repo\"].split(\"/\")[0] }}",
-+        "repo": "={{ $json[\"repo\"].split(\"/\")[1] }}",
-+        "filters": {
-+          "commits": {
-+            "since": "={{ $now }}",
-+            "until": "={{ $now }}"
-+          },
-+          "issues": {
-+            "state": "closed",
-+            "sort": "updated",
-+            "direction": "desc"
-+          },
-+          "pulls": {
-+            "state": "closed",
-+            "sort": "updated",
-+            "direction": "desc"
-+          }
-+        }
++        "options": {}
 +      },
-+      "id": "10",
-+      "name": "GitHub",
-+      "type": "n8n-nodes-base.github",
++      "id": "Function",
++      "name": "Function",
++      "type": "n8n-nodes-base.function",
 +      "typeVersion": 1,
-+      "position":
++      "position": [
++        700,
++        450
++      ]
++    },
++    {
++      "parameters": {
++        "options": {}
++      },
++      "id": "Function1",
++      "name": "Function1",
++      "type": "n8n-nodes-base.function",
++      "typeVersion": 1,
++      "position": [
++        700,
++        600
++      ]
++    }
++  ],
++
