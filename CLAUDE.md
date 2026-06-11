@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root. Claude reads this automatically.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at your repo root. Claude Code reads it automatically for context.
 
 ---
 
@@ -8,16 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable since 15.1 |
-| Runtime | Node.js 20+ | `next dev` requires 18+, we target LTS |
-| Database | better-sqlite3 | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, migrations in TS, no codegen step |
-| Auth | Lucia (or custom session) | Lightweight, works with SQLite, no vendor lock-in |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, copy-paste components, no runtime CSS |
-| Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit tests in Node, E2E in real browser |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead, perfect for single-tenant or small multi-tenant SaaS |
+| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migration tooling |
+| Auth | Lucia (or custom session with `iron-session`) | Session-based, no JWT complexity, works with SQLite natively |
+| Styling | Tailwind CSS 3.4+ | Utility-first, minimal bundle, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `zod` | No API boilerplate, progressive enhancement, type-safe validation |
+| Testing | Vitest + Playwright | Unit tests with Node-compatible runner, E2E with real browser |
 
-**Non-negotiable:** We do not use Prisma. The binary engine and connection pooling add complexity with no benefit for SQLite.
+**Lockfile rule:** Use `pnpm`. Commit `pnpm-lock.yaml`. No `package-lock.json` or `yarn.lock` in repo.
 
 ---
 
