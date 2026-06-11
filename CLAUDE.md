@@ -7,18 +7,12 @@
 
 ## Stack & Versions
 
-| Layer | Choice | Why |
-|-------|--------|-----|
+| Layer | Choice | Rationale |
+|-------|--------|-----------|
 | Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
-| Runtime | Node.js 20+ | Required for `next` CLI and native modules |
-| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-tenant or small multi-tenant apps. Use Turso only if you need edge replication |
-| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations, no hidden queries |
-| Auth | `bcryptjs` + `jose` (JWT) | No vendor lock-in. Roll your own or use Clerk if you need SSO/SAML |
-| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS, works with Server Components |
-| Forms | `react-hook-form` + `zod` | Type-safe validation, works without JS (progressive enhancement) |
-| Date/Time | `date-fns` | Tree-shakeable, no mutable globals like Moment |
+| Runtime | Node.js 20+ | `next dev` requires 18+; we target 20 for native `fetch` stability |
 
-**Hard rule:** Do not add a new dependency without documenting why it beats a built-in or existing choice in this file.
+**Lockfile rule:** Use `pnpm`. If `package-lock.json` or `yarn.lock` exists, delete it and run `pnpm install`. Rationale: deterministic resolution, disk-efficient, fast.
 
 ---
 
