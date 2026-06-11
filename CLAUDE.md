@@ -1,24 +1,23 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3). Read this before writing code. If a rule seems arbitrary, the "Why" explains it.
+> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your stack without asking questions.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Version Constraint |
-|-------|--------|------------------|
-| Framework | Next.js | `15.x` (App Router only — no Pages Router) |
-| Runtime | Node.js | `>=20` (native `fetch`, `crypto`, `structuredClone`) |
-| Database | better-sqlite3 | `^11.x` (synchronous, fast, no connection pool hell) |
-| ORM/Query Builder | None. Raw SQL with helpers | See "SQL / migration conventions" |
-| Styling | Tailwind CSS | `^3.4` |
-| UI Primitives | shadcn/ui | Install via CLI, not npm directly |
-| Auth | Lucia (or custom session cookies) | Avoid OAuth-only; always have password fallback |
-| Payments | Stripe | Webhook handlers in `app/api/webhooks/stripe/` |
-| Deployment | Vercel (frontend) + Fly.io/Railway (SQLite) or Turso | SQLite is file-based; read "Deployment" |
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable since 15.1 |
+| Runtime | Node.js 20+ | `crypto.randomUUID` native, stable ESM, long-term support |
+| Database | `better-sqlite3` | Synchronous, fast, zero network latency, perfect for single-node SaaS |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia (or custom session) | Session cookies, no JWT in localStorage, works with SQLite |
+| Styling | Tailwind CSS 4 + shadcn/ui | Utility-first, component primitives, no CSS-in-JS runtime cost |
+| Validation | Zod | Schema validation shared between server and client |
+| Testing | Vitest + Playwright | Unit tests in Node, E2E in real browser |
 
-**Why this stack:** Next.js 15 App Router enables server components by default — use them. SQLite is sufficient for 95% of SaaS workloads until you hit >10k writes/second. better-sqlite3 is synchronous and simpler than async pools for SQLite's single-writer model. No ORM — SQL is the ORM; abstractions leak and slow you down on complex queries.
+**Non-negotiable:** We do not use Prisma (slow, heavy) or Turso (network latency defeats SQLite's purpose for single-node). If we outgrow single-node, we migrate to Postgres, not Turso.
 
 ---
 
