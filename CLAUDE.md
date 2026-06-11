@@ -1,25 +1,23 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a greenfield SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project conventions. Read this before writing code.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Raw SQL via `better-sqlite3` + handwritten migrations | ORMs hide performance cliffs; SQL is the API you already know |
-| Auth | `bcryptjs` + `jose` (JWT) | No external auth service dependency; works offline |
-| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime, design system via config |
-| Forms | Native + Server Actions | No client form libraries; `useActionState` for async feedback |
-| Validation | `zod` | Share schemas between Server Actions and API routes |
-| Testing | Vitest (unit) + Playwright (E2E) | Fast feedback + real browser coverage |
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable since 15.1 |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable ESM |
+| Database | `better-sqlite3` | Synchronous, fast, no connection pool complexity for single-node deploys |
+| ORM | None — raw SQL with helpers | SQLite is simple; ORMs add indirection and migration pain |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS, works with RSC |
+| Forms | Server Actions + `useFormStatus` | No API routes needed for mutations |
+| Auth | `bcryptjs` + `jose` (JWT) | No external auth service dependency; sessions in SQLite |
+| Validation | `zod` | Type-safe schemas shared between client and server |
 
-**Non-negotiable:** We do not use Turso, Prisma, or any other abstraction over SQLite. The point of SQLite is simplicity; adding a network layer or codegen step defeats it.
+**Non-negotiable:** We do not use Turso, Prisma, or tRPC. These add network latency, build-time codegen, or RPC indirection that SQLite-on-same-node does not need.
 
 ---
 
