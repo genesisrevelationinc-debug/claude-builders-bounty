@@ -43,19 +43,30 @@ You're in the right place.
 
 ---
 
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+
+---
+
+*Started by the Claude builder community · March 2026 · MIT License*
 
 ---
 
 ## Hooks
 
-### [Pre-Tool-Use: Block Destructive Bash Commands](.claude/hooks/)
+### [Pre-Tool-Use Hook: Block Destructive Commands](hooks/)
 
-A security hook for Claude Code that intercepts and blocks dangerous bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute. See [`.claude/hooks/README.md`](.claude/hooks/README.md) for installation.
+A Claude Code `pre-tool-use` hook that intercepts dangerous bash commands before execution.
+
+**Features:**
+- Blocks `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without WHERE
+- Logs blocked attempts to `~/.claude/hooks/blocked.log`
+- Zero interference with normal commands
 
 ---
 
-## Rules
+## Community
 
-*Started by the Claude builder community · March 2026 · MIT License*
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
