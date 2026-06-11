@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code. Claude Code uses this file for context.
+> Opinionated project conventions. Read this before writing code.  
+> Goal: eliminate decision fatigue, ship faster, maintain longer.
 
 ---
 
@@ -8,17 +9,17 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
+| Framework | Next.js 15 (App Router) | Server-first, streaming, stable |
 | Runtime | Node.js 20+ | LTS, native `fetch`, `crypto` |
 | Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Raw SQL + `better-sqlite3` | No abstraction leak; schema is source of truth |
-| Migrations | Custom Node.js scripts | `node scripts/migrate.js` — no ORM magic |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia + `better-sqlite3` adapter | Session-based, no JWT bloat, works offline |
 | Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS |
-| Forms | Server Actions + `zod` | No client-side form libraries |
-| Auth | `bcryptjs` + `jose` (JWT) | Stateless, no session store needed |
-| Testing | Vitest + Playwright | Unit + E2E, no Jest |
+| Components | shadcn/ui | Copy-pasteable, no dependency lock-in |
+| Validation | Zod | Same schemas for API + forms |
+| Testing | Vitest + Playwright | Unit + E2E, fast |
 
-**Non-negotiable:** We do not use Prisma, Drizzle, or any query builder. Raw SQL only.
+**Lockfile rule:** `package-lock.json` only. No `yarn.lock`, no `pnpm-lock.yaml`. Consistency > speed.
 
 ---
 
