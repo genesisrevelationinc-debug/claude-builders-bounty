@@ -7,10 +7,10 @@ A Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash comm
 | Pattern | Reason |
 |---------|--------|
 | `rm -rf` | Recursive force deletion |
-| `DROP TABLE` | Deletes entire database tables |
-| `git push --force` | Overwrites remote git history |
-| `TRUNCATE` | Removes all data from a table |
-| `DELETE FROM` without `WHERE` | Deletes all rows in a table |
+| `DROP TABLE` | Database table deletion |
+| `git push --force` / `git push -f` | Force push overwrites remote history |
+| `TRUNCATE` | Complete table data removal |
+| `DELETE FROM` without `WHERE` | Unqualified row deletion |
 
 ## Installation
 
