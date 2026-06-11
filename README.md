@@ -36,8 +36,16 @@ You're in the right place.
 
 ## Rules
 
-- Tasks must be related to Claude Code or AI tooling
-- Every issue must have clear acceptance criteria before a bounty is activated
+---
+
+## Hooks
+
+### Pre-Tool-Use Hook: Block Destructive Commands
+
+A security hook that intercepts dangerous bash commands before execution. Blocks patterns like `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without a WHERE clause.
+
+**Installation:**
+
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Quality over speed — a solid PR beats a fast one
 
@@ -51,22 +59,3 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
-
----
-
-## Hooks
-
-### [Pre-Tool-Use Hook: Block Destructive Commands](hooks/)
-
-A Claude Code `pre-tool-use` hook that intercepts dangerous bash commands before execution.
-
-**Features:**
-- Blocks `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without WHERE
-- Logs blocked attempts to `~/.claude/hooks/blocked.log`
-- Zero interference with normal commands
-
----
-
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
