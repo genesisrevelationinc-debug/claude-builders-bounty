@@ -8,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
-| Runtime | Node.js 20+ | `fetch` cache control, native `crypto`, stable ESM |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | Lucia + `better-sqlite3` adapter | Session-based, no JWT in cookies, works offline |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste components |
-| Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit + E2E, fast |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS |
+| Runtime | Node.js 20+ | `crypto` global, native fetch, stable |
+| Database | `better-sqlite3` | Synchronous, fast, no connection pool hell |
+| ORM/Query | Raw SQL + `better-sqlite3` | ORMs hide performance cliffs; SQL is portable |
+| Auth | `oslo` + `bcryptjs` | No vendor lock-in, works with any user table |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `zod` | No API routes needed for mutations |
+| Validation | `zod` | Single source of truth, shared client/server |
 
-**Lockfile:** `pnpm-lock.yaml` only. No `package-lock.json` or `yarn.lock`.
+**Non-negotiable:** We do NOT use Prisma, Drizzle, or any query builder. Raw SQL with typed wrappers only.
 
 ---
 
