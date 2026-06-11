@@ -1,6 +1,8 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso).
+> 
+> **Rule of thumb:** If a convention isn't listed here, it doesn't exist. Ask before inventing.
 
 ---
 
@@ -8,16 +10,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable since 15.1 |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable ESM |
-| Database | `better-sqlite3` | Synchronous, fast, no connection pool complexity for single-node deploys |
-| ORM | None — raw SQL with helpers | SQLite is simple; ORMs add indirection and migration pain |
-| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS, works with RSC |
-| Forms | Server Actions + `useFormStatus` | No API routes needed for mutations |
-| Auth | `bcryptjs` + `jose` (JWT) | No external auth service dependency; sessions in SQLite |
-| Validation | `zod` | Type-safe schemas shared between client and server |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
+| Database | SQLite via `better-sqlite3` (local) or `@libsql/client` (Turso/edge) | Single file, zero-config, works at the edge |
+| Schema/Migrations | `drizzle-orm` + `drizzle-kit` | Type-safe SQL, zero runtime overhead, git-tracked migrations |
+| Auth | `lucia` or `next-auth` v5 beta | Session-based, no JWT in localStorage |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no CSS-in-JS runtime |
+| Forms | Server Actions + `react-hook-form` (client validation only) | Progressive enhancement, no API routes for CRUD |
+| Testing | Vitest (unit), Playwright (E2E) | Fast, native ESM, same browser engine as users |
 
-**Non-negotiable:** We do not use Turso, Prisma, or tRPC. These add network latency, build-time codegen, or RPC indirection that SQLite-on-same-node does not need.
+**Hard constraint:** No Docker, no Postgres, no Redis in development. The entire app must `git clone && npm install && npm run dev` on a fresh machine.
 
 ---
 
