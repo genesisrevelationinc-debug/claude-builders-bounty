@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Every rule below exists for a reason. If you break one, know why.
+> Opinionated project conventions. Read this before writing code. Claude Code uses this file for context.
 
 ---
 
@@ -9,16 +8,17 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need multi-region |
-| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly. No Prisma (heavy, slow startup) |
-| Auth | Lucia + `oslo` | Session-based, works with SQLite out of the box. No JWT (stateless auth is a lie at scale) |
-| Styling | Tailwind CSS + `shadcn/ui` | Utility-first, copy-paste components, no runtime CSS |
-| Validation | Zod | Same schemas for API, forms, and DB. Single source of truth |
-| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
+| Runtime | Node.js 20+ | LTS, native `fetch`, `crypto` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Raw SQL + `better-sqlite3` | No abstraction leak; schema is source of truth |
+| Migrations | Custom Node.js scripts | `node scripts/migrate.js` — no ORM magic |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS |
+| Forms | Server Actions + `zod` | No client-side form libraries |
+| Auth | `bcryptjs` + `jose` (JWT) | Stateless, no session store needed |
+| Testing | Vitest + Playwright | Unit + E2E, no Jest |
 
-**Lock these versions.** Do not upgrade major versions without a migration plan.
+**Non-negotiable:** We do not use Prisma, Drizzle, or any query builder. Raw SQL only.
 
 ---
 
