@@ -56,12 +56,8 @@ You're in the right place.
 
 ## Hooks
 
-This repository includes community-contributed Claude Code hooks:
+### Pre-Tool-Use Security Hook
 
-- **[pre-tool-use](hooks/)** — Blocks destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute. [Install in 1 command →](hooks/README.md)
+Block destructive bash commands before they execute. Protects against `rm -rf`, `DROP TABLE`, `git push --force`, and more.
 
----
 
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
