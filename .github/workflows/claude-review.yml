@@ -2,18 +2,18 @@ name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize]
 
 jobs:
   review:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
-
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -22,14 +22,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install claude-review
+          pip install -r claude-review/requirements.txt
 
-      - name: Run Claude Review
+      - name: Run Claude PR Review
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          claude-review --pr "${{ github.event.pull_request.html_url }}" --output review.md
+          python -m claude-review.claude_review --pr "$PR_URL" --output review.md
 
       - name: Post review comment
         uses: actions/github-script@v7
@@ -37,9 +38,122 @@ jobs:
           script: |
             const fs = require('fs');
             const review = fs.readFileSync('review.md', 'utf8');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: review
+              issue_number: context.issue.number
             });
+            const existingComment = comments.find(c => c.body.includes('## 🤖 Claude PR Review'));
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: review
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: review
+              });
+            }
+--- /dev/null
+#!/usr/bin/env python3
+"""
+Claude PR Review Agent
+
+A Claude Code sub-agent that reviews a PR diff, analyzes it,
+and returns a structured Markdown review comment.
+"""
+
+import argparse
+import os
+import re
+import sys
+from dataclasses import dataclass
+from typing import List, Optional
+
+import requests
+
+
+@dataclass
+class PRReview:
+    """Structured PR review output."""
+    summary: str
+    risks: List[str]
+    suggestions: List[str]
+    confidence: str  # Low, Medium, High
+
+
+def get_pr_diff(pr_url: str, github_token: Optional[str] = None) -> str:
+    """Fetch the PR diff from GitHub."""
+    # Parse PR URL to extract owner, repo, and PR number
+    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
+    if not match:
+        raise ValueError(f"Invalid PR URL: {pr_url}")
+    
+    owner, repo, pr_number = match.groups()
+    
+    headers = {
+        "Accept": "application/vnd.github.v3.diff",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+    
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    
+    response = requests.get(api_url, headers=headers, timeout=30)
+    response.raise_for_status()
+    
+    return response.text
+
+
+def get_pr_info(pr_url: str, github_token: Optional[str] = None) -> dict:
+    """Fetch PR metadata from GitHub API."""
+    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
+    if not match:
+        raise ValueError(f"Invalid PR URL: {pr_url}")
+    
+    owner, repo, pr_number = match.groups()
+    
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+    
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    
+    response = requests.get(api_url, headers=headers, timeout=30)
+    response.raise_for_status()
+    
+    return response.json()
+
+
+def call_claude_api(diff: str, pr_info: dict, api_key: Optional[str] = None) -> PRReview:
+    """Call Claude API to analyze the PR diff."""
+    api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY not set")
+    
+    # Truncate diff if too large (Claude has context limits)
+    max_diff_chars = 100000
+    if len(diff) > max_diff_chars:
+        diff = diff[:max_diff_chars] + "\n\n[... diff truncated due to size ...]"
+    
+    pr_title = pr_info.get("title", "Unknown")
+    pr_body = pr_info.get("body", "") or ""
+    
+    prompt = f"""You are an expert code reviewer. Review the following pull request and provide a structured analysis.
+
+PR Title: {pr_title}
+PR Description: {pr_body}
+
+Here is the diff:
+
