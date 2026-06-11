@@ -1,6 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso). Read this before writing code. Every rule exists to prevent a specific class of bug or decision fatigue.
+> Opinionated project conventions. Read this before writing code. If Claude suggests something that contradicts this file, this file wins.
 
 ---
 
@@ -8,16 +8,18 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `node:` imports |
-| Database | SQLite via `better-sqlite3` (local/dev) or Turso (prod/edge) | Single file, zero-config local dev; Turso for edge replication |
-| ORM/Query | Raw SQL + `better-sqlite3` | ORMs hide migration complexity; SQL is explicit and debuggable |
-| Auth | `lucia` or custom JWT + `bcryptjs` | Session cookies, HttpOnly, SameSite=strict. No localStorage tokens |
-| Styling | Tailwind CSS + `shadcn/ui` | Utility-first, no runtime CSS, copy-paste components |
-| Forms | Server Actions + `zod` | No API routes for mutations; validate at the edge |
-| Testing | Vitest (unit) + Playwright (E2E) | Fast unit tests; real browser for critical paths |
+| Framework | Next.js 15 (App Router) | Server-first, streaming, stable |
+| Runtime | Node.js 20+ | `crypto.randomUUID` native, no polyfills |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-tenant deploys |
+| ORM/Query | Raw SQL + `better-sqlite3` | ORMs hide performance cliffs; we own our schema |
+| Migrations | Custom Node.js scripts | `node scripts/migrate.js` — no hidden migration frameworks |
+| Auth | `bcrypt` + `jose` (JWT) | No bloated auth libraries; we control the session shape |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS |
+| Forms | Server Actions + `useFormState` | No `react-hook-form` — Server Actions handle validation and errors |
+| Validation | `zod` | Single source of truth for schemas, shared client/server |
+| Testing | Vitest + `better-sqlite3` (in-memory) | Same DB in tests as production |
 
-**Lockfile rule:** `package-lock.json` is source of truth. Never commit `yarn.lock` or `pnpm-lock.yaml`.
+**Non-negotiable:** SQLite is file-backed. One database per tenant (not one table with `tenant_id`). This eliminates row-level security complexity and makes backups trivial (`cp db.sqlite db.sqlite.backup`).
 
 ---
 
