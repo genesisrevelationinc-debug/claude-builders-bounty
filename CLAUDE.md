@@ -1,6 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code. If Claude suggests something that contradicts this file, this file wins.
+> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso). Paste this into your repo root. Claude Code reads it automatically.
 
 ---
 
@@ -8,18 +8,17 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server-first, streaming, stable |
-| Runtime | Node.js 20+ | `crypto.randomUUID` native, no polyfills |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-tenant deploys |
-| ORM/Query | Raw SQL + `better-sqlite3` | ORMs hide performance cliffs; we own our schema |
-| Migrations | Custom Node.js scripts | `node scripts/migrate.js` — no hidden migration frameworks |
-| Auth | `bcrypt` + `jose` (JWT) | No bloated auth libraries; we control the session shape |
-| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS |
-| Forms | Server Actions + `useFormState` | No `react-hook-form` — Server Actions handle validation and errors |
-| Validation | `zod` | Single source of truth for schemas, shared client/server |
-| Testing | Vitest + `better-sqlite3` (in-memory) | Same DB in tests as production |
+| Framework | Next.js 15 (App Router) | Server Components by default. No API route boilerplate for data fetching. |
+| Runtime | Node.js 20+ | `crypto.randomUUID`, native `fetch`, stable `AsyncLocalStorage`. |
+| Database | better-sqlite3 (local) or Turso (hosted) | Synchronous SQLite is simpler for reads; Turso for production scale. |
+| Schema Migrations | `drizzle-kit` or hand-rolled SQL | Drizzle for type safety; raw SQL when you need zero abstraction overhead. |
+| ORM/Query Builder | Drizzle ORM | Zero-runtime types; SQL-like syntax; no magic N+1 problems. |
+| Auth | Lucia (or custom session cookies) | No vendor lock-in. Sessions stored in SQLite. |
+| Styling | Tailwind CSS + shadcn/ui | Copy-paste components; no phantom dependency updates. |
+| Validation | Zod | Same schemas on server and client. |
+| Testing | Vitest + Playwright | Unit for logic, E2E for critical paths. |
 
-**Non-negotiable:** SQLite is file-backed. One database per tenant (not one table with `tenant_id`). This eliminates row-level security complexity and makes backups trivial (`cp db.sqlite db.sqlite.backup`).
+**Non-negotiable:** We do not use Prisma. It bundles a query engine binary, adds 200ms+ to cold starts, and hides SQL you need to understand for SQLite performance.
 
 ---
 
