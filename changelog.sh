@@ -1,75 +1,68 @@
 #!/usr/bin/env bash
-
-# changelog.sh - Generate a structured CHANGELOG.md from git history
-# Usage: bash changelog.sh
-
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# changelog.sh — Generate a structured CHANGELOG.md from git history
+# Usage: bash changelog.sh
 
-# Get the last git tag
-get_last_tag() {
+REPO_URL=""
+CHANGELOG_FILE="CHANGELOG.md"
+
+# Get the latest git tag
+get_latest_tag() {
     git describe --tags --abbrev=0 2>/dev/null || echo ""
 }
 
 # Get commits since a given tag (or all commits if no tag)
-get_commits_since_tag() {
+get_commits_since() {
     local tag="$1"
     if [ -n "$tag" ]; then
-        git log "$tag"..HEAD --pretty=format:"%s" --no-merges
+        git log "${tag}..HEAD" --pretty=format:"%H|%s|%b" --reverse
     else
-        git log --pretty=format:"%s" --no-merges
+        git log --pretty=format:"%H|%s|%b" --reverse
     fi
 }
 
-# Categorize a single commit message
+# Categorize a commit based on its message
 categorize_commit() {
     local msg="$1"
     local lower_msg
     lower_msg=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
     
     # Check for conventional commit prefixes first
-    if [[ "$lower_msg" =~ ^feat(\(.+\))?: ]]; then
-        echo "added"
-        return
-    elif [[ "$lower_msg" =~ ^fix(\(.+\))?: ]]; then
-        echo "fixed"
-        return
-    elif [[ "$lower_msg" =~ ^(chore|refactor|perf|style|docs)(\(.+\))?: ]]; then
-        echo "changed"
-        return
-    elif [[ "$lower_msg" =~ ^(remove|delete|drop|revert)(\(.+\))?: ]]; then
-        echo "removed"
-        return
-    fi
-    
-    # Fallback: keyword-based categorization
-    if [[ "$lower_msg" =~ ^(add|create|introduce|implement|new|support|enable) ]]; then
-        echo "added"
-    elif [[ "$lower_msg" =~ ^(fix|resolve|patch|correct|repair|bug|hotfix) ]]; then
-        echo "fixed"
-    elif [[ "$lower_msg" =~ ^(remove|delete|drop|revert|deprecate|disable|clean) ]]; then
-        echo "removed"
+    if echo "$lower_msg" | grep -qE '^(feat|add|introduce|implement|create)'; then
+        echo "Added"
+    elif echo "$lower_msg" | grep -qE '^(fix|bugfix|hotfix|patch|resolve)'; then
+        echo "Fixed"
+    elif echo "$lower_msg" | grep -qE '^(remove|delete|drop|revert)'; then
+        echo "Removed"
+    elif echo "$lower_msg" | grep -qE '^(update|change|modify|refactor|improve|enhance|upgrade|deps)'; then
+        echo "Changed"
     else
-        echo "changed"
+        # Fallback: keyword-based detection
+        if echo "$lower_msg" | grep -qE '\b(add|added|adding|introduce|implement|create|new|support|enable)\b'; then
+            echo "Added"
+        elif echo "$lower_msg" | grep -qE '\b(fix|fixed|fixing|resolve|resolved|bug|patch|correct|repair)\b'; then
+            echo "Fixed"
+        elif echo "$lower_msg" | grep -qE '\b(remove|removed|removing|delete|deleted|deleting|drop|dropped|revert|reverted|deprecate)\b'; then
+            echo "Removed"
+        elif echo "$lower_msg" | grep -qE '\b(update|updated|updating|change|changed|changing|modify|modified|modifying|refactor|refactored|improve|improved|enhance|enhanced|upgrade|upgraded|bump|bumped)\b'; then
+            echo "Changed"
+        else
+            echo "Changed"  # Default category
+        fi
     fi
 }
 
 # Generate the changelog
 generate_changelog() {
-    local last_tag
-    last_tag=$(get_last_tag)
+    local latest_tag
+    latest_tag=$(get_latest_tag)
     
-    local commits
-    commits=$(get_commits_since_tag "$last_tag")
-    
-    if [ -z "$commits" ]; then
-        echo -e "${YELLOW}No commits found since last tag.${NC}"
-        exit 0
+    local version_label
+    if [ -n "$latest_tag" ]; then
+        version_label="## [Unreleased] — since ${latest_tag}"
+    else
+        version_label="## [Unreleased]"
     fi
     
     local added=()
@@ -77,36 +70,45 @@ generate_changelog() {
     local changed=()
     local removed=()
     
-    while IFS= read -r commit; do
-        [ -z "$commit" ] && continue
+    # Read commits
+    while IFS='|' read -r hash subject body; do
+        [ -z "$subject" ] && continue
         
         local category
-        category=$(categorize_commit "$commit")
+        category=$(categorize_commit "$subject")
+        
+        # Clean up the commit message (remove conventional commit prefix if present)
+        local clean_subject
+        clean_subject=$(echo "$subject" | sed -E 's/^[a-z]+(\([^)]*\))?:\s*//i')
         
         case "$category" in
-            added)   added+=("$commit") ;;
-            fixed)   fixed+=("$commit") ;;
-            changed) changed+=("$commit") ;;
-            removed) removed+=("$commit") ;;
+            "Added") added+=("- $clean_subject") ;;
+            "Fixed") fixed+=("- $clean_subject") ;;
+            "Changed") changed+=("- $clean_subject") ;;
+            "Removed") removed+=("- $clean_subject") ;;
         esac
-    done <<< "$commits"
+    done < <(get_commits_since "$latest_tag")
     
-    # Generate CHANGELOG.md
+    # Write CHANGELOG.md
     {
         echo "# Changelog"
         echo ""
-        echo "## $(date +%Y-%m-%d)"
+        echo "All notable changes to this project will be documented in this file."
+        echo ""
+        echo "$version_label"
         echo ""
         
-        [ ${#added[@]} -gt 0 ] && { echo "### Added"; for c in "${added[@]}"; do echo "- $c"; done; echo ""; }
-        [ ${#fixed[@]} -gt 0 ] && { echo "### Fixed"; for c in "${fixed[@]}"; do echo "- $c"; done; echo ""; }
-        [ ${#changed[@]} -gt 0 ] && { echo "### Changed"; for c in "${changed[@]}"; do echo "- $c"; done; echo ""; }
-        [ ${#removed[@]} -gt 0 ] && { echo "### Removed"; for c in "${removed[@]}"; do echo "- $c"; done; echo ""; }
-    } > CHANGELOG.md
+        [ ${#added[@]} -gt 0 ] && { echo "### Added"; printf '%s\n' "${added[@]}"; echo ""; }
+        [ ${#fixed[@]} -gt 0 ] && { echo "### Fixed"; printf '%s\n' "${fixed[@]}"; echo ""; }
+        [ ${#changed[@]} -gt 0 ] && { echo "### Changed"; printf '%s\n' "${changed[@]}"; echo ""; }
+        [ ${#removed[@]} -gt 0 ] && { echo "### Removed"; printf '%s\n' "${removed[@]}"; echo ""; }
+        
+        echo "---"
+        echo ""
+        echo "*Generated automatically by [changelog.sh](changelog.sh)*"
+    } > "$CHANGELOG_FILE"
     
-    echo -e "${GREEN}✓ CHANGELOG.md generated successfully${NC}"
-    echo -e "${YELLOW}  Commits since tag: ${last_tag:-'(none - using all commits)'}${NC}"
+    echo "✅ CHANGELOG.md generated successfully!"
 }
 
-# Main
 generate_changelog
