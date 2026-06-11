@@ -1,6 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso). Paste this into your repo root. Claude Code reads it automatically.
+> Opinionated project context for Claude Code. Paste this into your project root and Claude will understand your conventions without asking.
 
 ---
 
@@ -8,17 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default. No API route boilerplate for data fetching. |
-| Runtime | Node.js 20+ | `crypto.randomUUID`, native `fetch`, stable `AsyncLocalStorage`. |
-| Database | better-sqlite3 (local) or Turso (hosted) | Synchronous SQLite is simpler for reads; Turso for production scale. |
-| Schema Migrations | `drizzle-kit` or hand-rolled SQL | Drizzle for type safety; raw SQL when you need zero abstraction overhead. |
-| ORM/Query Builder | Drizzle ORM | Zero-runtime types; SQL-like syntax; no magic N+1 problems. |
-| Auth | Lucia (or custom session cookies) | No vendor lock-in. Sessions stored in SQLite. |
-| Styling | Tailwind CSS + shadcn/ui | Copy-paste components; no phantom dependency updates. |
-| Validation | Zod | Same schemas on server and client. |
-| Testing | Vitest + Playwright | Unit for logic, E2E for critical paths. |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
+| Runtime | Node.js 20+ | `next` CLI requires 18+, 20+ for native `fetch` stability |
+| Database | `better-sqlite3` | Synchronous, fast, zero network latency. Use Turso only if you need edge replication |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly. Avoid Prisma (wasm binary, slow init) |
+| Auth | Lucia + `oslo` | Session-based, works with SQLite out of the box. Avoid NextAuth (bloated, opaque) |
+| Styling | Tailwind CSS + `cn()` utility | No CSS-in-JS runtime cost. `cn()` merges `clsx` + `tailwind-merge` |
+| Forms | `react-hook-form` + `zod` | Server validation via `zod` schemas shared client/server |
+| Deployment | Vercel (hobby) or self-hosted Docker | `better-sqlite3` needs Node runtime; edge functions won't work with SQLite file |
 
-**Non-negotiable:** We do not use Prisma. It bundles a query engine binary, adds 200ms+ to cold starts, and hides SQL you need to understand for SQLite performance.
+**Non-negotiable:** SQLite is file-based. You cannot use Edge Runtime. All routes using DB must be `runtime: 'nodejs'`.
 
 ---
 
