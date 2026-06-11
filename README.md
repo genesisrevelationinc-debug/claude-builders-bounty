@@ -3,13 +3,13 @@
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
-Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
 ---
 
 ## How it works
+
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
 2. Comment `/opire create $XXX` in the issue to set the reward
@@ -56,7 +56,11 @@ You're in the right place.
 
 ## Hooks
 
-- **[pre-tool-use](hooks/)** — Block destructive bash commands in Claude Code
+This repository includes community-contributed Claude Code hooks:
+
+- **[pre-tool-use](hooks/)** — Blocks destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute. [Install in 1 command →](hooks/README.md)
+
+---
 
 ## Community
 
