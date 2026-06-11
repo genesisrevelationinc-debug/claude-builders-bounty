@@ -2,19 +2,16 @@ name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize]
 
 jobs:
   review:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -23,35 +20,18 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r claude-review/requirements.txt
+          pip install -e .
 
       - name: Run Claude Review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          python -m claude-review.claude_review --pr "$PR_URL"
---- /dev/null
-# Claude PR Review Agent 🤖
+          claude-review --pr "${{ github.event.pull_request.html_url }}" --output review.md
 
-An autonomous PR review agent powered by Claude that analyzes pull requests and posts structured Markdown review comments.
-
-## Features
-
-- **Structured Reviews**: Generates consistent, well-formatted review comments
-- **Risk Analysis**: Identifies potential issues and categorizes them by severity
-- **Actionable Suggestions**: Provides concrete improvement recommendations
-- **Confidence Scoring**: Rates review reliability as Low / Medium / High
-
-## Setup
-
-### Prerequisites
-
-- Python 3.11+
-- An Anthropic API key
-- GitHub token (for posting comments)
-
-### Installation
-
-1. Clone the repository and navigate to the project:
+      - name: Post review comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.html_url }}" --body-file review.md
+        shell: bash
