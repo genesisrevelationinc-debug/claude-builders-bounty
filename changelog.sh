@@ -1,25 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# changelog.sh — Generate a structured CHANGELOG.md from git history
+# changelog.sh - Generate a structured CHANGELOG.md from git history
 # Usage: bash changelog.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHANGELOG_FILE="${SCRIPT_DIR}/CHANGELOG.md"
 
-# Get the latest git tag, or empty if no tags exist
+# Get the latest git tag
 get_latest_tag() {
     git describe --tags --abbrev=0 2>/dev/null || echo ""
 }
 
-# Get commits since the last tag (or all commits if no tag)
-get_commits() {
-    local tag
-    tag=$(get_latest_tag)
-    if [[ -n "$tag" ]]; then
+# Get commits since a given tag (or all commits if no tag)
+get_commits_since() {
+    local tag="$1"
+    if [ -n "$tag" ]; then
         git log "${tag}..HEAD" --pretty=format:"%s" 2>/dev/null || true
     else
         git log --pretty=format:"%s" 2>/dev/null || true
+    fi
+}
+
+# Get the date of the latest tag or use current date
+get_version_date() {
+    local tag="$1"
+    if [ -n "$tag" ]; then
+        git log -1 --format=%cd --date=short "$tag" 2>/dev/null || date +%Y-%m-%d
+    else
+        date +%Y-%m-%d
     fi
 }
 
@@ -28,107 +37,106 @@ categorize_commit() {
     local msg="$1"
     local lower_msg
     lower_msg=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
-
+    
     # Check for conventional commit prefixes first
-    if [[ "$lower_msg" =~ ^(feat|add|introduce|implement|create|new) ]]; then
+    if [[ "$lower_msg" =~ ^feat(\(.+\))?: ]]; then
         echo "added"
-    elif [[ "$lower_msg" =~ ^(fix|bugfix|hotfix|patch|resolve|close) ]]; then
+        return
+    elif [[ "$lower_msg" =~ ^fix(\(.+\))?: ]]; then
+        echo "fixed"
+        return
+    elif [[ "$lower_msg" =~ ^(chore|refactor|perf|style|docs|test)(\(.+\))?: ]]; then
+        echo "changed"
+        return
+    elif [[ "$lower_msg" =~ ^(remove|delete|drop)(\(.+\))?: ]]; then
+        echo "removed"
+        return
+    fi
+    
+    # Fallback: keyword-based categorization
+    if [[ "$lower_msg" =~ ^(add|create|introduce|implement|new|support|enable) ]]; then
+        echo "added"
+    elif [[ "$lower_msg" =~ ^(fix|bugfix|resolve|patch|correct|repair) ]]; then
         echo "fixed"
     elif [[ "$lower_msg" =~ ^(remove|delete|drop|eliminate|deprecate|clean) ]]; then
         echo "removed"
-    elif [[ "$lower_msg" =~ ^(change|update|modify|refactor|improve|enhance|upgrade|rework) ]]; then
-        echo "changed"
     else
-        # Fallback: keyword matching anywhere in the message
-        if [[ "$lower_msg" =~ (added|adds|adding|new feature|new ) ]]; then
-            echo "added"
-        elif [[ "$lower_msg" =~ (fixed|fixes|fixing|bug fix|resolved|resolves|patch) ]]; then
-            echo "fixed"
-        elif [[ "$lower_msg" =~ (removed|removes|removing|deleted|deletes|dropped|dropping) ]]; then
-            echo "removed"
-        elif [[ "$lower_msg" =~ (changed|changes|changing|updated|updates|updating|refactored|refactoring|improved|improving|modified|modifying|enhanced|enhancing) ]]; then
-            echo "changed"
-        else
-            # Default to changed if no match
-            echo "changed"
-        fi
+        echo "changed"
     fi
 }
 
 # Generate the changelog
 generate_changelog() {
-    local tag
-    tag=$(get_latest_tag)
-
+    local latest_tag
+    latest_tag=$(get_latest_tag)
+    local version_name
+    version_name=${latest_tag:-"0.0.0"}
+    local version_date
+    version_date=$(get_version_date "$latest_tag")
+    
+    local commits
+    commits=$(get_commits_since "$latest_tag")
+    
+    if [ -z "$commits" ]; then
+        echo "No commits found since last tag."
+        exit 0
+    fi
+    
     local added=()
     local fixed=()
     local changed=()
     local removed=()
-
+    
     while IFS= read -r commit; do
-        [[ -z "$commit" ]] && continue
-
+        [ -z "$commit" ] && continue
         local category
         category=$(categorize_commit "$commit")
-
         case "$category" in
-            added)   added+=("$commit") ;;
-            fixed)   fixed+=("$commit") ;;
+            added) added+=("$commit") ;;
+            fixed) fixed+=("$commit") ;;
             changed) changed+=("$commit") ;;
             removed) removed+=("$commit") ;;
         esac
-    done < <(get_commits)
-
+    done <<< "$commits"
+    
     # Write CHANGELOG.md
     {
         echo "# Changelog"
         echo ""
-        if [[ -n "$tag" ]]; then
-            echo "## Changes since $tag"
-        else
-            echo "## Changes"
-        fi
+        echo "## [${version_name}] - ${version_date}"
         echo ""
-
-        if [[ ${#added[@]} -gt 0 ]]; then
+        
+        if [ ${#added[@]} -gt 0 ]; then
             echo "### Added"
-            for item in "${added[@]}"; do
-                echo "- $item"
-            done
+            printf -- "- %s\n" "${added[@]}"
             echo ""
         fi
-
-        if [[ ${#fixed[@]} -gt 0 ]]; then
+        
+        if [ ${#fixed[@]} -gt 0 ]; then
             echo "### Fixed"
-            for item in "${fixed[@]}"; do
-                echo "- $item"
-            done
+            printf -- "- %s\n" "${fixed[@]}"
             echo ""
         fi
-
-        if [[ ${#changed[@]} -gt 0 ]]; then
+        
+        if [ ${#changed[@]} -gt 0 ]; then
             echo "### Changed"
-            for item in "${changed[@]}"; do
-                echo "- $item"
-            done
+            printf -- "- %s\n" "${changed[@]}"
             echo ""
         fi
-
-        if [[ ${#removed[@]} -gt 0 ]]; then
+        
+        if [ ${#removed[@]} -gt 0 ]; then
             echo "### Removed"
-            for item in "${removed[@]}"; do
-                echo "- $item"
-            done
+            printf -- "- %s\n" "${removed[@]}"
             echo ""
         fi
     } > "$CHANGELOG_FILE"
-
-    echo "✅ CHANGELOG.md generated at $CHANGELOG_FILE"
+    
+    echo "CHANGELOG.md generated successfully at ${CHANGELOG_FILE}"
 }
 
-# Main
+# Main execution
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    echo "Error: Not a git repository." >&2
+    echo "Error: Not a git repository."
     exit 1
 fi
 
