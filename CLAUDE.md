@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code.  
-> Last updated: 2026-03
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Every rule below exists for a reason. If you break one, know why.
 
 ---
 
@@ -9,16 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable ESM |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Drizzle ORM | Type-safe SQL, migrations in code, no query builder lock-in |
-| Auth | Lucia (or custom session) | No vendor lock-in, works with SQLite natively |
-| Styling | Tailwind CSS + shadcn/ui | Copy-paste components, no runtime CSS |
-| Validation | Zod | Same schemas for API + forms |
-| Testing | Vitest + Playwright | Unit + E2E, both fast |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need multi-region |
+| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly. No Prisma (heavy, slow startup) |
+| Auth | Lucia + `oslo` | Session-based, works with SQLite out of the box. No JWT (stateless auth is a lie at scale) |
+| Styling | Tailwind CSS + `shadcn/ui` | Utility-first, copy-paste components, no runtime CSS |
+| Validation | Zod | Same schemas for API, forms, and DB. Single source of truth |
+| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
 
-**Non-negotiable:** We do not use Prisma with SQLite. Prisma's migration engine has race conditions on SQLite and its query engine adds 14MB to the bundle. Use Drizzle or raw `better-sqlite3`.
+**Lock these versions.** Do not upgrade major versions without a migration plan.
 
 ---
 
