@@ -1,46 +1,44 @@
 # n8n Weekly Dev Summary Workflow
 
-Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
-
-## Setup (5 steps)
-
-1. **Import the workflow**: In n8n, click "Add Workflow" → "Import from File" → select `weekly-dev-summary.json`
-
-2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API Key in n8n's "Credentials" section
-
-3. **Configure variables**: Open the "Set Config" node and edit:
-   - `repoOwner` / `repoName` — target GitHub repository
-   - `webhookUrl` — your Discord/Slack webhook URL
-   - `language` — `EN` or `FR`
-
-4. **Activate the workflow**: Toggle the workflow to "Active" — it runs every Friday at 5 PM
-
-5. **Test manually**: Click "Execute Workflow" to verify, then check your Discord/Slack channel
-
----
+Automated n8n workflow that generates a weekly narrative summary of a GitHub repo's activity using the Claude API.
 
 ## What It Does
 
-- **Trigger**: Cron schedule (Fridays at 17:00)
-- **Fetches**: Commits, closed issues, and merged PRs from the past 7 days
-- **Summarizes**: Claude API (`claude-sonnet-4-20250514`) generates a narrative summary
-- **Delivers**: Posts to Discord/Slack via webhook
+- **Trigger**: Runs every Friday at 5:00 PM
+- **Fetches**: Commits, closed issues, and merged PRs from the past week via GitHub API
+- **Summarizes**: Sends data to Claude API (`claude-sonnet-4-20250514`) for a narrative summary
+- **Delivers**: Posts the summary to a Discord webhook (configurable)
+- **Languages**: Supports EN and FR
+
+## Setup (5 Steps)
+
+1. **Import** `workflow.json` into your n8n instance (Settings → Import)
+2. **Set credentials**: Add your GitHub token and Claude API key in n8n credentials
+3. **Configure variables**: Edit the "Set Config" node with your repo, Discord webhook, and language (EN/FR)
+4. **Activate** the workflow and enable the cron trigger
+5. **Test** manually with the "Execute Workflow" button
 
 ## Required Credentials
 
-| Service | Type | How to Get |
-|---------|------|-----------|
-| GitHub | Personal Access Token | [Settings → Developer → Tokens](https://github.com/settings/tokens) |
-| Anthropic | API Key | [Console → API Keys](https://console.anthropic.com) |
+- GitHub Personal Access Token (classic, with `repo` scope)
+- Anthropic API Key (Claude API)
+
+## Configurable Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `githubRepo` | Full repo name | `claude-builders-bounty/claude-builders-bounty` |
+| `discordWebhook` | Discord webhook URL | `https://discord.com/api/webhooks/...` |
+| `language` | Summary language | `EN` or `FR` |
 
 ## Output Example
 
-> 📊 **Weekly Dev Summary** for `owner/repo`
-> 
-> This week saw **12 commits**, **3 merged PRs**, and **5 closed issues**.
-> 
-> Highlights include a new authentication flow, performance improvements to the database layer, and bug fixes for edge cases in user onboarding...
+The workflow produces a narrative summary like:
+
+> **Weekly Dev Summary for `claude-builders-bounty`**
+>
+> This week saw 12 commits, 3 closed issues, and 2 merged PRs. Key highlights include...
 
 ---
 
-*Part of the Claude Builders Bounty program*
+*Tested on n8n v1.50.0*
