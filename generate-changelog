@@ -1,151 +1,113 @@
 #!/usr/bin/env bash
 #
 # generate-changelog
-# A script to generate a structured CHANGELOG.md from git history.
-# Fetches commits since the last git tag and auto-categorizes them.
+# Automatically generates a structured CHANGELOG.md from git history.
+# Fetches commits since the last git tag and categorizes them.
 #
-# Usage: ./generate-changelog [--output FILE] [--since TAG]
-#
+# Usage:
+#   ./generate-changelog              # Generate CHANGELOG.md
+#   ./generate-changelog --dry-run    # Preview without writing
 
 set -euo pipefail
 
-# Configuration
+# ── Configuration ──────────────────────────────────────────────────────────
+
+CATEGORIES="Added Fixed Changed Removed"
 OUTPUT_FILE="CHANGELOG.md"
-SINCE_TAG=""
+DRY_RUN=false
 
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --output)
-            OUTPUT_FILE="$2"
-            shift 2
-            ;;
-        --since)
-            SINCE_TAG="$2"
-            shift 2
-            ;;
-        --help|-h)
-            echo "Usage: $0 [--output FILE] [--since TAG]"
-            echo ""
-            echo "Options:"
-            echo "  --output FILE   Output file path (default: CHANGELOG.md)"
-            echo "  --since TAG     Use commits since this tag (default: last tag)"
-            echo "  --help, -h      Show this help message"
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1" >&2
-            exit 1
-            ;;
-    esac
-done
+# ── Parse flags ──────────────────────────────────────────────────────────────
 
-# Check if we're in a git repository
-if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    echo "Error: Not a git repository" >&2
-    exit 1
+if [[ "${1:-}" == "--dry-run" ]]; then
+    DRY_RUN=true
 fi
 
-# Determine the range of commits to include
-if [[ -z "$SINCE_TAG" ]]; then
-    # Find the latest tag
-    SINCE_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-    if [[ -z "$SINCE_TAG" ]]; then
-        echo "Error: No tags found. Use --since to specify a starting point." >&2
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+get_last_tag() {
+    git describe --tags --abbrev=0 2>/dev/null || echo ""
+}
+
+get_commits_since() {
+    local tag="$1"
+    if [[ -n "$tag" ]]; then
+        git log "${tag}..HEAD" --pretty=format:"%s" 2>/dev/null || true
+    else
+        git log --pretty=format:"%s" 2>/dev/null || true
+    fi
+}
+
+categorize_commit() {
+    local msg="$1"
+    local lower
+    lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ "$lower" =~ ^(feat|add|create|introduce|implement|new) ]]; then
+        echo "Added"
+    elif [[ "$lower" =~ ^(fix|bugfix|hotfix|patch|resolve|correct) ]]; then
+        echo "Fixed"
+    elif [[ "$lower" =~ ^(remove|delete|drop|revert|clean) ]]; then
+        echo "Removed"
+    elif [[ "$lower" =~ ^(update|change|modify|refactor|improve|enhance|upgrade|rework) ]]; then
+        echo "Changed"
+    else
+        echo "Changed"
+    fi
+}
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+main() {
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        echo "Error: Not a git repository." >&2
         exit 1
     fi
-fi
 
-# Get the next version (for the changelog header)
-NEXT_VERSION=""
-if [[ "$SINCE_TAG" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+).*$ ]]; then
-    major="${BASH_REMATCH[1]}"
-    minor="${BASH_REMATCH[2]}"
-    patch="${BASH_REMATCH[3]}"
-    # Increment minor version for next release
-    NEXT_VERSION="${major}.$((minor + 1)).${patch}"
-else
-    NEXT_VERSION="Unreleased"
-fi
+    local last_tag
+    last_tag=$(get_last_tag)
 
-echo "Generating changelog for commits since: $SINCE_TAG"
-echo "Output file: $OUTPUT_FILE"
-
-# Get commits since the tag
-COMMITS=$(git log "${SINCE_TAG}..HEAD" --pretty=format:"%s" --no-merges 2>/dev/null || true)
-
-if [[ -z "$COMMITS" ]]; then
-    echo "No commits found since $SINCE_TAG"
-    exit 0
-fi
-
-# Categorize commits
-ADDED=""
-FIXED=""
-CHANGED=""
-REMOVED=""
-
-while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    
-    lower_line=$(echo "$line" | tr '[:upper:]' '[:lower:]')
-    
-    if [[ "$lower_line" =~ ^(feat|add|added|new|create|introduce|implement) ]]; then
-        ADDED="${ADDED}- ${line}"$'\n'
-    elif [[ "$lower_line" =~ ^(fix|fixed|bugfix|resolve|patch|hotfix|correct) ]]; then
-        FIXED="${FIXED}- ${line}"$'\n'
-    elif [[ "$lower_line" =~ ^(remove|removed|delete|deleted|drop|dropped|clean|cleanup) ]]; then
-        REMOVED="${REMOVED}- ${line}"$'\n'
+    local version_info
+    if [[ -n "$last_tag" ]]; then
+        version_info="since $last_tag"
     else
-        # Default to Changed for everything else
-        CHANGED="${CHANGED}- ${line}"$'\n'
+        version_info="(all commits)"
     fi
-done <<< "$COMMITS"
 
-# Generate the changelog
-{
-    echo "# Changelog"
-    echo ""
-    echo "All notable changes to this project will be documented in this file."
-    echo ""
-    echo "## [${NEXT_VERSION}] - $(date +%Y-%m-%d)"
-    echo ""
-    
-    if [[ -n "$ADDED" ]]; then
-        echo "### Added"
-        echo ""
-        echo -n "$ADDED"
-        echo ""
-    fi
-    
-    if [[ -n "$CHANGED" ]]; then
-        echo "### Changed"
-        echo ""
-        echo -n "$CHANGED"
-        echo ""
-    fi
-    
-    if [[ -n "$FIXED" ]]; then
-        echo "### Fixed"
-        echo ""
-        echo -n "$FIXED"
-        echo ""
-    fi
-    
-    if [[ -n "$REMOVED" ]]; then
-        echo "### Removed"
-        echo ""
-        echo -n "$REMOVED"
-        echo ""
-    fi
-    
-    # Append existing changelog content if it exists (below the header)
-    if [[ -f "$OUTPUT_FILE" ]]; then
-        tail -n +4 "$OUTPUT_FILE" 2>/dev/null || true
-    fi
-} > "${OUTPUT_FILE}.tmp"
+    local commits
+    commits=$(get_commits_since "$last_tag")
 
+    if [[ -z "$commits" ]]; then
+        echo "No commits found $version_info."
+        exit 0
+    fi
 
-mv "${OUTPUT_FILE}.tmp" "$OUTPUT_FILE"
+    # Build changelog content
+    local changelog=""
+    changelog+="# Changelog\n\n"
+    changelog+="## Unreleased $version_info\n\n"
 
-echo "Changelog generated successfully: $OUTPUT_FILE"
+    for category in $CATEGORIES; do
+        local section=""
+        while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            local cat
+            cat=$(categorize_commit "$line")
+            if [[ "$cat" == "$category" ]]; then
+                section+="- $line\n"
+            fi
+        done <<< "$commits"
+
+        if [[ -n "$section" ]]; then
+            changelog+="### $category\n\n$section\n"
+        fi
+    done
+
+    if $DRY_RUN; then
+        echo -e "$changelog"
+    else
+        echo -e "$changelog" > "$OUTPUT_FILE"
+        echo "CHANGELOG.md generated successfully."
+    fi
+}
+
+main "$@"
