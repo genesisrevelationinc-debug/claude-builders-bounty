@@ -1,8 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso).
-> 
-> **Rule of thumb:** If a convention isn't listed here, it doesn't exist. Ask before inventing.
+> Opinionated project conventions. Read this before writing code. If Claude suggests something that contradicts this file, follow this file.
 
 ---
 
@@ -10,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
-| Database | SQLite via `better-sqlite3` (local) or `@libsql/client` (Turso/edge) | Single file, zero-config, works at the edge |
-| Schema/Migrations | `drizzle-orm` + `drizzle-kit` | Type-safe SQL, zero runtime overhead, git-tracked migrations |
-| Auth | `lucia` or `next-auth` v5 beta | Session-based, no JWT in localStorage |
-| Styling | Tailwind CSS 3.4+ | Utility-first, no CSS-in-JS runtime |
-| Forms | Server Actions + `react-hook-form` (client validation only) | Progressive enhancement, no API routes for CRUD |
-| Testing | Vitest (unit), Playwright (E2E) | Fast, native ESM, same browser engine as users |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
+| Runtime | Node.js 20+ | `next` CLI requires it; use `fetch` globals |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query Builder | Drizzle ORM | Type-safe SQL, migrations in TypeScript, no codegen step |
+| Auth | Lucia + `better-sqlite3` adapter | Session-based, works without external services |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, copy-paste components, no runtime CSS |
+| Validation | Zod | Same schemas for API, forms, and DB |
+| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical flows |
 
-**Hard constraint:** No Docker, no Postgres, no Redis in development. The entire app must `git clone && npm install && npm run dev` on a fresh machine.
+**Non-negotiable:** We do not use Prisma. It generates a client, hides SQL, and has poor SQLite support.
 
 ---
 
