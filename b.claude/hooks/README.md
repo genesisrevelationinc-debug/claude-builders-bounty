@@ -1,16 +1,14 @@
-# Pre-Tool-Use Hook: Block Destructive Bash Commands
+# Claude Code Pre-Tool-Use Hook: Block Destructive Bash Commands
 
-A Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash commands before they are executed.
+A `pre-tool-use` hook for [Claude Code](https://docs.anthropic.com/claude-code/hooks) that intercepts and blocks dangerous bash commands before they are executed.
 
-## What It Blocks
+## What it blocks
 
-| Pattern | Reason |
-|---------|--------|
-| `rm -rf`, `rm -r`, `rm -f` | Destructive file/directory removal |
-| `DROP TABLE` | Database table deletion |
-| `git push --force` / `git push -f` | Destructive force push to remote |
-| `TRUNCATE` | Table data destruction |
-| `DELETE FROM` without `WHERE` | Accidental full-table deletion |
+- `rm -rf` / `rm -r` / `rm -f` (destructive recursive/force delete)
+- `DROP TABLE` (SQL table deletion)
+- `git push --force` / `git push -f` (force push)
+- `TRUNCATE` (SQL table truncation)
+- `DELETE FROM` without a `WHERE` clause (SQL mass deletion)
 
 ## Installation
 
