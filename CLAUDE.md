@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
 > Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at your repo root. Claude Code reads it automatically for context.
+> Paste this file at the root of your project. Claude Code reads it automatically.
 
 ---
 
@@ -9,16 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead, perfect for single-tenant or small multi-tenant SaaS |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migration tooling |
-| Auth | Lucia (or custom session with `iron-session`) | Session-based, no JWT complexity, works with SQLite natively |
-| Styling | Tailwind CSS 3.4+ | Utility-first, minimal bundle, no runtime CSS-in-JS overhead |
-| Forms | Server Actions + `zod` | No API boilerplate, progressive enhancement, type-safe validation |
-| Testing | Vitest + Playwright | Unit tests with Node-compatible runner, E2E with real browser |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
+| Runtime | Node.js 20+ | Required for `next` CLI and native modules |
+| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-tenant or small multi-tenant apps. Use Turso only if you need edge replication |
+| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations, no hidden queries |
+| Auth | `bcryptjs` + `jose` (JWT) | No vendor lock-in. Roll your own or use Clerk if you need SSO/SAML |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS, works with Server Components |
+| Forms | `react-hook-form` + `zod` | Type-safe validation, works without JS (progressive enhancement) |
+| Date/Time | `date-fns` | Tree-shakeable, no mutable globals like Moment |
 
-**Lockfile rule:** Use `pnpm`. Commit `pnpm-lock.yaml`. No `package-lock.json` or `yarn.lock` in repo.
+**Hard rule:** Do not add a new dependency without documenting why it beats a built-in or existing choice in this file.
 
 ---
 
