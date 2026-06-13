@@ -1,42 +1,42 @@
-# n8n + Claude — Automated Weekly Dev Summary
+# n8n + Claude Weekly Dev Summary Workflow
 
-Weekly narrative summary of GitHub repo activity, powered by n8n and Claude API.
+Automatically generates a weekly narrative summary of a GitHub repo's activity using n8n and the Claude API.
 
 ## Setup (5 steps)
 
-1. **Import the workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
-2. **Set credentials**: Add your *GitHub API* and *Anthropic API* credentials in n8n
-3. **Configure variables**: Open the workflow, edit the `Set Config` node — set `repo`, `channelWebhook`, and `language`
-4. **Activate**: Toggle the workflow to *Active* — it runs Fridays at 5 PM
-5. **Test**: Click *Execute Workflow* to run manually and verify output
+1. **Import the workflow**: In n8n, click **Add Workflow** → **Import from File** → select `weekly-dev-summary.json`
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in n8n **Credentials**
+3. **Configure variables**: Open the workflow and edit the `Set Config` node — set your repo, destination, and language
+4. **Activate the workflow**: Toggle the workflow to **Active** in the top-right corner
+5. **Test it**: Click **Execute Workflow** to run manually, or wait for the weekly cron trigger
 
-## Required Credentials
+## Configuration
 
-- **GitHub API**: Personal access token with `repo` scope
-- **Anthropic API**: API key from [Anthropic console](https://console.anthropic.com)
-
-## Configurable Variables
+Edit the `Set Config` node to customize:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `repo` | GitHub `owner/repo` to summarize | `claude-builders-bounty/claude-builders-bounty` |
-| `channelWebhook` | Discord/Slack webhook URL | `https://hooks.slack.com/services/...` |
-| `language` | Output language: `EN` or `FR` | `EN` |
+| `githubRepo` | Full repo path | `claude-builders-bounty/claude-builders-bounty` |
+| `destination` | Email or webhook URL | `https://hooks.slack.com/services/...` |
+| `language` | Summary language | `EN` or `FR` |
+| `summaryType` | Delivery method | `slack`, `discord`, or `email` |
+
+## Delivery Methods
+
+- **Slack**: Set `summaryType` to `slack` and `destination` to your Slack webhook URL
+- **Discord**: Set `summaryType` to `discord` and `destination` to your Discord webhook URL
+- **Email**: Set `summaryType` to `email` and `destination` to the recipient email address
 
 ## What It Does
 
-1. Triggers weekly (Friday 5 PM via cron)
+1. Triggers every Friday at 5:00 PM
 2. Fetches commits, closed issues, and merged PRs from the past 7 days
 3. Sends data to Claude API (`claude-sonnet-4-20250514`) for narrative generation
-4. Posts the summary to your configured Discord/Slack webhook
+4. Delivers the formatted summary to your chosen destination
 
-## Testing
+## Requirements
 
-![Successful Execution](screenshot.png)
-
-*Screenshot: Successful workflow execution showing data fetch, Claude API call, and webhook delivery.*
-
-## Files
-
-- `weekly-dev-summary.json` — Importable n8n workflow
-- `README.md` — This file
+- n8n instance (cloud or self-hosted)
+- GitHub Personal Access Token
+- Anthropic API key
+- Slack or Discord webhook (or SMTP for email)
