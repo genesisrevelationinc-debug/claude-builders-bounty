@@ -1,27 +1,24 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> This file is the source of truth for how this codebase works. Claude Code reads it before doing anything. If something here conflicts with a general best practice, this file wins.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Lock Version |
-|-------|--------|--------------|
-| Framework | Next.js 15 | `next@15.x` |
-| Runtime | Node.js 20+ | `.nvmrc` enforces this |
-| Router | App Router | Pages Router is not used |
-| Language | TypeScript 5.5+ | Strict mode enabled |
-| Database | SQLite | `better-sqlite3` for local, `@libsql/client` for Turso |
-| ORM | Drizzle ORM | Do not use Prisma (see Anti-patterns) |
-| Auth | Lucia + Oslo | Or NextAuth.js v5 if OAuth is primary |
-| Styling | Tailwind CSS 3.4+ | No CSS-in-JS libraries |
-| UI Components | shadcn/ui | Install via CLI, do not hand-roll |
-| Validation | Zod | For all runtime validation |
-| Testing | Vitest + Playwright | Unit + E2E split |
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
+| Runtime | Node.js 20+ | `next dev` requires it; we use native `crypto` and `fetch` |
+| Database | better-sqlite3 | Synchronous, fast, zero network overhead. Perfect for single-node deploys |
+| ORM/Query | Raw SQL + `better-sqlite3` | No ORM bloat. SQL is the source of truth. Migrations are version-controlled |
+| Auth | Lucia (or custom session) | SQLite-native, no external auth service dependency |
+| Styling | Tailwind CSS | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `useFormState` | No API routes needed for mutations |
+| Validation | Zod | Same schemas on server and client |
+| Testing | Vitest + Playwright | Unit for logic, E2E for critical flows |
 
-**Why this stack:** SQLite eliminates infrastructure overhead for 0-10k users. better-sqlite3 is synchronous and fast for local dev. Turso provides global edge replication when you need it. Drizzle ORM generates type-safe SQL without a black-box query engine.
+**Hard rule:** No switching to PostgreSQL/MySQL without a written ADR in `/docs/`. SQLite is not a toy database.
 
 ---
 
