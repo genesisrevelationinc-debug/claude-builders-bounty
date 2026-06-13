@@ -35,4 +35,119 @@ jobs:
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          python -m claude-review.claude_review --pr "$PR_URL" --post-comment
+          python -m claude-review.claude_review \
+            --pr "$PR_URL" \
+            --pr-number "$PR_NUMBER" \
+            --repo-owner "$REPO_OWNER" \
+            --repo-name "$REPO_NAME"
+--- /dev/null
+#!/usr/bin/env python3
+"""
+Claude Code PR Review Agent
+
+A CLI tool and GitHub Action that uses Claude to analyze PR diffs
+and post structured Markdown review comments.
+"""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from typing import List, Optional
+
+import requests
+
+
+@dataclass
+class ReviewResult:
+    summary: str
+    risks: List[str]
+    suggestions: List[str]
+    confidence: str
+
+
+class GitHubClient:
+    def __init__(self, token: Optional[str] = None):
+        self.token = token or os.environ.get("GITHUB_TOKEN")
+        if not self.token:
+            raise ValueError("GitHub token required. Set GITHUB_TOKEN env var.")
+        self.headers = {
+            "Authorization": f"token {self.token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+
+    def get_pr_diff(self, owner: str, repo: str, pr_number: int) -> str:
+        """Fetch the PR diff from GitHub API."""
+        url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+        headers = {**self.headers, "Accept": "application/vnd.github.v3.diff"}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.text
+
+    def post_comment(self, owner: str, repo: str, pr_number: int, body: str) -> dict:
+        """Post a comment on the PR."""
+        url = f"https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments"
+        response = requests.post(url, headers=self.headers, json={"body": body})
+        response.raise_for_status()
+        return response.json()
+
+
+class ClaudeReviewer:
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not self.api_key:
+            raise ValueError("Anthropic API key required. Set ANTHROPIC_API_KEY env var.")
+        self.api_url = "https://api.anthropic.com/v1/messages"
+
+    def review(self, diff: str) -> ReviewResult:
+        """Send the diff to Claude and get a structured review."""
+        prompt = self._build_prompt(diff)
+
+        headers = {
+            "x-api-key": self.api_key,
+            "Content-Type": "application/json",
+            "anthropic-version": "2023-06-01",
+        }
+
+        payload = {
+            "model": "claude-3-5-sonnet-20241022",
+            "max_tokens": 4096,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+        }
+
+        response = requests.post(self.api_url, headers=headers, json=payload)
+        response.raise_for_status()
+
+        content = response.json()["content"][0]["text"]
+        return self._parse_response(content)
+
+    def _build_prompt(self, diff: str) -> str:
+        return f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
+
+Please respond in the following format:
+
+SUMMARY:
+<2-3 sentence summary of the changes>
+
+RISKS:
+- <risk 1>
+- <risk 2>
+- <risk 3>
+
+SUGGESTIONS:
+- <suggestion 1>
+- <suggestion 2>
+- <suggestion 3>
+
+CONFIDENCE: <Low/Medium/High>
+
+Here is the diff to review:
+
