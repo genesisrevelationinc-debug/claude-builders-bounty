@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root.
-> Assumes: Next.js 15 App Router, TypeScript, Tailwind CSS, better-sqlite3 or Turso, t3-env for env validation.
+> Opinionated project conventions. Read this before writing code.
 
 ---
 
@@ -9,17 +8,15 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Runtime | Node.js 20+ | `crypto` global, native fetch, stable ESM |
-| Language | TypeScript 5.5+ | Strict mode, `noUncheckedIndexedAccess` |
-| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime, design system via config |
-| Database | better-sqlite3 (dev) / Turso (prod) | Single file, zero-config local dev; edge-ready with Turso |
-| Migrations | `node-sqlite` custom runner | No ORM magic — explicit SQL, versioned, reversible |
-| Auth | Lucia + oslo (or NextAuth.js v5) | Session in SQLite, no external auth service dependency |
-| Env | t3-env + zod | Fail fast on missing/invalid env vars at build time |
-| Testing | Vitest + Playwright | Unit in Node, E2E in real browser |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
+| Runtime | Node.js 20+ | `crypto.randomUUID`, native `fetch`, stable `AsyncLocalStorage` |
+| Database | better-sqlite3 | Synchronous, fast, zero network overhead. Turso only if you need multi-region |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia (or custom session) | No vendor lock-in, works with SQLite natively |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, copy-paste components, no runtime CSS |
+| Validation | Zod | Same schemas for API, forms, and DB |
 
-**Lock it down:** Use `pnpm` with `engine-strict=true` in `.npmrc`. Pin exact versions in `package.json`.
+**Lockfile rule:** Use `pnpm`. Commit `pnpm-lock.yaml`. No `package-lock.json` or `yarn.lock`.
 
 ---
 
