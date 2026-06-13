@@ -1,54 +1,63 @@
-"""CLI entry point for claude-review."""
+"""CLI for the Claude Code PR Review Agent."""
 
 import argparse
+import os
 import sys
 
-from .reviewer import review_pr
+from .reviewer import PRReviewer
 
 
-def main():
+def main() -> None:
+    """Run the CLI."""
     parser = argparse.ArgumentParser(
-        description="Claude Code PR Review Agent",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  claude-review --pr https://github.com/owner/repo/pull/123
-  claude-review --pr https://github.com/owner/repo/pull/123 --output review.md
-  claude-review --pr https://github.com/owner/repo/pull/123 --confidence high
-        """,
+        description="Claude Code PR Review Agent - Analyze PRs and generate structured review comments."
     )
     parser.add_argument(
         "--pr",
         required=True,
-        help="URL of the GitHub PR to review",
+        help="GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)",
     )
     parser.add_argument(
         "--output",
         "-o",
-        help="Path to write the structured review Markdown (default: print to stdout)",
-    )
-    parser.add_argument(
-        "--confidence",
-        choices=["low", "medium", "high"],
-        default="medium",
-        help="Minimum confidence threshold for including suggestions (default: medium)",
+        help="Output file path (default: print to stdout)",
     )
     parser.add_argument(
         "--model",
-        default="claude-sonnet-4-20250514",
-        help="Claude model to use (default: claude-sonnet-4-20250514)",
+        default="claude-3-5-sonnet-20241022",
+        help="Claude model to use (default: claude-3-5-sonnet-20241022)",
+    )
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=4096,
+        help="Maximum tokens for response (default: 4096)",
     )
 
     args = parser.parse_args()
 
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        print(
+            "Error: ANTHROPIC_API_KEY environment variable not set.", file=sys.stderr
+        )
+        sys.exit(1)
+
     try:
-        review = review_pr(args.pr, confidence=args.confidence, model=args.model)
+        reviewer = PRReviewer(
+            api_key=api_key,
+            model=args.model,
+            max_tokens=args.max_tokens,
+        )
+        review = reviewer.review_pr(args.pr)
 
         if args.output:
             with open(args.output, "w") as f:
                 f.write(review)
+            print(f"Review written to {args.output}")
         else:
             print(review)
+
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
