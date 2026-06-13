@@ -2,8 +2,8 @@
 """
 Claude Code pre-tool-use hook to block destructive bash commands.
 
-This hook intercepts dangerous bash commands before they are executed
-by Claude Code, preventing accidental data loss or destructive operations.
+Place this file at: ~/.claude/hooks/pre-tool-use
+Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
 """
 
 import json
@@ -14,75 +14,78 @@ from datetime import datetime
 from pathlib import Path
 
 
-HOOKS_DIR = Path.home() / ".claude" / "hooks"
-BLOCKED_LOG = HOOKS_DIR / "blocked.log"
+BLOCKED_LOG_PATH = Path.home() / ".claude" / "hooks" / "blocked.log"
 
-# Destructive patterns to block
-DANGEROUS_PATTERNS = [
-    # rm -rf variants
-    r"rm\s+(?:-[a-zA-Z]*f[a-zA-Z]*\s+|\s+-[a-zA-Z]*[a-zA-Z]*\s+.*-f.*\s+)?-?r\s+(?:-[a-zA-Z]*f[a-zA-Z]*\s+)?\S+",
-    r"rm\s+(?:-[a-zA-Z]*\s+)*-rf\s+",
-    r"rm\s+(?:-[a-zA-Z]*\s+)*-fr\s+",
-    # DROP TABLE
-    r"(?i)\bDROP\s+TABLE\b",
-    # git push --force variants
-    r"(?i)git\s+push\s+.*--force",
-    r"(?i)git\s+push\s+-f\b",
-    # TRUNCATE
-    r"(?i)\bTRUNCATE\s+(?:TABLE\s+)?\S+",
-    # DELETE FROM without WHERE
-    r"(?i)\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)",
+
+# Patterns that are always blocked (no exceptions)
+ALWAYS_BLOCKED_PATTERNS = [
+    (r"rm\s+(-[a-zA-Z]*\s+)*-?[a-zA-Z]*rf", "rm -rf: recursively and forcefully removes files/directories"),
+    (r"git\s+push\s+.*--force", "git push --force: overwrites remote history, potentially losing work"),
+    (r"DROP\s+TABLE", "DROP TABLE: permanently deletes a database table"),
+    (r"TRUNCATE\s+", "TRUNCATE: quickly removes all rows from a table (cannot be rolled back in some DBs)"),
+]
+
+# Patterns that require a WHERE clause to be safe
+DANGEROUS_WITHOUT_WHERE = [
+    (r"DELETE\s+FROM\s+\w+\s*$", "DELETE FROM without WHERE: deletes all rows from table"),
 ]
 
 
-def get_project_path() -> str:
-    """Get the current project path from environment or cwd."""
-    return os.environ.get("PWD", os.getcwd())
-
-
-def log_blocked_attempt(command: str) -> None:
+def log_blocked_attempt(command: str, reason: str, project_path: str):
     """Log a blocked command attempt to the blocked log file."""
-    HOOKS_DIR.mkdir(parents=True, exist_ok=True)
+    BLOCKED_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    
     timestamp = datetime.now().isoformat()
-    project = get_project_path()
+    log_entry = f"{timestamp} | PROJECT: {project_path} | COMMAND: {command} | REASON: {reason}\n"
     
-    log_entry = f"{timestamp} | {project} | {command}\n"
-    
-    with open(BLOCKED_LOG, "a") as f:
+    with open(BLOCKED_LOG_PATH, "a") as f:
         f.write(log_entry)
 
 
-def is_dangerous(command: str) -> tuple[bool, str]:
-    """Check if a command matches dangerous patterns. Returns (is_dangerous, reason)."""
-    for pattern in DANGEROUS_PATTERNS:
-        if re.search(pattern, command):
-            return True, f"Matched dangerous pattern: {pattern}"
+def check_command(command: str, project_path: str) -> tuple[bool, str]:
+    """
+    Check if a command should be blocked.
+    Returns (should_block, reason).
+    """
+    command_upper = command.upper()
+    
+    # Check always-blocked patterns
+    for pattern, reason in ALWAYS_BLOCKED_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, reason
+    
+    # Check patterns that need WHERE clause
+    for pattern, reason in DANGEROUS_WITHOUT_WHERE:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, reason
+    
     return False, ""
 
 
 def main():
-    # Read the tool use request from stdin
+    # Read the hook input from stdin (JSON format per Claude Code hooks spec)
     try:
-        data = json.load(sys.stdin)
+        hook_input = json.loads(sys.stdin.read())
     except json.JSONDecodeError:
-        sys.exit(0)  # Allow if we can't parse
-    
-    # Only intercept bash tool
-    if data.get("tool_name") != "bash":
+        # If not valid JSON, allow the command to proceed
         sys.exit(0)
     
-    command = data.get("tool_input", {}).get("command", "")
+    tool_name = hook_input.get("tool_name", "")
+    tool_input = hook_input.get("tool_input", {})
     
-    dangerous, reason = is_dangerous(command)
-    if dangerous:
-        log_blocked_attempt(command)
-        print(f"🚫 BLOCKED: This command was prevented from running for safety reasons.", file=sys.stderr)
-        print(f"   Command: {command}", file=sys.stderr)
-        print(f"   Reason: Destructive operations like this can cause irreversible data loss.", file=sys.stderr)
-        print(f"   If you need to run this, please do so manually outside of Claude Code.", file=sys.stderr)
+    # Only intercept bash tool
+    if tool_name != "bash":
+        sys.exit(0)
+    
+    command = tool_input.get("command", "")
+    project_path = hook_input.get("project_path", os.getcwd())
+    
+    should_block, reason = check_command(command, project_path)
+    
+    if should_block:
+        log_blocked_attempt(command, reason, project_path)
+        print(f"🛡️  BLOCKED: This command was prevented from running.\n\nReason: {reason}\nCommand: {command}\n\nIf you believe this is safe, you can run it manually or modify the hook at ~/.claude/hooks/pre-tool-use", file=sys.stderr)
         sys.exit(1)
-    
-    sys.exit(0)
 
 
 if __name__ == "__main__":
