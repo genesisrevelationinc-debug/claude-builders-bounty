@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code.
+> Opinionated conventions for a production SaaS built with Next.js 15 App Router and SQLite.
+> Paste this into your project root. Claude Code reads it automatically.
 
 ---
 
@@ -8,15 +9,18 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
-| Runtime | Node.js 20+ | `crypto.randomUUID`, native `fetch`, stable `AsyncLocalStorage` |
-| Database | better-sqlite3 | Synchronous, fast, zero network overhead. Turso only if you need multi-region |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | Lucia (or custom session) | No vendor lock-in, works with SQLite natively |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, copy-paste components, no runtime CSS |
-| Validation | Zod | Same schemas for API, forms, and DB |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
+| Runtime | Node.js 20+ | `crypto` global, native fetch, stable |
+| Database | `better-sqlite3` | Synchronous, fast, no connection pool complexity for single-node deploys |
+| ORM/Query | Raw SQL + `better-sqlite3` | SQLite is simple; ORMs add indirection without benefit at this scale |
+| Migrations | Custom Node.js scripts | `better-sqlite3` + `.sql` files. No third-party migrator needed |
+| Auth | `iron-session` + bcrypt | Stateless sessions, no Redis/DB session table needed |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `useFormState` | No `react-hook-form` for simple cases; Server Actions handle validation |
+| Validation | Zod | Share schemas between Server Actions and client |
+| Testing | Vitest + Playwright | Unit for logic, E2E for critical paths |
 
-**Lockfile rule:** Use `pnpm`. Commit `pnpm-lock.yaml`. No `package-lock.json` or `yarn.lock`.
+**Non-negotiable:** We do not use `turso` or `@libsql/client`. This template targets single-node or self-hosted SQLite. If you need distributed SQLite, fork and modify.
 
 ---
 
