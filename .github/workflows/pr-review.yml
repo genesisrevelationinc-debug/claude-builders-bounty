@@ -12,31 +12,32 @@ jobs:
       contents: read
     
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
+      
       - name: Install dependencies
         run: |
-          pip install -r claude-review/requirements.txt
-
-      - name: Run PR Review
+          pip install -e .
+      
+      - name: Get PR diff
+        run: |
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "${{ github.event.pull_request.diff_url }}" > /tmp/pr.diff
+      
+      - name: Run PR review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          python -m claude-review.claude_review \
-            --pr "$PR_URL" \
-            --pr-number "$PR_NUMBER" \
-            --repo "$REPO_OWNER/$REPO_NAME" \
-            --post-comment
+          claude-review --pr "$PR_URL" --diff /tmp/pr.diff --post-comment
+      
+      - name: Clean up
+        run: rm -f /tmp/pr.diff
