@@ -2,15 +2,17 @@ name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
 
 jobs:
   review:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      contents: read
+
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -22,17 +24,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e .
+          pip install -r claude-review/requirements.txt
 
-      - name: Run Claude Review
+      - name: Run Claude PR Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          claude-review --pr "$PR_URL" --output review.md
-
-      - name: Post Review Comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          path: review.md
+          python -m claude-review.claude_review --pr "$PR_URL" --post-comment
