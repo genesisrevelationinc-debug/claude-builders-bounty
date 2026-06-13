@@ -1,6 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
 > Paste this into your project root. Claude Code reads it automatically.
 
 ---
@@ -10,18 +10,15 @@
 | Layer | Choice | Why |
 |-------|--------|-----|
 | Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network latency for single-tenant SQLite |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
-| Auth | Lucia (or custom session) | Cookie-based, works edge-to-node, no OAuth lock-in |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste components |
-| Validation | Zod | Same schemas for forms, API, and DB |
-| Testing | Vitest + Playwright | Unit + E2E without Jest overhead |
+| Runtime | Node.js 20+ | `crypto.randomUUID`, native `fetch`, stable `sqlite` |
+| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-tenant deploys. Use `libsql` (Turso) only if you need edge replication |
+| ORM/Query | Raw SQL + `drizzle-orm` | Drizzle for type-safe queries; raw SQL for migrations and complex reports |
+| Auth | `bcryptjs` + `jose` (JWT) | No external auth dependency. Sessions stored in SQLite |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `zod` | No client-side form libraries. Validate on the server |
+| Testing | Vitest + `better-sqlite3` (in-memory) | Same DB in tests as production |
 
-**Hard constraints:**
-- Next.js must be `>= 15.0.0` (uses `async` Server Components)
-- `better-sqlite3` must be `>= 9.0.0` (WAL mode stability)
-- Node.js must be `>= 20.0.0` (for `crypto.randomUUID()`)
+**Non-negotiable:** All code targets Node.js runtime. Do not use Edge Runtime for DB operations—`better-sqlite3` is native and blocks; run it in Node.
 
 ---
 
