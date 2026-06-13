@@ -2,20 +2,18 @@ name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize]
 
 jobs:
   review:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 ..0
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,22 +22,65 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install anthropic requests
+          pip install -e .
 
       - name: Get PR diff
         id: get-diff
         run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
           curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.event.pull_request.diff_url }}" \
-            -o pr.diff
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" \
+            | jq -r '.diff_url' | xargs curl -s > /tmp/pr.diff
+          echo "diff_path=/tmp/pr.diff" >> $GITHUB_OUTPUT
 
       - name: Run Claude Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
         run: |
-          python .github/scripts/claude_review.py pr.diff
-          cat claude_review.md
-          gh pr comment "${{ github.event.pull_request.html_url }}" --body-file claude_review.md
+          python -m claude_review.cli \
+            --pr ${{ github.event.pull_request.html_url }} \
+            --diff-file ${{ steps.get-diff.outputs.diff_path }} \
+            --repo ${{ github.repository }} \
+            --pr-number ${{ github.event.pull_request.number }} \
+            --post-comment
+"""Claude Code PR Review Agent."""
+
+__version__ = "0.1.0"
+"""Core analysis logic for the PR review agent."""
+
+import os
+import re
+from dataclasses import dataclass
+from typing import List, Optional
+
+import requests
+
+
+@dataclass
+class ReviewResult:
+    """Structured result from a PR review."""
+
+    summary: str
+    risks: List[str]
+    suggestions: List[str]
+    confidence: str
+    raw_response: str
+
+
+class ClaudeAnalyzer:
+    """Analyzes PR diffs using the Claude API."""
+
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not self.api_key:
+            raise ValueError("ANTHROPIC_API_KEY must be provided")
+        self.api_url = "https://api.anthropic.com/v1/messages"
+
+    def _build_prompt(self, diff_content: str, pr_url: str) -> str:
+        """Build the analysis prompt for Claude."""
+        return f"""You are an expert code reviewer. Analyze the following pull request diff and provide a structured review.
+
+PR URL: {pr_url}
+
+Diff content:
