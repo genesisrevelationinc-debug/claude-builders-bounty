@@ -1,109 +1,123 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# changelog.sh — Generate a structured CHANGELOG.md from git history
+# changelog.sh - Generate a structured CHANGELOG.md from git history
 # Usage: bash changelog.sh
 
-CHANGELOG_FILE="CHANGELOG.md"
-TEMP_FILE=$(mktemp)
+# Get the directory where the script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHANGELOG_FILE="$SCRIPT_DIR/CHANGELOG.md"
 
-# Get the latest git tag, or empty if none
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+# Get the last git tag, or use empty string if no tags exist
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-if [ -z "$LATEST_TAG" ]; then
-    echo "⚠️  No tags found. Using all commits."
-    COMMIT_RANGE=""
+# Get commits since last tag (or all commits if no tag)
+if [ -n "$LAST_TAG" ]; then
+    COMMITS=$(git log "$LAST_TAG"..HEAD --pretty=format:"%s" 2>/dev/null || echo "")
 else
-    echo "📌 Latest tag: $LATEST_TAG"
-    COMMIT_RANGE="${LATEST_TAG}..HEAD"
+    COMMITS=$(git log --pretty=format:"%s" 2>/dev/null || echo "")
 fi
 
-# Fetch commits since last tag (or all commits)
-if [ -z "$COMMIT_RANGE" ]; then
-    COMMITS=$(git log --pretty=format:"%s" --no-merges 2>/dev/null || true)
-else
-    COMMITS=$(git log "${COMMIT_RANGE}" --pretty=format:"%s" --no-merges 2>/dev/null || true)
-fi
-
+# If no commits found, exit with message
 if [ -z "$COMMITS" ]; then
-    echo "✅ No new commits since ${LATEST_TAG:-the beginning}."
-    rm -f "$TEMP_FILE"
+    echo "No commits found since last tag."
     exit 0
 fi
 
-# Categorize commits
-ADDED=""
-FIXED=""
-CHANGED=""
-REMOVED=""
-OTHER=""
+# Initialize category arrays
+declare -a ADDED=()
+declare -a FIXED=()
+declare -a CHANGED=()
+declare -a REMOVED=()
+declare -a OTHER=()
 
-while IFS= read -r line; do
-    # Skip empty lines
-    [ -z "$line" ] && continue
-
-    # Categorize based on conventional commit prefixes and keywords
-    if echo "$line" | grep -qiE '^(feat|add|new|introduce)|^[a-z]+:.*\b(add|added|adding|introduce|introduces|introduced)\b'; then
-        ADDED="${ADDED}- ${line}"$'\n'
-    elif echo "$line" | grep -qiE '^(fix|bugfix|hotfix)|^[a-z]+:.*\b(fix|fixed|fixes|fixing|resolve|resolves|resolved|resolving)\b'; then
-        FIXED="${FIXED}- ${line}"$'\n'
-    elif echo "$line" | grep -qiE '^(remove|delete|drop|revert)|^[a-z]+:.*\b(remove|removed|removing|delete|deleted|deleting|drop|dropped|revert|reverted)\b'; then
-        REMOVED="${REMOVED}- ${line}"$'\n'
-    elif echo "$line" | grep -qiE '^(change|update|refactor|modify|improve|upgrade|deprecate)|^[a-z]+:.*\b(change|changed|changing|update|updated|updating|refactor|refactored|modify|modified|improve|improved|upgrade|upgraded|deprecate|deprecated)\b'; then
-        CHANGED="${CHANGED}- ${line}"$'\n'
+# Categorize commits based on conventional commit prefixes and keywords
+while IFS= read -r commit; do
+    [ -z "$commit" ] && continue
+    
+    # Normalize for matching
+    lower_commit=$(echo "$commit" | tr '[:upper:]' '[:lower:]')
+    
+    # Check for conventional commit prefixes first
+    if [[ "$lower_commit" =~ ^feat(\(.*\))?: ]]; then
+        ADDED+=("$commit")
+    elif [[ "$lower_commit" =~ ^fix(\(.*\))?: ]]; then
+        FIXED+=("$commit")
+    elif [[ "$lower_commit" =~ ^(chore|refactor|perf|style|docs|test|build|ci)(\()? ]]; then
+        CHANGED+=("$commit")
+    elif [[ "$lower_commit" =~ ^remove(d)?(\(.*\))?: ]] || [[ "$lower_commit" =~ ^delete ]]; then
+        REMOVED+=("$commit")
+    # Fallback to keyword matching
+    elif [[ "$lower_commit" =~ (fix|bug|patch|repair|resolve|close) ]]; then
+        FIXED+=("$commit")
+    elif [[ "$lower_commit" =~ (add|new|create|introduce|implement|feature) ]]; then
+        ADDED+=("$commit")
+    elif [[ "$lower_commit" =~ (remove|delete|drop|eliminate|deprecate) ]]; then
+        REMOVED+=("$commit")
+    elif [[ "$lower_commit" =~ (update|change|modify|refactor|improve|enhance|upgrade) ]]; then
+        CHANGED+=("$commit")
     else
-        OTHER="${OTHER}- ${line}"$'\n'
+        OTHER+=("$commit")
     fi
 done <<< "$COMMITS"
 
-# Build changelog content
+# Add other commits to changed as a fallback
+if [ ${#OTHER[@]} -gt 0 ]; then
+    for commit in "${OTHER[@]}"; do
+        CHANGED+=("$commit")
+    done
+fi
+
+# Generate the CHANGELOG.md content
 {
     echo "# Changelog"
     echo ""
-    echo "All notable changes to this project will be documented in this file."
+    
+    # Determine version/date header
+    if [ -n "$LAST_TAG" ]; then
+        echo "## [Unreleased] - since $LAST_TAG"
+    else
+        echo "## [Unreleased]"
+    fi
     echo ""
-    echo "## [Unreleased] — $(date +%Y-%m-%d)"
+    echo "*Generated on $(date +%Y-%m-%d)*"
     echo ""
-
-    if [ -n "$ADDED" ]; then
+    
+    # Added
+    if [ ${#ADDED[@]} -gt 0 ]; then
         echo "### Added"
-        echo ""
-        echo -n "$ADDED"
-        echo ""
-    fi
-
-    if [ -n "$CHANGED" ]; then
-        echo "### Changed"
-        echo ""
-        echo -n "$CHANGED"
+        for commit in "${ADDED[@]}"; do
+            echo "- $commit"
+        done
         echo ""
     fi
-
-    if [ -n "$FIXED" ]; then
+    
+    # Fixed
+    if [ ${#FIXED[@]} -gt 0 ]; then
         echo "### Fixed"
-        echo ""
-        echo -n "$FIXED"
+        for commit in "${FIXED[@]}"; do
+            echo "- $commit"
+        done
         echo ""
     fi
-
-    if [ -n "$REMOVED" ]; then
+    
+    # Changed
+    if [ ${#CHANGED[@]} -gt 0 ]; then
+        echo "### Changed"
+        for commit in "${CHANGED[@]}"; do
+            echo "- $commit"
+        done
+        echo ""
+    fi
+    
+    # Removed
+    if [ ${#REMOVED[@]} -gt 0 ]; then
         echo "### Removed"
-        echo ""
-        echo -n "$REMOVED"
-        echo ""
-    fi
-
-    if [ -n "$OTHER" ]; then
-        echo "### Other"
-        echo ""
-        echo -n "$OTHER"
+        for commit in "${REMOVED[@]}"; do
+            echo "- $commit"
+        done
         echo ""
     fi
-} > "$TEMP_FILE"
+} > "$CHANGELOG_FILE"
 
-# Write to CHANGELOG.md
-cat "$TEMP_FILE" > "$CHANGELOG_FILE"
-rm -f "$TEMP_FILE"
-
-echo "✅ CHANGELOG.md generated successfully!"
-echo "📄 Output: $(pwd)/$CHANGELOG_FILE"
+echo "✅ CHANGELOG.md generated at $CHANGELOG_FILE"
