@@ -1,5 +1,176 @@
  ```diff
 --- /dev/null
-+++ b workflows/n8n-weekly-dev-summary.json
-@@ -0,0 +1,1 @@
-+{"name":"Weekly Dev Summary - n8n + Claude","nodes":[{"parameters":{"rule":{"interval":[{"field":"weeks","hoursInterval":168}]},"options":{}},"type":"n8n-nodes-base.scheduleTrigger","typeVersion":"1.1","position":[0,0],"id":"c1a2b3d4-e5f6-7890-abcd-ef1234567890","name":"Weekly Trigger (Friday 5PM)"},{"parameters":{"jsCode":"// Set to Friday at 17:00 (5 PM)\nconst now = new Date();\nconst dayOfWeek = now.getDay(); // 5 = Friday\nconst hoursUntilFriday = ((5 - dayOfWeek + 7) % 7) * 24;\nconst nextFriday = new Date(now.getTime() + hoursUntilFriday * 60 * 60 * 1000);\nnextFriday.setHours(17, 0, 0, 0);\n\n// Calculate date range for the past week\nconst endDate = new Date(nextFriday);\nconst startDate = new Date(endDate);\nstartDate.setDate(startDate.getDate() - 7);\n\nreturn [{\n  json: {\n    startDate: startDate.toISOString(),\n    endDate: endDate.toISOString(),\n    repo: $env.GITHUB_REPO || \"owner/repo\",\n    destination: $env.DESTINATION_WEBHOOK || \"\",\n    language: $env.LANGUAGE || \"EN\"\n  }\n}]"},"type":"n8n-nodes-base.code","typeVersion":"2","position":[220,0],"id":"d2e3f4a5-b6c7-8901-bcde-f23456789012","name":"Set Date Range & Config"},{"parameters":{"url":"={{ $json.repoUrl || \"https://api.github.com/repos/\" + $json.repo }}/commits","sendHeaders":true,"headerParameters":{"parameters":[{"name":"Accept","value":"application/vnd.github.v3+json"},{"name":"User-Agent","value":"n8n-weekly-summary"},{"name":"Authorization","value":"=token {{ $env.GITHUB_TOKEN }}"}]},"sendQuery":true,"queryParameters":{"parameters":[{"name":"since","value":"={{ $json.startDate }}"},{"name":"until","value":"={{ $json.endDate }}"},{"name":"per_page","value":"100"}]},"options":{}},"type":"n8n-nodes-base.httpRequest","typeVersion":"4.1","position":[440,0],"id":"e3f4a5b6-c7d8-9012-cdef-345678901234","name":"GitHub Commits"},{"parameters":{"url":"={{ $json.repoUrl || \"https://api.github.com/repos/\" + $json.repo }}/issues","sendHeaders":true,"headerParameters":{"parameters":[{"name":"Accept","value":"application/vnd.github.v3+json"},{"name":"User-Agent","value":"n8n-weekly-summary"},{"name":"Authorization","value":"=token {{ $env.GITHUB_TOKEN }}"}]},"sendQuery":true,"queryParameters":{"parameters":[{"name":"state","value":"closed"},{"name":"since","value":"={{ $json.startDate }}"},{"name":"per_page","value":"100"}]},"options":{}},"type":"n8n-nodes-base.httpRequest","typeVersion":"4.1","position":[440,160],"id":"f4a5b6c7-d8e9-0123-defa-456789012345","name":"GitHub Closed Issues"},{"parameters":{"url":"={{ $json.repoUrl || \"https://api.github.com/repos/\" + $json.repo }}/pulls","sendHeaders":true,"headerParameters":{"parameters":[{"name":"Accept","value":"application/vnd.github.v3+json"},{"name":"User-Agent","value":"n8n-weekly-summary"},{"name":"Authorization","value":"=token {{ $env.GITHUB_TOKEN }}"}]},"sendQuery":true,"queryParameters":{"parameters":[{"name":"state","value":"closed"},{"name":"per_page","value":"100"}]},"options":{}},"type":"n8n-nodes-base.httpRequest","typeVersion":"4.1","position":[440,320],"id":"a5b6c7d8-e9f0-1234-efab-567890123456","name":"GitHub Merged PRs"},{"parameters":{"jsCode":"const commits = $input.all()[0]?.json || [];\nconst issues = $input.all()[1]?.json || [];\nconst prs = $input.all()[2]?.json || [];\n\n// Filter PRs to only merged ones in date range\nconst mergedPRs = prs.filter(pr => {\n  if (!pr.merged_at) return false;\n  const mergedDate = new Date(pr.merged_at);\n  const start = new Date($input.first().json.startDate);\n  const end = new Date($input.first().json.endDate);\n  return mergedDate >= start && mergedDate <= end;\n});\n\n// Filter issues closed in date range (not via PR)\nconst closedIssues = issues.filter(issue => {\n  if (issue.pull_request) return false; // Skip PRs that appear in issues\n  const closedDate = new Date(issue.closed_at);\n  const start = new Date($input.first().json.startDate);\n  const end = new Date($input.first().json.endDate);\n  return closedDate >= start && closedDate <= end;\n});\n\nreturn [{\n  json: {\n    commits: commits.map(c => ({\n      message: c.commit?.message?.split('\\n')[0] || 'No message',\n      author: c.commit?.author?.name || c.author?.login || 'Unknown',\n      date: c.commit?.author?.date,\n      url: c.html_url\n    })),\n    issues: closedIssues.map(i => ({\n      title: i.title,\n      number: i.number,\n      closedAt: i.closed_at,\n      url: i.html_url,\n      labels: i.labels?.map(l => l.name) || []\n    })),\n    pullRequests: mergedPRs.map(p => ({\n      title: p.title,\n      number: p.number,\n      mergedAt: p.merged_at,\n      author: p.user?.login,\n      url: p.html_url\n    })),\n    stats: {\n      commitCount: commits.length,\n      issueCount: closedIssues.length,\n      prCount: mergedPRs.length\n    },\n    config: $input.first().json\n  }\n}]"},"type":"n8n-nodes-base.code","typeVersion":"2","position":[660,160],"id":"b6c7d8e9-f0a1-2345-fabc-
++++ b/workflows/n8n-weekly-dev-summary/README.md
+@@ -0,0 +1,42 @@
++# n8n Weekly Dev Summary Workflow
++
++Automated weekly narrative summary of GitHub repo activity using n8n + Claude API.
++
++## Setup (5 steps)
++
++1. **Import workflow**: In n8n, click ⚙️ → Import → paste `weekly-dev-summary.json`
++2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in n8n Credentials
++3. **Configure variables**: Edit the `Configuration` node — set repo, channel webhook, and language
++4. **Activate**: Toggle the workflow to "Active" in n8n
++5. **Test**: Click "Execute Workflow" or wait for the Friday 5pm cron trigger
++
++## Required Credentials
++
++- **GitHub API**: Personal Access Token with `repo` scope
++- **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
++
++## Configuration
++
++Edit these in the `Configuration` node:
++
++| Variable | Description | Example |
++|----------|-------------|---------|
++| `githubRepo` | Full repo path | `claude-builders-bounty/claude-builders-bounty` |
++| `webhookUrl` | Discord/Slack webhook URL | `https://discord.com/api/webhooks/...` |
++| `language` | Summary language | `EN` or `FR` |
++
++## Output
++
++Every Friday at 5pm, the workflow:
++1. Fetches commits, closed issues, and merged PRs from the past 7 days
++2. Sends data to Claude API for narrative summarization
++3. Posts a formatted summary to your configured Discord/Slack channel
++
++## Screenshot
++
++![Successful Execution](screenshot.png)
++
++## Files
++
++- `weekly-dev-summary.json` — Importable n8n workflow
++- `README.md` — This file
++
++--- /dev/null
+++++ workflows/n8n-weekly-dev-summary/weekly-dev-summary.json
++@@ -0,0 +1,0 @@
++{
++  "name": "Weekly Dev Summary - GitHub + Claude API",
++  "nodes": [
++    {
++      "parameters": {
++        "rule": {
++          "interval": [
++            {
++              "field": "weeks",
++              "triggerAtHour": 17,
++              "triggerAtMinute": 0,
++              "triggerOnSpecificWeekdays": ["5"]
++            }
++          ]
++        }
++      },
++      "id": "cron-trigger",
++      "name": "Weekly Cron (Friday 5pm)",
++      "type": "n8n-nodes-base.scheduleTrigger",
++      "typeVersion": 1,
++      "position": [250, 300]
++    },
++    {
++      "parameters": {
++        "jsCode": "return [\n  {\n    json: {\n      githubRepo: 'claude-builders-bounty/claude-builders-bounty',\n      webhookUrl: 'https://discord.com/api/webhooks/YOUR_WEBHOOK_URL',\n      language: 'EN',\n      daysBack: 7\n    }\n  }\n];"
++      },
++      "id": "config",
++      "name": "Configuration",
++      "type": "n8n-nodes-base.code",
++      "typeVersion": 1,
++      "position": [450, 300]
++    },
++    {
++      "parameters": {
++        "url": "=https://api.github.com/repos/{{ $json.githubRepo }}/commits",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "since",
++              "value": "={{ DateTime.now().minus({ days: $json.daysBack }).toISO() }}"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
++            }
++          ]
++        },
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth"
++      },
++      "id": "github-commits",
++      "name": "GitHub Commits",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 4.1,
++      "position": [650, 200],
++      "credentials": {
++        "httpHeaderAuth": {
++          "id": "github-api",
++          "name": "GitHub API"
++        }
++      }
++    },
++    {
++      "parameters": {
++        "url": "=https://api.github.com/repos/{{ $json.githubRepo }}/issues",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "state",
++              "value": "closed"
++            },
++            {
++              "name": "since",
++              "value": "={{ DateTime.now().minus({ days: $json.daysBack }).toISO() }}"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
++            }
++          ]
++        },
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth"
++      },
++      "id": "github-issues",
++      "name": "GitHub Closed Issues",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 4.1,
++      "position": [650, 400],
++      "credentials": {
++        "httpHeaderAuth": {
++          "id": "github-api",
++          "name": "GitHub API"
++        }
++      }
++    },
++    {
++      "parameters": {
++        "url": "=https://api.github.com/repos/{{ $json.githubRepo }}/pulls",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "state",
++              "value": "closed"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
++            }
++          ]
++        },
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth"
++      },
++      "id": "github-prs",
++      "name": "GitHub Merged PRs",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 4.1,
++      "position": [650, 600],
++      "credentials": {
++        "httpHeaderAuth": {
++          "id": "github-api",
++          "name
