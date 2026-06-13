@@ -1,4 +1,6 @@
-from claude_review.cli import main
+"""Entry point for python -m claude_review."""
 
-if __name__ == '__main__':
+from .cli import main
+
+if __name__ == "__main__":
     main()
