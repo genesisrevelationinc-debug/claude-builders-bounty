@@ -10,11 +10,12 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
+
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 ..0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -23,141 +24,22 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e .
+          pip install anthropic requests
 
       - name: Get PR diff
         id: get-diff
         run: |
           curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.event.pull_request.diff_url }}" > /tmp/pr.diff
+            "${{ github.event.pull_request.diff_url }}" \
+            -o pr.diff
 
       - name: Run Claude Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
-          claude-review --pr "$PR_URL" --diff /tmp/pr.diff --post-comment
-
---- /dev/null
-"""Claude Code PR Review Agent."""
-
-__version__ = "0.1.0"
-
-from .reviewer import ClaudeReviewer, main
-#!/usr/bin/env python3
-"""Claude Code PR Review Agent.
-
-Takes a PR diff as input, analyzes it with Claude, and returns a structured
-Markdown review comment.
-"""
-
-import argparse
-import os
-import re
-import subprocess
-import sys
-import tempfile
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
-
-import requests
-
-
-@dataclass
-class ReviewResult:
-    """Structured PR review result."""
-
-    summary: str
-    risks: list[str]
-    suggestions: list[str]
-    confidence: str
-
-
-class ClaudeReviewer:
-    """PR reviewer using Claude API."""
-
-    API_URL = "https://api.anthropic.com/v1/messages"
-
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not self.api_key:
-            raise ValueError(
-                "ANTHROPIC_API_KEY must be set or passed to ClaudeReviewer"
-            )
-
-    def _call_claude(self, prompt: str, max_tokens: int = 4000) -> str:
-        """Call the Claude API with the given prompt."""
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
-        payload = {
-            "model": "claude-3-5-sonnet-20241022",
-            "max_tokens": max_tokens,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-        }
-
-        response = requests.post(self.API_URL, headers=headers, json=payload, timeout=120)
-        response.raise_for_status()
-        return response.json()["content"][0]["text"]
-
-    def fetch_pr_diff(self, pr_url: str) -> str:
-        """Fetch the diff for a GitHub PR."""
-        # Convert PR URL to diff URL
-        diff_url = pr_url.replace("github.com", "api.github.com/repos")
-        diff_url = diff_url.replace("/pull/", "/pulls/")
-        diff_url = f"{diff_url}.diff"
-
-        headers = {}
-        github_token = os.environ.get("GITHUB_TOKEN")
-        if github_token:
-            headers["Authorization"] = f"token {github_token}"
-
-        response = requests.get(diff_url, headers=headers, timeout=30)
-        response.raise_for_status()
-        return response.text
-
-    def analyze_diff(self, diff: str) -> ReviewResult:
-        """Analyze a PR diff using Claude and return structured review."""
-        # Truncate very large diffs
-        max_diff_length = 100000
-        if len(diff) > max_diff_length:
-            diff = diff[:max_diff_length] + "\n\n[... diff truncated due to size ...]"
-
-        prompt = f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
-
-Please respond in exactly this format:
-
-## Summary
-[2-3 sentence summary of the changes]
-
-## Risks
-- [Risk 1]
-- [Risk 2]
-- [Risk 3 or more if applicable, or "None identified" if no risks]
-
-## Suggestions
-- [Suggestion 1]
-- [Suggestion 2]
-- [Suggestion 3 or more if applicable, or "None" if no suggestions]
-
-## Confidence
-[Low / Medium / High]
-
-Rules:
-- Summary must be 2-3 sentences describing what the PR does.
-- Risks should list potential bugs, security issues, performance problems, or maintainability concerns.
-- Suggestions should be actionable improvements.
-- Confidence reflects how certain you are about your assessment based on the diff quality and completeness.
-- Be concise but thorough.
-
-Here is the diff:
-
+          python .github/scripts/claude_review.py pr.diff
+          cat claude_review.md
+          gh pr comment "${{ github.event.pull_request.html_url }}" --body-file claude_review.md
