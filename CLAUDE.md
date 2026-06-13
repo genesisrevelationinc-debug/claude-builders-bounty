@@ -1,29 +1,23 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code. If a rule seems
-> arbitrary, the "Why" explains the trade-off. When in doubt, follow the
-> pattern, not the exception.
+> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your conventions without asking.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Version Constraint |
-|-------|--------|-------------------|
-| Framework | Next.js | `15.x` (App Router only) |
-| Runtime | Node.js | `>= 20` |
-| Database | better-sqlite3 | `^11.x` |
-| ORM | None — raw SQL via `Database` class | See "SQL / migration conventions" |
-| Styling | Tailwind CSS | `^4.x` |
-| UI primitives | shadcn/ui | Install via CLI, never manually |
-| Auth | Lucia (or custom session) | See "Auth pattern" |
-| Validation | Zod | `^3.x` |
-| Testing | Vitest + Playwright | — |
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
+| Runtime | Node.js 20+ | `next` requires 18.17+, 20+ for stable fetch/streams |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need edge replicas |
+| ORM/Query | Raw SQL + `better-sqlite3` | ORMs hide query plans; we write SQL to own performance from day one |
+| Auth | `lucia` + `oslo` | Session-based, no JWT bloat, works with SQLite out of the box |
+| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `zod` | No API routes to maintain; validation co-located with action |
+| Testing | Vitest + Playwright | Unit tests run in <1s; E2E covers critical paths |
 
-**Why no ORM:** better-sqlite3 is synchronous and fast. An ORM adds indirection
-and hides query plans. We write SQL to stay close to the database, optimize
-early, and avoid N+1 by construction. Migrations are explicit SQL files — no
-`sync()`, no `db push`, no schema drift.
+**Lockfile rule:** `package-lock.json` only. Delete `yarn.lock`/`pnpm-lock.yaml` on sight — mixed lockfiles break CI reproducibility.
 
 ---
 
