@@ -3,17 +3,10 @@
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
-Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
-## Skills
-
-### Generate Changelog
-
-Quickly generate a structured `CHANGELOG.md` from your git history:
-
-
+---
 
 ## How it works
 
@@ -58,3 +51,13 @@ Quickly generate a structured `CHANGELOG.md` from your git history:
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
+
+*Started by the Claude builder community · March 2026 · MIT License*
+
+## Skills
+
+### Generate Changelog
+
+Quickly generate a structured `CHANGELOG.md` from your git history.
+
+
