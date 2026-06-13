@@ -1,137 +1,115 @@
 #!/usr/bin/env bash
-#
-# changelog.sh — Generate a structured CHANGELOG.md from git history
-#
-# Usage: bash changelog.sh
-#
-# Fetches commits since the last git tag, auto-categorizes them, and appends
-# a new section to CHANGELOG.md (creates it if missing).
-#
-
 set -euo pipefail
 
-# ── Config ───────────────────────────────────────────────────────────────────
+# changelog.sh — Generate a structured CHANGELOG.md from git history
+# Usage: bash changelog.sh
+
 CHANGELOG_FILE="CHANGELOG.md"
-CATEGORIES=("Added" "Fixed" "Changed" "Removed")
+REPO_URL=$(git remote get-url origin 2>/dev/null | sed 's/\.git$//' || echo "")
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# Get the latest tag; if none, use the first commit
+LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-get_last_tag() {
-    git describe --tags --abbrev=0 2>/dev/null || echo ""
-}
-
-get_commits_since() {
-    local since="$1"
-    if [[ -n "$since" ]]; then
-        git log "${since}..HEAD" --pretty=format:"%s" --no-merges
-    else
-        git log --pretty=format:"%s" --no-merges
-    fi
-}
-
-categorize_commit() {
-    local msg="$1"
-    local lower
-    lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
-
-    case "$lower" in
-        feat:*|feature:*|add:*|added:*|new:*|introduce:*|implement:*)
-            echo "Added"
-            ;;
-        fix:*|fixed:*|bugfix:*|patch:*|hotfix:*|resolve:*|closes:*|close:*)
-            echo "Fixed"
-            ;;
-        remove:*|removed:*|delete:*|deleted:*|drop:*|dropped:*|deprecate:*)
-            echo "Removed"
-            ;;
-        change:*|changed:*|update:*|updated:*|refactor:*|refactored:*|modify:*|modified:*|improve:*|improved:*|rework:*|cleanup:*|clean:*|style:*|chore:*|docs:*|doc:*|test:*|tests:*|perf:*|performance:*|security:*|bump:*|deps:*|dependency:*|dependencies:*|ci:*|build:*|release:*|revert:*|merge:*)
-            echo "Changed"
-            ;;
-        *)
-            # Default heuristic: look for keywords anywhere
-            if [[ "$lower" =~ \b(add|added|adding|introduce|implement|create|support)\b ]]; then
-                echo "Added"
-            elif [[ "$lower" =~ \b(fix|fixed|fixes|fixing|resolve|resolves|resolved|bug|patch|close|closes|closed)\b ]]; then
-                echo "Fixed"
-            elif [[ "$lower" =~ \b(remove|removed|removes|removing|delete|deleted|deletes|drop|dropped|deprecate|deprecates)\b ]]; then
-                echo "Removed"
-            else
-                echo "Changed"
-            fi
-            ;;
-    esac
-}
-
-format_commit() {
-    local msg="$1"
-    # Strip conventional commit prefix if present
-    local clean
-    clean=$(echo "$msg" | sed -E 's/^[a-zA-Z]+(\([^)]*\))?:\s*//')
-    echo "- ${clean}"
-}
-
-# ── Main ─────────────────────────────────────────────────────────────────────
-
-if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    echo "Error: Not a git repository." >&2
-    exit 1
+if [ -z "$LATEST_TAG" ]; then
+    echo "No tags found. Using all commits."
+    COMMIT_RANGE=""
+else
+    echo "Generating changelog since tag: $LATEST_TAG"
+    COMMIT_RANGE="${LATEST_TAG}..HEAD"
 fi
 
-LAST_TAG=$(get_last_tag)
-COMMITS=$(get_commits_since "$LAST_TAG")
+# Fetch commits: hash, subject
+if [ -z "$COMMIT_RANGE" ]; then
+    COMMITS=$(git log --pretty=format:"%H|%s" --no-merges)
+else
+    COMMITS=$(git log "${COMMIT_RANGE}" --pretty=format:"%H|%s" --no-merges)
+fi
 
-if [[ -z "$COMMITS" ]]; then
-    echo "No commits found since last tag."
+if [ -z "$COMMITS" ]; then
+    echo "No new commits found since ${LATEST_TAG:-'the beginning'}."
     exit 0
 fi
 
-# Initialize associative arrays for categories
-declare -A category_items
-for cat in "${CATEGORIES[@]}"; do
-    category_items["$cat"]=""
-done
-
 # Categorize commits
-while IFS= read -r commit; do
-    [[ -z "$commit" ]] && continue
-    cat=$(categorize_commit "$commit")
-    formatted=$(format_commit "$commit")
-    category_items["$cat"]+="${formatted}"$'\n'
+ADDED=""
+FIXED=""
+CHANGED=""
+REMOVED=""
+OTHER=""
+
+while IFS= read -r line; do
+    HASH=$(echo "$line" | cut -d'|' -f1)
+    SUBJECT=$(echo "$line" | cut -d'|' -f2-)
+    
+    # Generate commit link if repo URL looks like a GitHub URL
+    if [[ "$REPO_URL" == *"github.com"* ]]; then
+        SHORT_HASH="${HASH:0:7}"
+        COMMIT_LINK="[$SHORT_HASH](${REPO_URL}/commit/${HASH})"
+    else
+        COMMIT_LINK="${HASH:0:7}"
+    fi
+    
+    FORMATTED="- ${SUBJECT} — ${COMMIT_LINK}"
+    
+    # Categorize based on conventional commit keywords and patterns
+    LOWER_SUBJECT=$(echo "$SUBJECT" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ "$LOWER_SUBJECT" == feat* ]] || [[ "$LOWER_SUBJECT" == add* ]] || [[ "$LOWER_SUBJECT" == implement* ]] || [[ "$LOWER_SUBJECT" == introduce* ]]; then
+        ADDED="${ADDED}${FORMATTED}"$'\n'
+    elif [[ "$LOWER_SUBJECT" == fix* ]] || [[ "$LOWER_SUBJECT" == bugfix* ]] || [[ "$LOWER_SUBJECT" == resolve* ]] || [[ "$LOWER_SUBJECT" == patch* ]]; then
+        FIXED="${FIXED}${FORMATTED}"$'\n'
+    elif [[ "$LOWER_SUBJECT" == remove* ]] || [[ "$LOWER_SUBJECT" == delete* ]] || [[ "$LOWER_SUBJECT" == drop* ]] || [[ "$LOWER_SUBJECT" == deprecate* ]]; then
+        REMOVED="${REMOVED}${FORMATTED}"$'\n'
+    elif [[ "$LOWER_SUBJECT" == change* ]] || [[ "$LOWER_SUBJECT" == update* ]] || [[ "$LOWER_SUBJECT" == refactor* ]] || [[ "$LOWER_SUBJECT" == modify* ]] || [[ "$LOWER_SUBJECT" == improve* ]] || [[ "$LOWER_SUBJECT" == chore* ]] || [[ "$LOWER_SUBJECT" == docs* ]] || [[ "$LOWER_SUBJECT" == style* ]] || [[ "$LOWER_SUBJECT" == perf* ]] || [[ "$LOWER_SUBJECT" == test* ]]; then
+        CHANGED="${CHANGED}${FORMATTED}"$'\n'
+    else
+        OTHER="${OTHER}${FORMATTED}"$'\n'
+    fi
 done <<< "$COMMITS"
 
-# Build changelog section
+# Build the new changelog section
 DATE=$(date +%Y-%m-%d)
-VERSION_HEADER="## [Unreleased] - ${DATE}"
+VERSION=${LATEST_TAG:-"Unreleased"}
 
-if [[ -n "$LAST_TAG" ]]; then
-    VERSION_HEADER="## [Unreleased] - ${DATE} (since ${LAST_TAG})"
+NEW_SECTION="## [${VERSION}] - ${DATE}"$'\n\n'
+
+if [ -n "$ADDED" ]; then
+    NEW_SECTION="${NEW_SECTION}### Added"$'\n\n'"${ADDED}"$'\n'
 fi
 
-{
-    echo "$VERSION_HEADER"
-    echo ""
-    for cat in "${CATEGORIES[@]}"; do
-        if [[ -n "${category_items[$cat]}" ]]; then
-            echo "### ${cat}"
-            echo -n "${category_items[$cat]}"
-            echo ""
-        fi
-    done
-} > /tmp/changelog_new_section.md
+if [ -n "$FIXED" ]; then
+    NEW_SECTION="${NEW_SECTION}### Fixed"$'\n\n'"${FIXED}"$'\n'
+fi
 
-# Prepend new section to existing CHANGELOG or create fresh
-if [[ -f "$CHANGELOG_FILE" ]]; then
-    {
-        cat /tmp/changelog_new_section.md
-        cat "$CHANGELOG_FILE"
-    } > /tmp/changelog_combined.md
-    mv /tmp/changelog_combined.md "$CHANGELOG_FILE"
+if [ -n "$CHANGED" ]; then
+    NEW_SECTION="${NEW_SECTION}### Changed"$'\n\n'"${CHANGED}"$'\n'
+fi
+
+if [ -n "$REMOVED" ]; then
+    NEW_SECTION="${NEW_SECTION}### Removed"$'\n\n'"${REMOVED}"$'\n'
+fi
+
+if [ -n "$OTHER" ]; then
+    NEW_SECTION="${NEW_SECTION}### Other"$'\n\n'"${OTHER}"$'\n'
+fi
+
+# Prepend to existing CHANGELOG or create new one
+if [ -f "$CHANGELOG_FILE" ]; then
+    EXISTING=$(cat "$CHANGELOG_FILE")
+    # Check if header exists
+    if [[ "$EXISTING" == *"# Changelog"* ]]; then
+        # Insert after the header
+        HEADER=$(echo "$EXISTING" | sed -n '1,/^$/p')
+        REST=$(echo "$EXISTING" | sed '1,/^$/d')
+        echo -e "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n${NEW_SECTION}${REST}" > "$CHANGELOG_FILE"
+    else
+        echo -e "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n${NEW_SECTION}${EXISTING}" > "$CHANGELOG_FILE"
+    fi
 else
-    {
-        echo "# Changelog"
-        echo ""
-        cat /tmp/changelog_new_section.md
-    } > "$CHANGELOG_FILE"
+    echo -e "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n${NEW_SECTION}" > "$CHANGELOG_FILE"
 fi
 
-echo "CHANGELOG.md updated successfully."
+echo "CHANGELOG.md generated successfully!"
+if [ -n "$LATEST_TAG" ]; then
+    echo "Included commits since tag: $LATEST_TAG"
+fi
