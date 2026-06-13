@@ -50,18 +50,14 @@ You're in the right place.
 
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
-
----
-
 ## Hooks
 
-This repository includes community-contributed Claude Code hooks:
+### [Pre-Tool-Use: Block Destructive Bash Commands](hooks/)
 
-- **[pre-tool-use](hooks/)** — Block destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.)
+A security hook for Claude Code that intercepts dangerous bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute. See [hooks/README.md](hooks/README.md) for installation.
 
 ---
 
-## Community
+## Rules
 
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- Tasks must be related to Claude Code or AI tooling
