@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code. If Claude suggests something that contradicts this file, follow this file.
+> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this into your project root. Claude Code reads it automatically.
 
 ---
 
@@ -8,16 +9,19 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
-| Runtime | Node.js 20+ | `next` CLI requires it; use `fetch` globals |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query Builder | Drizzle ORM | Type-safe SQL, migrations in TypeScript, no codegen step |
-| Auth | Lucia + `better-sqlite3` adapter | Session-based, works without external services |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, copy-paste components, no runtime CSS |
-| Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical flows |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network latency for single-tenant SQLite |
+| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
+| Auth | Lucia (or custom session) | Cookie-based, works edge-to-node, no OAuth lock-in |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste components |
+| Validation | Zod | Same schemas for forms, API, and DB |
+| Testing | Vitest + Playwright | Unit + E2E without Jest overhead |
 
-**Non-negotiable:** We do not use Prisma. It generates a client, hides SQL, and has poor SQLite support.
+**Hard constraints:**
+- Next.js must be `>= 15.0.0` (uses `async` Server Components)
+- `better-sqlite3` must be `>= 9.0.0` (WAL mode stability)
+- Node.js must be `>= 20.0.0` (for `crypto.randomUUID()`)
 
 ---
 
