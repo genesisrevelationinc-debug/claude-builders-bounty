@@ -4,11 +4,11 @@ A Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash comm
 
 ## What It Blocks
 
-- `rm -rf` / `rm --recursive --force`
-- `git push --force` / `git push -f`
-- `DROP TABLE`
-- `TRUNCATE`
-- `DELETE FROM` without a `WHERE` clause
+- `rm -rf` — recursive force deletion
+- `DROP TABLE` — SQL table deletion
+- `git push --force` / `git push -f` — force push
+- `TRUNCATE` — SQL table truncation
+- `DELETE FROM` without a `WHERE` clause — unqualified SQL deletion
 
 ## Installation
 
