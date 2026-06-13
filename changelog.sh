@@ -1,107 +1,140 @@
 #!/usr/bin/env bash
+#
+# changelog.sh — Generate a structured CHANGELOG.md from git history
+#
+# Usage: bash changelog.sh
+#
+# Fetches commits since the last git tag, auto-categorizes them, and appends
+# a new section to CHANGELOG.md (creates it if missing).
+#
+
 set -euo pipefail
 
-# changelog.sh — Generate a structured CHANGELOG.md from git history
-# Usage: bash changelog.sh
+# ── Config ───────────────────────────────────────────────────────────────────
+CHANGELOG_FILE="CHANGELOG.md"
+REPO_URL=""          # e.g. https://github.com/user/repo  (auto-detected if empty)
 
-REPO_URL=""
-OUTPUT_FILE="CHANGELOG.md"
+# ── Helpers ────────────────────────────────────────────────────────────────
 
-# Get the latest git tag
-get_latest_tag() {
+get_last_tag() {
     git describe --tags --abbrev=0 2>/dev/null || echo ""
 }
 
-# Get commits since the last tag (or all commits if no tag)
-get_commits() {
-    local since_tag="$1"
-    if [ -n "$since_tag" ]; then
-        git log "${since_tag}..HEAD" --pretty=format:"%H|%s|%b" --reverse
+get_repo_url() {
+    local remote_url
+    remote_url=$(git remote get-url origin 2>/dev/null || echo "")
+    # Convert SSH → HTTPS
+    if [[ "$remote_url" == git@github.com:* ]]; then
+        remote_url="${remote_url/git@github.com:/https://github.com/}"
+    fi
+    remote_url="${remote_url%.git}"
+    echo "$remote_url"
+}
+
+get_commits_since_tag() {
+    local tag="$1"
+    if [[ -z "$tag" ]]; then
+        git log --pretty=format:"%H|%s" --no-merges
     else
-        git log --pretty=format:"%H|%s|%b" --reverse
+        git log "${tag}..HEAD" --pretty=format:"%H|%s" --no-merges
     fi
 }
 
-# Categorize a commit based on its message
 categorize_commit() {
     local msg="$1"
-    local lower_msg
-    lower_msg=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
-    
-    case "$lower_msg" in
-        *"add"* | *"feat"* | *"feature"* | *"implement"* | *"introduce"* | *"create"*)
-            echo "Added"
-            ;;
-        *"fix"* | *"bugfix"* | *"patch"* | *"resolve"* | *"hotfix"* | *"correct"*)
-            echo "Fixed"
-            ;;
-        *"remove"* | *"delete"* | *"drop"* | *"deprecate"* | *"clean"*)
-            echo "Removed"
-            ;;
-        *"change"* | *"update"* | *"refactor"* | *"improve"* | *"enhance"* | *"modify"* | *"upgrade"* | *"rework"*)
-            echo "Changed"
-            ;;
-        *)
-            echo "Changed"
-            ;;
-    esac
-}
+    local lower
+    lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
 
-# Generate the changelog
-generate_changelog() {
-    local latest_tag
-    latest_tag=$(get_latest_tag)
-    
-    local since_ref
-    if [ -n "$latest_tag" ]; then
-        since_ref="$latest_tag"
+    # Check for conventional commit prefixes first
+    if [[ "$lower" =~ ^feat(\(.+\))?: ]]; then
+        echo "added"
+    elif [[ "$lower" =~ ^fix(\(.+\))?: ]]; then
+        echo "fixed"
+    elif [[ "$lower" =~ ^(refactor|perf|style)(\(.+\))?: ]]; then
+        echo "changed"
+    elif [[ "$lower" =~ ^(remove|delete|drop|revert)(\(.+\))?: ]]; then
+        echo "removed"
     else
-        since_ref="the beginning"
+        # Fallback: keyword matching
+        if [[ "$lower" =~ (add|new|introduce|create|implement|support) ]]; then
+            echo "added"
+        elif [[ "$lower" =~ (fix|bug|patch|resolve|close) ]]; then
+            echo "fixed"
+        elif [[ "$lower" =~ (remove|delete|drop|revert|deprecate) ]]; then
+            echo "removed"
+        elif [[ "$lower" =~ (update|change|modify|refactor|improve|enhance|upgrade|migrate) ]]; then
+            echo "changed"
+        else
+            echo "changed"  # default bucket
+        fi
     fi
-    
-    local commits
-    commits=$(get_commits "$latest_tag")
-    
-    if [ -z "$commits" ]; then
-        echo "No commits found since $since_ref."
-        exit 0
-    fi
-    
-    # Initialize category arrays
-    local added=()
-    local fixed=()
-    local changed=()
-    local removed=()
-    
-    # Process each commit
-    while IFS='|' read -r hash subject body; do
-        [ -z "$subject" ] && continue
-        
-        local category
-        category=$(categorize_commit "$subject")
-        
-        case "$category" in
-            "Added") added+=("$subject") ;;
-            "Fixed") fixed+=("$subject") ;;
-            "Changed") changed+=("$subject") ;;
-            "Removed") removed+=("$subject") ;;
-        esac
-    done <<< "$commits"
-    
-    # Write CHANGELOG.md
-    {
-        echo "# Changelog"
-        echo ""
-        echo "## [Unreleased] — since $since_ref"
-        echo ""
-        
-        [ ${#added[@]} -gt 0 ] && { echo "### Added"; for item in "${added[@]}"; do echo "- $item"; done; echo ""; }
-        [ ${#fixed[@]} -gt 0 ] && { echo "### Fixed"; for item in "${fixed[@]}"; do echo "- $item"; done; echo ""; }
-        [ ${#changed[@]} -gt 0 ] && { echo "### Changed"; for item in "${changed[@]}"; do echo "- $item"; done; echo ""; }
-        [ ${#removed[@]} -gt 0 ] && { echo "### Removed"; for item in "${removed[@]}"; do echo "- $item"; done; echo ""; }
-    } > "$OUTPUT_FILE"
-    
-    echo "✅ CHANGELOG.md generated successfully with commits since $since_ref."
 }
 
-generate_changelog
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "Error: Not a git repository." >&2
+    exit 1
+fi
+
+LAST_TAG=$(get_last_tag)
+if [[ -z "$REPO_URL" ]]; then
+    REPO_URL=$(get_repo_url)
+fi
+
+# Determine version / date header
+TODAY=$(date +%Y-%m-%d)
+if [[ -n "$LAST_TAG" ]]; then
+    HEADER="## [Unreleased] — $TODAY"
+else
+    HEADER="## [Unreleased] — $TODAY"
+    LAST_TAG="(beginning of history)"
+fi
+
+# Collect commits
+declare -A ADDED FIXED CHANGED REMOVED
+
+while IFS='|' read -r hash msg; do
+    [[ -z "$msg" ]] && continue
+    category=$(categorize_commit "$msg")
+    case "$category" in
+        added)   ADDED["$hash"]="$msg" ;;
+        fixed)   FIXED["$hash"]="$msg" ;;
+        removed) REMOVED["$hash"]="$msg" ;;
+        changed) CHANGED["$hash"]="$msg" ;;
+    esac
+done < <(get_commits_since_tag "$LAST_TAG")
+
+# Build new changelog section
+{
+    echo "$HEADER"
+    echo ""
+    echo "### Added"
+    ((${#ADDED[@]}))    && for h in "${!ADDED[@]}"; do echo "- ${ADDED[$h]}"; done || echo "- Nothing to report"
+    echo ""
+    echo "### Fixed"
+    ((${#FIXED[@]}))    && for h in "${!FIXED[@]}"; do echo "- ${FIXED[$h]}"; done || echo "- Nothing to report"
+    echo ""
+    echo "### Changed"
+    ((${#CHANGED[@]}))  && for h in "${!CHANGED[@]}"; do echo "- ${CHANGED[$h]}"; done || echo "- Nothing to report"
+    echo ""
+    echo "### Removed"
+    ((${#REMOVED[@]}))  && for h in "${!REMOVED[@]}"; do echo "- ${REMOVED[$h]}"; done || echo "- Nothing to report"
+    echo ""
+} > .changelog_new.md
+
+# Prepend to existing CHANGELOG or create new
+if [[ -f "$CHANGELOG_FILE" ]]; then
+    {
+        cat .changelog_new.md
+        cat "$CHANGELOG_FILE"
+    } > .changelog_tmp.md
+    mv .changelog_tmp.md "$CHANGELOG_FILE"
+else
+    mv .changelog_new.md "$CHANGELOG_FILE"
+fi
+
+rm -f .changelog_new.md
+
+echo "✅  CHANGELOG updated: $CHANGELOG_FILE"
+echo "   Commits since: $LAST_TAG"
