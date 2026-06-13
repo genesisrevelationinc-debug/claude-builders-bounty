@@ -1,57 +1,103 @@
  ```diff
 --- /dev/null
-+++ b/claude-review
-@@ -0,0 +1,3 @@
-+#!/usr/bin/env bash
-+set -euo pipefail
-+exec python3 -m claude_review.cli "$@"
---- /dev/null
++++ b/.github/workflows/pr-review.yml
+@@ -0,0 +1,38 @@
++name: PR Review
++
++on:
++  pull_request:
++    types: [opened, synchronize]
++
++jobs:
++  review:
++    runs-on: ubuntu-latest
++    permissions:
++      pull-requests: write
++      contents: read
++    steps:
++      - name: Checkout repository
++        uses: actions/checkout@v4
++        with:
++          fetch-depth: 0
++
++      - name: Set up Python
++        uses: actions/setup-python@v5
++        with:
++          python-version: '3.11'
++
++      - name: Install dependencies
++        run: |
++          pip install -e .
++
++      - name: Run PR Review
++        env:
++          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
++          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
++        run: |
++          claude-review --pr "${{ github.event.pull_request.html_url }}" --output review.md
++
++      - name: Post Review Comment
++        uses: marocchino redirects to actions/github-script@v7
++        with:
++          script: |
++            const fs = require('fs');
++            const review = fs.readFileSync('review.md', 'utf8');
++            github.rest.issues.createComment({
++              issue_number: context.issue.number,
++              owner: context.repo.owner,
++              repo: context.repo.repo,
++              body: review
++            });
++--- /dev/null
 +++ b/claude_review/__init__.py
 @@ -0,0 +1,5 @@
-+"""Claude Code PR Review Agent - Structured Markdown review comments."""
++"""Claude Code PR Review Agent."""
 +
 +__version__ = "0.1.0"
-+__author__ = "Claude Builders Bounty"
-+__license__ = "MIT"
---- /dev/null
-+++ b/claude_review/cli.py
-@@ -0,0 +1,82 @@
-+#!/usr/bin/env python3
-+"""CLI entry point for the Claude Code PR review agent."""
 +
++from .reviewer import review_pr, generate_review_comment
++--- /dev/null
++++ b/claude_review/__main__.py
+@@ -0,0 +1,4 @@
++"""Entry point for running claude-review as a module."""
++from .cli import main
++
++main()
++--- /dev/null
++++	/claude_review/cli.py
+@@ -0,0 +1,82 @@
++"""CLI for the Claude Code PR Review Agent."""
 +import argparse
-+import sys
 +import os
++import sys
 +
 +from .reviewer import review_pr
-+from .github_client import GitHubClient, parse_pr_url
 +
 +
-+def main() -> int:
++def main():
 +    parser = argparse.ArgumentParser(
-+        description="Claude Code PR Review Agent - Generate structured Markdown review comments.",
-+        formatter_class=argparse.RawDescriptionHelpFormatter,
-+        epilog="""
-+Examples:
-+  claude-review --pr https://github.com/owner/repo/pull/123
-+  claude-review --pr https://github.com/owner/repo/pull/123 --output review.md
-+  GITHUB_TOKEN=ghp_xxx claude-review --pr https://github.com/owner/repo/pull/123
-+        """,
++        description="Claude Code PR Review Agent - Analyze PRs and generate structured review comments"
 +    )
 +    parser.add_argument(
 +        "--pr",
 +        required=True,
-+        help="GitHub PR URL to review (e.g., https://github.com/owner/repo/pull/123)",
++        help="GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)",
 +    )
 +    parser.add_argument(
 +        "--output",
 +        "-o",
-+        help="Write review to file instead of stdout",
++        default=None,
++        help="Output file path (default: print to stdout)",
 +    )
 +    parser.add_argument(
-+        "--post-comment",
-+        action="store_true",
-+        help="Post the review as a comment on the PR (requires GITHUB_TOKEN)",
++        "--api-key",
++        default=None,
++        help="Anthropic API key (default: ANTHROPIC_API_KEY env var)",
++    )
++    parser.add_argument(
++        "--github-token",
++        default=None,
++        help="GitHub token (default: GITHUB_TOKEN env var)",
 +    )
 +    parser.add_argument(
 +        "--model",
@@ -59,32 +105,36 @@
 +        help="Claude model to use (default: claude-sonnet-4-20250514)",
 +    )
 +
+radiation
 +    args = parser.parse_args()
 +
-+    # Validate PR URL
-+    pr_info = parse_pr_url(args.pr)
-+    if not pr_info:
-+        print(f"Error: Invalid PR URL: {args.pr}", file=sys.stderr)
-+        print("Expected format: https://github.com/owner/repo/pull/123", file=sys.stderr)
-+        return 1
++    api_key = args.api_key or os.environ.get("ANTHROPIC_API_KEY")
++    if not api_key:
++        print(
++            "Error: Anthropic API key required. Set ANTHROPIC_API_KEY or use --api-key.",
++            file=sys.stderr,
++        )
++        sys.exit(1)
 +
-+    # Check for API keys
-+    if not os.environ.get("ANTHROPIC_API_KEY"):
-+        print("Error: ANTHROPIC_API_KEY environment variable is required", file=sys.stderr)
-+        return 1
++    github_token = args.github_token or os.environ.get("GITHUB_TOKEN")
++    if not github_token:
++        print(
++            "Error: GitHub token required. Set GITHUB_TOKEN or use --github-token.",
++            file=sys.stderr,
++        )
++        sys.exit(1)
 +
-+    if args.post_comment and not os.environ.get("GITHUB_TOKEN"):
-+        print("Error: GITHUB_TOKEN environment variable is required for --post-comment", file=sys.stderr)
-+        return 1
-+
-+    # Run the review
 +    try:
-+        review = review_pr(args.pr, model=args.model, post_comment=args.post_comment)
++        review = review_pr(
++            pr_url=args.pr,
++            api_key=api_key,
++            github_token=github_token,
++            model=args.model,
++        )
 +    except Exception as e:
 +        print(f"Error: {e}", file=sys.stderr)
-+        return 1
++        sys.exit(1)
 +
-+    # Output
 +    if args.output:
 +        with open(args.output, "w") as f:
 +            f.write(review)
@@ -92,83 +142,56 @@
 +    else:
 +        print(review)
 +
-+    return 0
 +
-+
-+if __name__ == "__main__':
-+    sys.exit(main())
---- /dev/null
-+++ b/claude_review/github_client.py
-@@ -0,0 +1,111 @@
-+"""GitHub API client for fetching PR diffs and posting comments."""
-+
-+import re
++if __name__ == "__main__":
++    main()
++--- /dev/null
++++ b/claude_review/reviewer.py
+@@ -0,0 +1,196 @@
++"""Core PR review logic using Claude Code."""
 +import os
-+import json
-+from typing import Optional, Tuple
-+from urllib.request import Request, urlopen
-+from urllib.error import HTTPError
++import re
++import sys
++from typing import Optional
++
++import requests
 +
 +
-+def parse_pr_url(url: str) -> Optional[Tuple[str, str, int]]:
-+    """Parse a GitHub PR URL into (owner, repo, pr_number).
-+    
-+    Returns None if the URL is invalid.
-+    """
-+    patterns = [
-+        r"github\.com/([^/]+)/([^/]+)/pull/(\d+)",
-+        r"github\.com/([^/]+)/([^/]+)/pulls/(\d+)",
-+    ]
-+    for pattern in patterns:
-+        match = re.search(pattern, url)
-+        if match:
-+            owner, repo, pr_number = match.groups()
-+            return (owner, repo, int(pr_number))
-+    return None
++def parse_pr_url(pr_url: str) -> tuple[str, str, int]:
++    """Parse a GitHub PR URL into (owner, repo, pr_number)."""
++    match = re.match(r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
++    if not match:
++        raise ValueError(f"Invalid GitHub PR URL: {pr_url}")
++    owner, repo, pr_number = match.groups()
++    return owner, repo, int(pr_number)
 +
 +
-+class GitHubClient:
-+    """Simple GitHub API client for PR operations."""
++def fetch_pr_diff(owner: str, repo: str, pr_number: int, github_token: str) -> str:
++    """Fetch the diff of a PR from GitHub API."""
++    headers = {
++        "Authorization": f"token {github_token}",
++        "Accept": "application/vnd.github.v3.diff",
++    }
++    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
++    response = requests.get(url, headers=headers)
++    response.raise_for_status()
++    return response.text
 +
-+    def __init__(self, token: Optional[str] = None):
-+        self.token = token or os.environ.get("GITHUB_TOKEN")
-+        self.api_base = "https://api.github.com"
 +
-+    def _headers(self) -> dict:
-+        headers = {
-+            "Accept": "application/vnd.github.v3+json",
-+            "User-Agent": "claude-review/0.1.0",
-+        }
-+        if self.token:
-+            headers["Authorization"] = f"token {self.token}"
-+        return headers
++def fetch_pr_info(owner: str, repo: str, pr_number: int, github_token: str) -> dict:
++    """Fetch PR metadata from GitHub API."""
++    headers = {
++        "Authorization": f"token {github_token}",
++        "Accept": "application/vnd.github.v3+json",
++    }
++    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
++    response = requests.get(url, headers=headers)
++    response.raise_for_status()
++    return response.json()
 +
-+    def get_pr_diff(self, owner: str, repo: str, pr_number: int) -> str:
-+        """Fetch the diff of a pull request."""
-+        url = f"https://github.com/{owner}/{repo}/pull/{pr_number}.diff"
-+        req = Request(url, headers=self._headers())
-+        
-+        try:
-+            with urlopen(req) as response:
-+                return response.read().decode("utf-8")
-+        except HTTPError as e:
-+            if e.code == 404:
-+                raise ValueError(f"PR not found or not accessible: {owner}/{repo}#{pr_number}")
-+            elif e.code == 401:
-+                raise ValueError("Authentication failed. Check your GITHUB_TOKEN.")
-+            raise
 +
-+    def get_pr_info(self, owner: str, repo: str, pr_number: int) -> dict:
-+        """Fetch PR metadata."""
-+        url = f"{self.api_base}/repos/{owner}/{repo}/pulls/{pr_number}"
-+        req = Request(url, headers=self._headers())
-+        
-+        try:
-+            with urlopen(req) as response:
-+                return json.loads(response.read().decode("utf-8"))
-+        except HTTPError as e:
-+            if e.code == 404:
-+                raise ValueError(f"PR not found: {owner}/{repo}#{pr_number}")
-+            raise
-+
-+    def post_comment
++def call_claude_for_review(
++    diff: str,
++    pr_title: str,
++    pr_body: str,
++   
