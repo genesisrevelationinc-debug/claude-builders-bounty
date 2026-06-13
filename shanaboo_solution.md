@@ -1,50 +1,200 @@
  ```diff
 --- /dev/null
-+++ b/workflows/n8n-weekly-dev-summary/README.md
++++ b/workflows/weekly-dev-summary/README.md
 @@ -0,0 +1,42 @@
 +# n8n Weekly Dev Summary Workflow
 +
-+Automated weekly narrative summary of GitHub repo activity using n8n + Claude API.
++Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
 +
 +## Setup (5 steps)
 +
-+1. **Import workflow**: In n8n, click *Workflows → Import from File* and select `weekly-dev-summary.json`
-+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in *Settings → Credentials*
-+3. **Configure variables**: Edit the `Set Config` node with your repo, Discord webhook URL, and language (EN/FR)
-+4. **Activate**: Toggle the workflow to *Active* — it runs Fridays at 5 PM
-+5. **Test manually**: Click *Execute Workflow* and check your Discord channel
++1. **Import the workflow**: In n8n, click "Add Workflow" → "Import from File" → select `weekly-dev-summary.json`
 +
-+## Required Credentials
++2. **Set credentials**: Add your GitHub API token and Claude API key in n8n's "Credentials" section
 +
-+- **GitHub API**: Personal Access Token with `repo` scope
-+- **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
++3. **Configure variables**: Open the workflow and edit the "Set Config" node with your repo, channel, and language
++
++4. **Activate**: Toggle the workflow to "Active" — it runs every Friday at 5 PM
++
++5. **Test**: Click "Execute Workflow" to run manually and verify output
 +
 +## Configuration Variables
 +
 +| Variable | Description | Example |
 +|----------|-------------|---------|
 +| `githubRepo` | Full repo path | `claude-builders-bounty/claude-builders-bounty` |
-+| `discordWebhook` | Discord webhook URL | `https://discord.com/api/webhooks/...` |
++| `destinationWebhook` | Discord/Slack webhook URL | `https://discord.com/api/webhooks/...` |
 +| `language` | Summary language | `EN` or `FR` |
 +
-+## What It Does
++## Required Credentials
 +
-+1. Triggers weekly (cron: `0 17 * * 5`)
-+2. Fetches commits, closed issues, and merged PRs from the past 7 days
-+3. Sends data to Claude API (`claude-sonnet-4-20250514`) for narrative generation
-+4. Posts formatted summary to Discord via webhook
++- **GitHub API**: Personal access token with `repo` scope
++- **Claude API**: Anthropic API key from [console.anthropic.com](https://console.anthropic.com)
 +
-+## Screenshot
++## Output
 +
-+![Successful Execution](screenshot.png)
++The workflow delivers a narrative summary including:
++- Commit highlights
++- Closed issues summary
++- Merged PRs overview
++- Overall week sentiment
 +
-+*Screenshot shows successful workflow execution with all nodes green.*
++## Testing
 +
-+## Files
++See `screenshot-success.png` for a successful execution example.
 +
-+- `weekly-dev-summary.json` — Importable n8n workflow
-+- `README.md` — This file
++*Built for the Claude Builders Bounty — MIT License*
 --- /dev/null
-+++ /workflows/n8n-weekly-dev-summary/weekly-dev-summary.json
-@@ -0,0 +1,1 @@
-+{"name":"Weekly Dev Summary - GitHub + Claude","nodes":[{"parameters":{},"id":"trigger-cron","name":"Weekly Cron","type":"n8n-nodes-base.scheduleTrigger","typeVersion":1,"position":[250,300],"webhookId":"weekly-cron"},{"parameters":{"jsCode":"const now = new Date();\nconst sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\nreturn [{\n  json: {\n    since: sevenDaysAgo.toISOString(),\n    until: now.toISOString()\n  }\n}];"},"id":"set-dates","name":"Set Date Range","type":"n8n-nodes-base.code","typeVersion":1,"position":[450,300]},{"parameters":{"jsCode":"const config = $input.first().json;\nconst items = [];\n\n// Commits\nitems.push({\n  json: {\n    url: `https://api.github.com/repos/${config.githubRepo}/commits`,\n    options: {\n      qs: {\n        since: config.since,\n        until: config.until,\n        per_page: 100\n      },\n      headers: {\n        Authorization: `Bearer {{$credentials.githubApi.apiKey}}`,\n        Accept: 'application/vnd.github.v3+json'\n      }\n    }\n  }\n});\n\n// Closed issues\nitems.push({\n  json: {\n    url: `https://api.github.com/repos/${config.githubRepo}/issues`,\n    options: {\n      qs: {\n        state: 'closed',\n        since: config.since,\n        per_page: 100\n      },\n      headers: {\n        Authorization: `Bearer {{$credentials.githubApi.apiKey}}`,\n        Accept: 'application/vnd.github.v3+json'\n      }\n    }\n  }\n});\n\n// Merged PRs\nitems.push({\n  json: {\n    url: `https://api.github.com/repos/${config.githubRepo}/pulls`,\n    options: {\n      qs: {\n        state: 'closed',\n        sort: 'updated',\n        direction: 'desc',\n        per_page: 100\n      },\n      headers: {\n        Authorization: `Bearer {{$credentials.githubApi.apiKey}}`,\n        Accept: 'application/vnd.github.v3+json'\n      }\n    }\n  }\n});\n\nreturn items;"},"id":"build-requests","name":"Build GitHub Requests","type":"n8n-nodes-base.code","typeVersion":1,"position":[650,300]},{"parameters":{"method":"GET","url":"={{ $json.url }}","sendQuery":true,"queryParameters":{"parameters":[{"name":"since","value":"={{ $json.options.qs.since }}"},{"name":"until","value":"={{ $json.options.qs.until }}"},{"name":"state","value":"={{ $json.options.qs.state }}"},{"name":"sort","value":"={{ $json.options.qs.sort }}"},{"name":"direction","value":"={{ $json.options.qs.direction }}"},{"name":"per_page","value":"100"}]},"sendHeaders":true,"headerParameters":{"parameters":[{"name":"Authorization","value":"Bearer {{$credentials.githubApi.apiKey}}"},{"name":"Accept","value":"application/vnd.github.v3+json"}]},"options":{}},"id":"github-api","name":"GitHub API","type":"n8n-nodes-base.httpRequest","typeVersion":4.1,"position":[850,300],"credentials":{"githubApi":{"id":"github-api-key","name":"GitHub API"}}},{"parameters":{"jsCode":"const allItems = $input.all();\nconst commits = allItems.find(i => i.json.url?.includes('/commits'))?.json.response || [];\nconst issues = allItems.find(i => i.json.url?.includes('/issues') && !i.json.url?.includes('/pulls'))?.json.response || [];\nconst prs = allItems.find(i => i.json.url?.includes('/pulls'))?.json.response || [];\n\n// Filter PRs that were actually merged in the last 7 days\nconst mergedPRs = prs.filter(pr => pr.merged_at);\n\nreturn [{\n  json: {\n    commits: commits.map(c => ({\n      message: c.commit.message.split('\\n')[0],\n      author: c.commit.author.name,\n      date: c.commit.author.date,\n      url: c.html_url\n    })),\n    closedIssues: issues.map(i => ({\n      title: i
++++ b/workflows/weekly-dev-summary/weekly-dev-summary.json
+@@ -0,0 +1,534 @@
++{
++  "name": "Weekly Dev Summary - Claude API",
++  "nodes": [
++    {
++      "parameters": {
++        "rule": {
++          "interval": [
++            {
++              "field": "weeks",
++              "expression": "1"
++            }
++          ]
++        }
++      },
++      "id": "trigger-cron",
++      "name": "Weekly Trigger",
++      "type": "n8n-nodes-base.scheduleTrigger",
++      "typeVersion": 1,
++      "position": [
++        250,
++        300
++      ],
++      "cron": {
++        "mode": "custom",
++        "custom": "0 17 * * 5"
++      }
++    },
++    {
++      "parameters": {
++        "values": {
++          "string": [
++            {
++              "name": "githubRepo",
++              "value": "={{ $env.GITHUB_REPO || \"claude-builders-bounty/claude-builders-bounty\" }}"
++            },
++            {
++              "name": "destinationWebhook",
++              "value": "={{ $env.DESTINATION_WEBHOOK || \"https://discord.com/api/webhooks/YOUR_WEBHOOK_URL\" }}"
++            },
++            {
++              "name": "language",
++              "value": "={{ $env.LANGUAGE || \"EN\" }}"
++            },
++            {
++              "name": "claudeModel",
++              "value": "claude-sonnet-4-20250514"
++            }
++          ]
++        }
++      },
++      "id": "set-config",
++      "name": "Set Config",
++      "type": "n8n-nodes-base.set",
++      "typeVersion": 2,
++      "position": [
++        450,
++        300
++      ]
++    },
++    {
++      "parameters": {
++        "url": "=https://api.github.com/repos/{{ $json.githubRepo }}/commits",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "since",
++              "value": "={{ DateTime.now().minus({ days: 7 }).toISODate() }}"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
++            }
++          ]
++        },
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth"
++      },
++      "id": "github-commits",
++      "name": "GitHub Commits",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 4.1,
++      "position": [
++        650,
++        200
++      ],
++      "credentials": {
++        "httpHeaderAuth": {
++          "id": "github-api",
++          "name": "GitHub API"
++        }
++      }
++    },
++    {
++      "parameters": {
++        "url": "=https://api.github.com/repos/{{ $json.githubRepo }}/issues",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "state",
++              "value": "closed"
++            },
++            {
++              "name": "since",
++              "value": "={{ DateTime.now().minus({ days: 7 }).toISODate() }}"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
++            }
++          ]
++        },
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth"
++      },
++      "id": "github-issues",
++      "name": "GitHub Closed Issues",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 4.1,
++      "position": [
++        650,
++        400
++      ],
++      "credentials": {
++        "httpHeaderAuth": {
++          "id": "github-api",
++          "name": "GitHub API"
++        }
++      }
++    },
++    {
++      "parameters": {
++        "url": "=https://api.github.com/repos/{{ $json.githubRepo }}/pulls",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "state",
++              "value": "closed"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
++            }
++          ]
++        },
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth"
++      },
++      "id":
