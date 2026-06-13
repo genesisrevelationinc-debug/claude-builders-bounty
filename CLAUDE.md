@@ -1,23 +1,26 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your conventions without asking.
+> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Every rule below exists because we made the mistake so you don't have to.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
-| Runtime | Node.js 20+ | `crypto.randomUUID()` native, stable fetch, performance |
-| Database | `better-sqlite3` | Synchronous, fast, zero network latency, perfect for single-tenant SaaS |
-| ORM/Query | Drizzle ORM | Type-safe SQL, zero runtime bloat, migration-first |
-| Auth | Lucia (or custom JWT) | Session cookies, no OAuth complexity for MVP |
-| Styling | Tailwind CSS 3.4 + shadcn/ui | Utility-first, copy-paste components, no version drift |
-| Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit tests in-memory SQLite, E2E on real build |
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `node:sqlite` if we ever need it |
+| Database | `better-sqlite3` | Synchronous, fast, zero connection pooling complexity for single-node deploys |
+| ORM/Query | Raw SQL + `better-sqlite3` | ORMs hide performance footguns; we write SQL to know our queries |
+| Migrations | Custom Node.js scripts | One less dependency to break; SQL is the source of truth |
+| Auth | `iron-session` + bcrypt | Stateless sessions, no Redis/DB session table needed |
+| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime, design system via config |
+| Forms | Server Actions + `useFormState` | No API routes for mutations; colocate logic with components |
+| Validation | Zod | Same schemas on server and (optional) client |
+| Testing | Vitest + Playwright | Unit for logic, E2E for critical paths |
 
-**Non-negotiable:** We use the App Router. Pages Router code is rejected in PR review.
+**Lockfile rule:** `package-lock.json` is committed. `npm ci` in CI, never `npm install`.
 
 ---
 
