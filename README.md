@@ -56,13 +56,12 @@ You're in the right place.
 
 ## Hooks
 
-| Hook | Description | Path |
-|------|-------------|------|
-| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands | `~/.claude/hooks/pre-tool-use` |
+This repository includes community-contributed Claude Code hooks:
 
-See [hooks/README.md](hooks/README.md) for installation instructions.
+- **[pre-tool-use](hooks/)** — Block destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.)
 
 ---
-## Rules
 
-- Tasks must be related to Claude Code or AI tooling
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
