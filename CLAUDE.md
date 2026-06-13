@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand how to work with your stack without asking questions.
+> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this into your project root. Claude Code reads it automatically.
 
 ---
 
@@ -9,15 +10,15 @@
 | Layer | Choice | Why |
 |-------|--------|-----|
 | Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` module |
-| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-tenant SaaS |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, great migration story |
-| Auth | NextAuth.js v5 (Auth.js) | Edge-compatible, JWT sessions, OAuth providers |
+| Runtime | Node.js 20+ | `next/after`, stable `fetch` cache, native `crypto` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
+| Auth | Lucia (or custom session) | Cookie-based sessions stored in SQLite, no external deps |
 | Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste components |
-| Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit tests in Node, E2E in real browser |
+| Validation | Zod | Schema validation shared between server and client |
+| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
 
-**Non-negotiable:** We do NOT use Turso/libSQL. This is a single- SaaS; `better-sqlite3` on the same server is faster and simpler. If we ever need multi-region, we'll migrate to Postgres—not a wrapper around SQLite.
+**Non-negotiable:** We do not use Prisma. It bundles a query engine, adds 50MB+ to Docker images, and its SQLite support is second-class. Drizzle generates plain SQL and stays out of the way.
 
 ---
 
