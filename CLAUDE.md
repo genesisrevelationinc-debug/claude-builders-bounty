@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code.
+> Opinionated project context for Claude Code. Paste this into your repo root.
+> Assumes: Next.js 15 App Router, TypeScript, Tailwind CSS, better-sqlite3 or Turso, shadcn/ui.
 
 ---
 
@@ -8,16 +9,18 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
-| Runtime | Node.js 20+ | `next start` requires Node 18+; we target 20 for native `fetch` stability |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need multi-region |
-| ORM/Query | Raw SQL via `better-sqlite3` + handwritten migrations | ORMs hide performance footguns in SQLite; explicit SQL is maintainable at SaaS scale |
-| Auth | `bcryptjs` + `jose` (JWT) | No external auth service dependency; works offline, zero cold start |
-| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS, works with Server Components |
-| Forms | Server Actions + `zod` | No client-side form libraries; validate on the server, revalidate with `useFormState` |
-| Testing | Vitest (unit) + Playwright (E2E) | Jest is slow; Playwright matches real user behavior |
+| Framework | Next.js 15 (App Router) | Server Components by default = simpler data flow |
+| Runtime | Node.js 20+ | `next dev` requires 18+, 20 for stable fetch |
+| Language | TypeScript 5.5+ | Strict mode, `noUncheckedIndexedAccess` |
+| Database | better-sqlite3 (dev) / Turso (prod) | Single file, zero network latency, works on Edge |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, no codegen bloat |
+| Auth | Lucia + oslo | Session-based, works with SQLite, no OAuth lock-in |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS |
+| Components | shadcn/ui | Copy-paste, fully customizable, no npm dep |
+| Validation | Zod | Same schemas for API + forms |
+| Testing | Vitest + Playwright | Unit + E2E, fast |
 
-**Non-negotiable:** All database access happens in Server Components or Server Actions. No `fetch` to internal API routes.
+**Non-negotiable:** We do NOT use Prisma. It downloads a 50MB engine and hides SQL. Drizzle lets you see and optimize every query.
 
 ---
 
