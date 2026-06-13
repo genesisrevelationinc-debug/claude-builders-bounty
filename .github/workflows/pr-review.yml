@@ -9,35 +9,60 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
-    
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
-          pip install -e .
-      
-      - name: Get PR diff
-        run: |
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.event.pull_request.diff_url }}" > /tmp/pr.diff
-      
-      - name: Run PR review
+          pip install -r claude-review/requirements.txt
+
+      - name: Run PR Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
-          claude-review --pr "$PR_URL" --diff /tmp/pr.diff --post-comment
-      
-      - name: Clean up
-        run: rm -f /tmp/pr.diff
+          python -m claude-review.cli --pr "$PR_URL" --output review.md
+
+      - name: Post Review Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reviewBody = fs.readFileSync('review.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: reviewBody
+            });
+# Claude Review 🤖
+
+A Claude Code sub-agent that reviews GitHub PRs and posts structured Markdown comments.
+
+## Features
+
+- **Structured output**: Summary, risks, suggestions, and confidence score
+- **CLI usage**: Run locally with `claude-review --pr <url>`
+- **GitHub Action**: Automatic PR reviews on every push
+- **Powered by Claude**: Uses Anthropic's Claude for intelligent code analysis
+
+## Setup
+
+### Prerequisites
+
+- Python 3.11+
+- An Anthropic API key
+
+### Installation
+
