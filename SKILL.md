@@ -1,9 +1,14 @@
-# Skill: Generate Changelog
+# Generate Changelog Skill
 
-## Description
-Automatically generate a structured `CHANGELOG.md` from git history, categorizing commits into Added, Fixed, Changed, and Removed.
+A Claude Code skill to automatically generate a structured `CHANGELOG.md` from git history.
 
-## Installation
+## Setup
 
-1. Make the script executable:
-   
+1. Save `changelog.sh` and `SKILL.md` to your project root
+2. Run `chmod +x changelog.sh`
+3. Run `bash changelog.sh` to generate `CHANGELOG.md`
+
+## Usage
+
+In Claude Code, use the `/generate-changelog` command or run:
+
