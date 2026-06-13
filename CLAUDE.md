@@ -1,24 +1,29 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this into your project root. Claude Code reads it automatically.
+> Opinionated project conventions. Read this before writing code. If a rule seems
+> arbitrary, the "Why" explains the trade-off. When in doubt, follow the
+> pattern, not the exception.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `next/after`, stable `fetch` cache, native `crypto` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
-| Auth | Lucia (or custom session) | Cookie-based sessions stored in SQLite, no external deps |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste components |
-| Validation | Zod | Schema validation shared between server and client |
-| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
+| Layer | Choice | Version Constraint |
+|-------|--------|-------------------|
+| Framework | Next.js | `15.x` (App Router only) |
+| Runtime | Node.js | `>= 20` |
+| Database | better-sqlite3 | `^11.x` |
+| ORM | None — raw SQL via `Database` class | See "SQL / migration conventions" |
+| Styling | Tailwind CSS | `^4.x` |
+| UI primitives | shadcn/ui | Install via CLI, never manually |
+| Auth | Lucia (or custom session) | See "Auth pattern" |
+| Validation | Zod | `^3.x` |
+| Testing | Vitest + Playwright | — |
 
-**Non-negotiable:** We do not use Prisma. It bundles a query engine, adds 50MB+ to Docker images, and its SQLite support is second-class. Drizzle generates plain SQL and stays out of the way.
+**Why no ORM:** better-sqlite3 is synchronous and fast. An ORM adds indirection
+and hides query plans. We write SQL to stay close to the database, optimize
+early, and avoid N+1 by construction. Migrations are explicit SQL files — no
+`sync()`, no `db push`, no schema drift.
 
 ---
 
