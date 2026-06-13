@@ -1,6 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso). Paste this into your repo root. Claude Code reads it automatically.
+> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand how to work with your codebase without asking clarifying questions.
 
 ---
 
@@ -8,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = simpler data fetching, less client JS |
-| Runtime | Node.js 20+ | `next dev` requires 18+; 20 is current LTS with stable fetch |
-| Database | better-sqlite3 (local/dev) / Turso (prod) | Synchronous SQLite is simpler for reads; Turso for edge replication |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations, no codegen bloat |
-| Auth | Lucia + Oslo | Session-based auth that works with SQLite out of the box |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, no runtime CSS, copy-paste components (no npm dep) |
-| Validation | Zod | Same schemas for API, forms, and DB — single source of truth |
-| Testing | Vitest + Playwright | Unit tests in-memory SQLite; E2E against real build |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable since 15 |
+| Runtime | Node.js 20+ | `crypto.randomUUID`, native `fetch`, stable ESM |
+| Database | `better-sqlite3` | Synchronous, fast, no connection pool complexity for SQLite |
+| ORM/Query | Raw SQL + `better-sqlite3` | SQLite is simple; ORMs add indirection without benefit |
+| Auth | `oslo` + `bcryptjs` | Minimal, no OAuth lock-in, works with any user table schema |
+| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS, works with Server Components |
+| Forms | Server Actions + `zod` | No client-side form libraries, validate on the server |
+| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical flows |
 
-**Lockfile rule:** `package-lock.json` or `pnpm-lock.yaml` must be committed. No `yarn`.
+**Non-negotiable:** We do not use Prisma, Drizzle, or any other ORM. SQLite schemas are simple enough that raw SQL is clearer and has zero abstraction cost.
 
 ---
 
