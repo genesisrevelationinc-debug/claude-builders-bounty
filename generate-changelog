@@ -1,113 +1,86 @@
 #!/usr/bin/env bash
 #
 # generate-changelog
-# Automatically generates a structured CHANGELOG.md from git history.
-# Fetches commits since the last git tag and categorizes them.
+# A script to generate a structured CHANGELOG.md from git history.
+# Usage: ./generate-changelog
 #
-# Usage:
-#   ./generate-changelog              # Generate CHANGELOG.md
-#   ./generate-changelog --dry-run    # Preview without writing
 
 set -euo pipefail
 
-# ── Configuration ──────────────────────────────────────────────────────────
+# Get the latest git tag
+LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-CATEGORIES="Added Fixed Changed Removed"
-OUTPUT_FILE="CHANGELOG.md"
-DRY_RUN=false
-
-# ── Parse flags ──────────────────────────────────────────────────────────────
-
-if [[ "${1:-}" == "--dry-run" ]]; then
-    DRY_RUN=true
+if [ -z "$LATEST_TAG" ]; then
+    echo "Error: No git tags found. Please create a tag first."
+    exit 1
 fi
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+echo "Generating changelog from commits since tag: $LATEST_TAG"
 
-get_last_tag() {
-    git describe --tags --abbrev=0 2>/dev/null || echo ""
-}
+# Get commits since the latest tag
+COMMITS=$(git log "$LATEST_TAG"..HEAD --pretty=format:"%s" 2>/dev/null || true)
 
-get_commits_since() {
-    local tag="$1"
-    if [[ -n "$tag" ]]; then
-        git log "${tag}..HEAD" --pretty=format:"%s" 2>/dev/null || true
-    else
-        git log --pretty=format:"%s" 2>/dev/null || true
-    fi
-}
+if [ -z "$COMMITS" ]; then
+    echo "No commits found since $LATEST_TAG"
+    exit 0
+fi
 
-categorize_commit() {
-    local msg="$1"
-    local lower
-    lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
+# Initialize category arrays
+declare -a ADDED=()
+declare -a FIXED=()
+declare -a CHANGED=()
+declare -a REMOVED=()
+declare -a OTHER=()
+
+# Categorize commits
+while IFS= read -r line; do
+    [ -z "$line" ] && continue
     
-    if [[ "$lower" =~ ^(feat|add|create|introduce|implement|new) ]]; then
-        echo "Added"
-    elif [[ "$lower" =~ ^(fix|bugfix|hotfix|patch|resolve|correct) ]]; then
-        echo "Fixed"
-    elif [[ "$lower" =~ ^(remove|delete|drop|revert|clean) ]]; then
-        echo "Removed"
-    elif [[ "$lower" =~ ^(update|change|modify|refactor|improve|enhance|upgrade|rework) ]]; then
-        echo "Changed"
+    lower_line=$(echo "$line" | tr '[:upper:]' '[:lower:]')
+    
+    if echo "$lower_line" | grep -qE '^(feat|add|create|implement|introduce|new)'; then
+        ADDED+=("$line")
+    elif echo "$lower_line" | grep -qE '^(fix|bugfix|hotfix|resolve|patch|correct)'; then
+        FIXED+=("$line")
+    elif echo "$lower_line" | grep -qE '^(change|update|modify|refactor|improve|enhance|upgrade|optimize)'; then
+        CHANGED+=("$line")
+    elif echo "$lower_line" | grep -qE '^(remove|delete|drop|revert|deprecate)'; then
+        REMOVED+=("$line")
     else
-        echo "Changed"
+        OTHER+=("$line")
     fi
-}
+done <<< "$COMMITS"
 
-# ── Main ─────────────────────────────────────────────────────────────────────
-
-main() {
-    if ! git rev-parse --git-dir > /dev/null 2>&1; then
-        echo "Error: Not a git repository." >&2
-        exit 1
+# Generate CHANGELOG.md
+{
+    echo "# Changelog"
+    echo ""
+    echo "## [Unreleased] - $(date +%Y-%m-%d)"
+    echo ""
+    
+    if [ ${#ADDED[@]} -gt 0 ]; then
+        echo "### Added"
+        printf -- "- %s\n" "${ADDED[@]}"
+        echo ""
     fi
-
-    local last_tag
-    last_tag=$(get_last_tag)
-
-    local version_info
-    if [[ -n "$last_tag" ]]; then
-        version_info="since $last_tag"
-    else
-        version_info="(all commits)"
+    
+    if [ ${#FIXED[@]} -gt 0 ]; then
+        echo "### Fixed"
+        printf -- "- %s\n" "${FIXED[@]}"
+        echo ""
     fi
-
-    local commits
-    commits=$(get_commits_since "$last_tag")
-
-    if [[ -z "$commits" ]]; then
-        echo "No commits found $version_info."
-        exit 0
+    
+    if [ ${#CHANGED[@]} -gt 0 ]; then
+        echo "### Changed"
+        printf -- "- %s\n" "${CHANGED[@]}"
+        echo ""
     fi
-
-    # Build changelog content
-    local changelog=""
-    changelog+="# Changelog\n\n"
-    changelog+="## Unreleased $version_info\n\n"
-
-    for category in $CATEGORIES; do
-        local section=""
-        while IFS= read -r line; do
-            [[ -z "$line" ]] && continue
-            local cat
-            cat=$(categorize_commit "$line")
-            if [[ "$cat" == "$category" ]]; then
-                section+="- $line\n"
-            fi
-        done <<< "$commits"
-
-        if [[ -n "$section" ]]; then
-            changelog+="### $category\n\n$section\n"
-        fi
-    done
-
-    if $DRY_RUN; then
-        echo -e "$changelog"
-    else
-        echo -e "$changelog" > "$OUTPUT_FILE"
-        echo "CHANGELOG.md generated successfully."
+    
+    if [ ${#REMOVED[@]} -gt 0 ]; then
+        echo "### Removed"
+        printf -- "- %s\n" "${REMOVED[@]}"
+        echo ""
     fi
-}
+} > CHANGELOG.md
 
-main "$@"
+echo "CHANGELOG.md generated successfully!"
