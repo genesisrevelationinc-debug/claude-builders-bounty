@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for building a production SaaS with Next.js 15 App Router and SQLite.
-> Every rule below exists because we made the mistake so you don't have to.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at the root of your project. Claude Code reads it automatically.
 
 ---
 
@@ -9,15 +9,14 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need multi-region |
-| ORM/Query | Raw SQL + `better-sqlite3` | ORMs hide performance footguns; we write SQL to feel the schema |
-| Migrations | Custom Node.js scripts | `node-pg-migrate` et al are overkill for SQLite. One file per migration, run in order |
-| Auth | `iron-session` or `jose` + bcrypt | No NextAuth — we own the session table, no magic, no vendor lock |
-| Styling | Tailwind CSS + CSS variables | Utility-first + theming without JS runtime |
-| Forms | Server Actions + `useActionState` | No `react-hook-form` for simple cases — Server Actions validate on the server |
-| Validation | Zod | Schema shared between Server Actions and API routes |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `fs/promises` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, zero runtime bloat, migration-first |
+| Auth | NextAuth.js v5 (Auth.js) | Edge-compatible, JWT sessions, OAuth built-in |
+| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | React Server Actions + `zod` | No API boilerplate, validated at the edge |
+| Testing | Vitest + Playwright | Unit tests in-memory SQLite, E2E on real build |
 
 **Lock these versions.** Do not upgrade major versions without a migration plan.
 
