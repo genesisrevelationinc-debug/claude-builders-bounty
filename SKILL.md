@@ -1,10 +1,10 @@
-# Skill: Generate Changelog
+# Generate Changelog Skill
 
 ## Description
 
 Automatically generate a structured `CHANGELOG.md` from a project's git history.
 
-## Setup
+## Usage
 
-1. Make the script executable:
-   
+Run the following command in your project root:
+
