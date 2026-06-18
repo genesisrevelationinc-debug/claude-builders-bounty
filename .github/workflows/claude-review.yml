@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      contents: read
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,22 +24,20 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests anthropic
+          pip install -r claude-review/requirements.txt
 
-      - name: Get PR diff
-        id: get-diff
-        run: |
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.event.pull_request.diff_url }}" > pr_diff.txt
-          echo "diff_file=pr_diff.txt" >> $GITHUB_OUTPUT
-
-      - name: Run Claude Review
+      - name: Run Claude PR Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          python .github/scripts/claude_review.py \
-            --pr "${{ github.event.pull_request.html_url }}" \
-            --diff pr_diff.txt \
-            --post-comment
+          python -m claude-review.claude_review \
+            --pr "$PR_URL" \
+            --pr-number "$PR_NUMBER" \
+            --repo-owner "$REPO_OWNER" \
+            --repo-name "$REPO_NAME"
+          cat review_output.md >> $GITHUB_STEP_SUMMARY
