@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project conventions. Read this before writing code.  
+> Goal: eliminate decision fatigue, ship faster, maintain at scale.
 
 ---
 
@@ -9,18 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `fetch` cache control, native `crypto`, stable `fetch` |
-| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-tenant or small multi-tenant |
-| ORM/Query | Raw SQL + `better-sqlite3` | SQLite is simple; ORMs add complexity without benefit here |
-| Auth | `next-auth` v5 (Auth.js) or custom JWT | Auth.js has built-in OAuth providers; custom JWT for API-only |
-| Styling | Tailwind CSS + CSS Modules | Tailwind for speed, CSS Modules for complex animations |
-| Forms | Server Actions + `react-hook-form` | Server Actions for mutations, RHF for client validation |
-| Validation | `zod` | Type-safe, works with Server Actions and RHF |
-| Testing | Vitest + Playwright | Unit tests with Vitest, E2E with Playwright |
-| Deployment | Vercel (with `vercel.json` limits) or Docker | SQLite requires persistent disk; Vercel needs external DB for multi-region |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, better SEO |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `node:` prefix |
+| Database | `better-sqlite3` | Synchronous, fast, zero connection pooling complexity |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, no hidden queries |
+| Auth | Lucia (or custom session) | No vendor lock-in, works with SQLite natively |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, copy-paste components, no dep drift |
+| Validation | Zod | Same schemas for API, forms, and DB |
+| Testing | Vitest + Playwright | Unit: fast. E2E: real browser. No overlap. |
 
-**Critical constraint:** `better-sqlite3` requires a persistent filesystem. On Vercel, use a single region with `.vercel/output` excluded, or switch to Turso for serverless.
+**Pinned in `package.json`:** Use exact versions. No `^`. Renovate weekly.
 
 ---
 
