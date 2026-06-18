@@ -9,8 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,13 +22,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e .
+          pip install requests anthropic
 
       - name: Get PR diff
         id: get-diff
         run: |
           curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.event.pull_request.diff_url }}" > pr.diff
+            "${{ github.event.pull_request.diff_url }}" > pr_diff.txt
+          echo "diff_file=pr_diff.txt" >> $GITHUB_OUTPUT
 
       - name: Run Claude Review
         env:
@@ -38,122 +37,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          claude-review --pr "$PR_URL" --diff pr.diff --post-comment
-
---- /dev/null
-"""Claude Code PR Review Agent."""
-
-from .reviewer import ClaudePRReviewer
-
-__all__ = ["ClaudePRReviewer"]
-
---- /dev/null
-"""Claude Code PR Review Agent - Core Review Logic."""
-
-import argparse
-import json
-import os
-import re
-import subprocess
-import sys
-from dataclasses import dataclass
-from typing import Optional
-
-import requests
-
-
-@dataclass
-class ReviewResult:
-    """Structured PR review result."""
-
-    summary: str
-    risks: list[str]
-    suggestions: list[str]
-    confidence: str  # Low, Medium, High
-    raw_response: str
-
-
-class ClaudePRReviewer:
-    """Agent that reviews PR diffs using Claude and produces structured Markdown output."""
-
-    CLAUDE_MODEL = "claude-3-5-sonnet-20241022"
-    MAX_TOKENS = 4096
-
-    SYSTEM_PROMPT = """You are an expert code reviewer. Analyze the provided PR diff and produce a structured review in the following format:
-
-SUMMARY:
-[2-3 sentence summary of what the PR does and its impact]
-
-RISKS:
-- [Risk 1]
-- [Risk 2]
-...
-
-SUGGESTIONS:
-- [Suggestion 1]
-- [Suggestion 2]
-...
-
-CONFIDENCE: [Low/Medium/High]
-
-Guidelines:
-- Summary: Be concise but informative. Mention the main purpose and any notable architectural decisions.
-- Risks: Identify potential bugs, security issues, performance problems, or breaking changes. Be specific about file/line references when possible. If no risks, state "None identified."
-- Suggestions: Provide actionable improvements for code quality, maintainability, testing, or documentation. If no suggestions, state "None identified."
-- Confidence: Rate your overall confidence in the PR's quality. High = very confident it's good, Medium = some concerns, Low = significant issues or uncertainty.
-
-Respond ONLY in the format above. Do not add extra sections or commentary."""
-
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not self.api_key:
-            raise ValueError(
-                "Anthropic API key required. Set ANTHROPIC_API_KEY environment variable."
-            )
-
-    def fetch_pr_diff(self, pr_url: str) -> str:
-        """Fetch PR diff from GitHub API."""
-        # Extract owner, repo, PR number from URL
-        match = re.match(r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
-        if not match:
-            raise ValueError(f"Invalid PR URL: {pr_url}")
-
-        owner, repo, pr_number = match.groups()
-
-        # Try to get diff via GitHub API
-        api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-        headers = {
-            "Accept": "application/vnd.github.v3.diff",
-            "Authorization": f"token {os.environ.get('GITHUB_TOKEN', '')}",
-        }
-
-        response = requests.get(api_url, headers=headers)
-        response.raise_for_status()
-        return response.text
-
-    def read_diff_file(self, diff_path: str) -> str:
-        """Read diff from local file."""
-        with open(diff_path, "r", encoding="utf-8") as f:
-            return f.read()
-
-    def call_claude(self, diff_text: str) -> str:
-        """Send diff to Claude API and get review."""
-        # Truncate if too long
-        max_diff_length = 100000  # ~100KB of diff text
-        if len(diff_text) > max_diff_length:
-            diff_text = diff_text[:max_diff_length] + "\n\n[Diff truncated due to length...]"
-
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
-
-        payload = {
-            "model": self.CLAUDE_MODEL,
-            "max_tokens": self.MAX_TOKENS,
-            "system": self.SYSTEM_PROMPT,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": f"Please review the following PR diff:\n\n
+          python .github/scripts/claude_review.py \
+            --pr "${{ github.event.pull_request.html_url }}" \
+            --diff pr_diff.txt \
+            --post-comment
