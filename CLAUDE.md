@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project conventions. Read this before writing code.  
+> Goal: zero clarifying questions, consistent decisions, fast shipping.
 
 ---
 
@@ -9,16 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `fs/promises` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Drizzle ORM | Type-safe SQL, zero runtime bloat, migration-first |
-| Auth | NextAuth.js v5 (Auth.js) | Edge-compatible, JWT sessions, OAuth built-in |
-| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
-| Forms | React Server Actions + `zod` | No API boilerplate, validated at the edge |
-| Testing | Vitest + Playwright | Unit tests in-memory SQLite, E2E on real build |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS |
+| Runtime | Node.js 20+ | `crypto` global, native fetch, stable |
+| Database | `better-sqlite3` | Synchronous, fast, no connection pool complexity |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia + `oslo` | Session-based, works with SQLite, no OAuth lock-in |
+| Styling | Tailwind CSS + `cn()` | Utility-first, no runtime CSS |
+| Forms | `react-hook-form` + Zod | Server validation + client validation same schema |
+| Testing | Vitest + Playwright | Unit + E2E, both fast |
 
-**Lock these versions.** Do not upgrade major versions without a migration plan.
+**Hard rule:** No version pinning with `^`. Use exact versions in `package.json` to prevent "works on my machine". Renovate handles bumps.
 
 ---
 
