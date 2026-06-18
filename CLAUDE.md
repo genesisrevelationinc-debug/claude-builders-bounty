@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at your project root. Claude Code reads it automatically.
+> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your conventions without asking.
 
 ---
 
@@ -9,17 +8,18 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
-| Runtime | Node.js 20+ | `fetch` cache control, native `crypto`, stable `sqlite` module |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-tenant deploys |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migration tooling |
-| Auth | Lucia (or custom session) | Cookie-based sessions, works without external providers |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, `structuredClone` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Raw SQL + `better-sqlite3` | No ORM bloat; SQL is the source of truth |
+| Migrations | Custom Node.js scripts | `node scripts/migrate.js` — explicit, debuggable, no magic |
+| Auth | `iron-session` + bcrypt | Stateless sessions, no Redis/DB session table needed |
 | Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
-| Forms | Server Actions + `react-hook-form` | Progressive enhancement, type-safe validation with Zod |
-| Validation | Zod | Schema-first, works on both server and client |
-| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
+| Forms | Server Actions + `useFormState` | No API routes for mutations; progressive enhancement |
+| Validation | `zod` | Single source of truth for server and client schemas |
+| Testing | Vitest (unit) + Playwright (E2E) | Fast unit tests; real browser for critical flows |
 
-**Lockfile rule:** Use `pnpm`. Commit `pnpm-lock.yaml`. No `package-lock.json`, no `yarn.lock`.
+**Non-negotiable:** We do not use `next-auth`, Prisma, or tRPC. They add indirection and lock-in that outpace their value for a SQLite-backed SaaS.
 
 ---
 
