@@ -1,121 +1,93 @@
 #!/usr/bin/env bash
 #
 # generate-changelog
-# A script to generate a structured CHANGELOG.md from git history.
-# Fetches commits since the last git tag and auto-categorizes them.
-#
-# Usage:
-#   ./generate-changelog
-#   ./generate-changelog --output custom.md
-#   ./generate-changelog --since "2024-01-01"
+# Automatically generates a structured CHANGELOG.md from git history.
+# Usage: ./generate-changelog [output_file]
 #
 
 set -euo pipefail
 
-# Configuration
-OUTPUT_FILE="CHANGELOG.md"
-SINCE_TAG=""
-SINCE_DATE=""
+OUTPUT_FILE="${1:-CHANGELOG.md}"
 
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --output|-o)
-            OUTPUT_FILE="$2"
-            shift 2
+# Get the latest git tag, or empty if none exists
+get_latest_tag() {
+    git describe --tags --abbrev=0 2>/dev/null || echo ""
+}
+
+# Get commits since the last tag (or all commits if no tag)
+get_commits_since_tag() {
+    local tag
+    tag=$(get_latest_tag)
+    if [ -n "$tag" ]; then
+        git log "${tag}..HEAD" --pretty=format:"%s" 2>/dev/null || true
+    else
+        git log --pretty=format:"%s" 2>/dev/null || true
+    fi
+}
+
+# Categorize a single commit message
+categorize_commit() {
+    local msg="$1"
+    local lower_msg
+    lower_msg=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
+
+    case "$lower_msg" in
+        *"fix"* | *"bugfix"* | *"patch"* | *"resolve"* | *"hotfix"*)
+            echo "fixed"
             ;;
-        --since)
-            SINCE_DATE="$2"
-            shift 2
+        *"add"* | *"feat"* | *"feature"* | *"implement"* | *"introduce"* | *"new "*)
+            echo "added"
             ;;
-        --help|-h)
-            echo "Usage: $0 [--output <file>] [--since <date>]"
-            echo ""
-            echo "Options:"
-            echo "  --output, -o <file>  Output file (default: CHANGELOG.md)"
-            echo "  --since <date>       Start date (YYYY-MM-DD) or tag"
-            echo "  --help, -h           Show this help message"
-            exit 0
+        *"remove"* | *"delete"* | *"drop"* | *"deprecate"*)
+            echo "removed"
+            ;;
+        *"update"* | *"change"* | *"refactor"* | *"improve"* | *"modify"* | *"rework"* | *"enhance"*)
+            echo "changed"
             ;;
         *)
-            echo "Unknown option: $1" >&2
-            exit 1
+            echo "changed"
             ;;
     esac
-done
+}
 
-# Check if we're in a git repository
-if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    echo "Error: Not a git repository." >&2
-    exit 1
-fi
-
-# Determine the starting point
-if [[ -n "$SINCE_DATE" ]]; then
-    # Check if it's a tag
-    if git rev-parse "$SINCE_DATE" > /dev/null 2>&1; then
-        SINCE_TAG="$SINCE_DATE"
-    else
-        # Treat as date
-        :
+# Main generation logic
+generate_changelog() {
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        echo "Error: Not a git repository." >&2
+        exit 1
     fi
-else
-    # Get the latest tag
-    SINCE_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-fi
 
-# Build the git log command
-GIT_LOG_CMD="git log"
-if [[ -n "$SINCE_TAG" ]]; then
-    GIT_LOG_CMD="$GIT_LOG_CMD $SINCE_TAG..HEAD"
-elif [[ -n "$SINCE_DATE" ]]; then
-    GIT_LOG_CMD="$GIT_LOG_CMD --since=\"$SINCE_DATE\""
-fi
+    local tag
+    tag=$(get_latest_tag)
+    local since_text
+    if [ -n "$tag" ]; then
+        since_text="since ${tag}"
+    else
+        since_text="(all commits)"
+    fi
 
-GIT_LOG_CMD="$GIT_LOG_CMD --pretty=format:'%s'"
+    {
+        echo "# Changelog"
+        echo ""
+        echo "## Unreleased ${since_text}"
+        echo ""
 
-# Fetch commits
-echo "Fetching commits..."
-COMMITS=$(eval "$GIT_LOG_CMD" 2>/dev/null || true)
+        local commits
+        commits=$(get_commits_since_tag)
 
-if [[ -z "$COMMITS" ]]; then
-    echo "No commits found since the specified point."
-    exit 0
-fi
-
-# Categorize commits
-ADDED=$(echo "$COMMITS" | grep -iE '^(feat|add|create|implement|introduce)' || true)
-FIXED=$(echo "$COMMITS" | grep -iE '^(fix|bug|repair|resolve|patch)' || true)
-CHANGED=$(echo "$COMMITS" | grep -iE '^(update|change|modify|refactor|improve|enhance|upgrade|rework)' || true)
-REMOVED=$(echo "$COMMITS" | grep -iE '^(remove|delete|drop|deprecate|clean)' || true)
-OTHER=$(echo "$COMMITS" | grep -ivE '^(feat|add|create|implement|introduce|fix|bug|repair|resolve|patch|update|change|modify|refactor|improve|enhance|upgrade|rework|remove|delete|drop|deprecate|clean)' || true)
-
-# Generate CHANGELOG
-{
-    echo "# Changelog"
-    echo ""
-    echo "All notable changes to this project will be documented in this file."
-    echo ""
-    echo "## [Unreleased] - $(date +%Y-%m-%d)"
-    echo ""
-
-    print_section() {
-        local title="$1"
-        local content="$2"
-        if [[ -n "$content" ]]; then
-            echo "### $title"
-            echo ""
-            echo "$content" | sed 's/^/- /'
-            echo ""
+        if [ -z "$commits" ]; then
+            echo "No new commits found."
+            exit 0
         fi
-    }
 
-    print_section "Added" "$ADDED"
-    print_section "Changed" "$CHANGED"
-    print_section "Fixed" "$FIXED"
-    print_section "Removed" "$REMOVED"
-    print_section "Other" "$OTHER"
+        echo "$commits" | while IFS= read -r line; do
+            local category
+            category=$(categorize_commit "$line")
+            echo "- **[$category]** $line"
+        done
+    } > "$OUTPUT_FILE"
 
-} > "$OUTPUT_FILE"
+    echo "CHANGELOG generated at $OUTPUT_FILE"
+}
 
-echo "✅ CHANGELOG generated: $OUTPUT_FILE"
+generate_changelog
