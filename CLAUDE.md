@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code.  
-> Goal: zero clarifying questions, consistent decisions, fast shipping.
+> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at the root of your project. Claude Code reads it automatically.
 
 ---
 
@@ -9,16 +9,18 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS |
-| Runtime | Node.js 20+ | `crypto` global, native fetch, stable |
-| Database | `better-sqlite3` | Synchronous, fast, no connection pool complexity |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | Lucia + `oslo` | Session-based, works with SQLite, no OAuth lock-in |
-| Styling | Tailwind CSS + `cn()` | Utility-first, no runtime CSS |
-| Forms | `react-hook-form` + Zod | Server validation + client validation same schema |
-| Testing | Vitest + Playwright | Unit + E2E, both fast |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `fetch` cache control, native `crypto`, stable `fetch` |
+| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-tenant or small multi-tenant |
+| ORM/Query | Raw SQL + `better-sqlite3` | SQLite is simple; ORMs add complexity without benefit here |
+| Auth | `next-auth` v5 (Auth.js) or custom JWT | Auth.js has built-in OAuth providers; custom JWT for API-only |
+| Styling | Tailwind CSS + CSS Modules | Tailwind for speed, CSS Modules for complex animations |
+| Forms | Server Actions + `react-hook-form` | Server Actions for mutations, RHF for client validation |
+| Validation | `zod` | Type-safe, works with Server Actions and RHF |
+| Testing | Vitest + Playwright | Unit tests with Vitest, E2E with Playwright |
+| Deployment | Vercel (with `vercel.json` limits) or Docker | SQLite requires persistent disk; Vercel needs external DB for multi-region |
 
-**Hard rule:** No version pinning with `^`. Use exact versions in `package.json` to prevent "works on my machine". Renovate handles bumps.
+**Critical constraint:** `better-sqlite3` requires a persistent filesystem. On Vercel, use a single region with `.vercel/output` excluded, or switch to Turso for serverless.
 
 ---
 
