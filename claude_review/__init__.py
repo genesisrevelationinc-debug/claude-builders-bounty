@@ -1,5 +1,5 @@
 """Claude Code PR Review Agent."""
 
-from .reviewer import PRReviewer
+__version__ = "0.1.0"
 
-__all__ = ["PRReviewer"]
+from .reviewer import ClaudeReviewer, ReviewResult
