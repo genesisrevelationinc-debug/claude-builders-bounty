@@ -2,106 +2,86 @@
 """
 Claude Code pre-tool-use hook: Block destructive bash commands.
 
-This hook intercepts dangerous bash commands before they are executed
-by Claude Code, preventing accidental data loss or destructive operations.
+Place this file at: ~/.claude/hooks/pre-tool-use
+Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
 """
 
 import json
 import os
 import re
 import sys
-from datetime import datetime
-from pathlib import Path
+from datetime import datetime, timezone
 
-# Path to the log file for blocked attempts
-LOG_FILE = Path.home() / ".claude" / "hooks" / "blocked.log"
+BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 
-# Destructive patterns to block
-# Each pattern is a tuple of (regex, description)
-DANGEROUS_PATTERNS = [
-    # rm -rf / rm -r / rm -f with wildcards or root paths
-    (
-        r"rm\s+(?:-\w*[rf]\w*\s+|\s+)(?:/|[\w/]*\*|.+)",
-        "rm -rf or similar recursive/force remove command",
-    ),
-    # DROP TABLE - SQL destructive operation
-    (
-        r"(?i)\bDROP\s+TABLE\b",
-        "DROP TABLE - deletes an entire database table",
-    ),
+# Patterns that are always blocked
+BLOCKED_PATTERNS = [
+    # rm -rf (any variant with -rf or -fr flags)
+    re.compile(r"rm\s+(?:-[a-zA-Z]*[rf][a-zA-Z]*\s+)", re.IGNORECASE),
+    
+    # DROP TABLE
+    re.compile(r"\bDROP\s+TABLE\b", re.IGNORECASE),
+    
     # git push --force or git push -f
-    (
-        r"git\s+push\s+.*(--force|-f)",
-        "git push --force - overwrites remote history destructively",
-    ),
-    # TRUNCATE TABLE - removes all data
-    (
-        r"(?i)\bTRUNCATE\b",
-        "TRUNCATE - removes all data from a table without logging",
-    ),
-    # DELETE FROM without WHERE clause
-    (
-        r"(?i)DELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b).*",
-        "DELETE FROM without WHERE - deletes all rows in a table",
-    ),
+    re.compile(r"git\s+push\s+.*(--force|-f)\b", re.IGNORECASE),
+    
+    # TRUNCATE
+    re.compile(r"\bTRUNCATE\s+", re.IGNORECASE),
+]
+
+# Patterns that require WHERE clause
+DANGEROUS_WITHOUT_WHERE = [
+    # DELETE FROM without WHERE
+    re.compile(r"\bDELETE\s+FROM\s+\S+(?!.*\bWHERE\b)", re.IGNORECASE),
 ]
 
 
-def log_blocked_attempt(command: str, reason: str):
-    """Log a blocked command attempt to the log file."""
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    
-    timestamp = datetime.now().isoformat()
+def log_blocked(command: str, reason: str):
+    """Log a blocked command attempt."""
+    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
+    timestamp = datetime.now(timezone.utc).isoformat()
     project_path = os.getcwd()
     
-    log_entry = f"[{timestamp}] BLOCKED: {reason}\n  Command: {command}\n  Project: {project_path}\n\n"
+    with open(BLOCKED_LOG, "a") as f:
+        f.write(f"{timestamp} | {reason} | {command} | {project_path}\n")
+
+
+def is_blocked(command: str) -> tuple[bool, str]:
+    """Check if a command should be blocked. Returns (blocked, reason)."""
+    for pattern in BLOCKED_PATTERNS:
+        if pattern.search(command):
+            return True, f"Blocked destructive pattern: {pattern.pattern[:50]}..."
     
-    with open(LOG_FILE, "a") as f:
-        f.write(log_entry)
-
-
-def is_dangerous(command: str) -> tuple[bool, str]:
-    """Check if a command matches any dangerous pattern."""
-    for pattern, description in DANGEROUS_PATTERNS:
-        if re.search(pattern, command):
-            return True, description
+    for pattern in DANGEROUS_WITHOUT_WHERE:
+        if pattern.search(command):
+            return True, "Blocked: DELETE FROM without WHERE clause"
+    
     return False, ""
 
 
 def main():
-    """Main entry point for the hook."""
-    # Read the tool use request from stdin (Claude Code hook protocol)
+    # Read the hook payload from stdin
     try:
-        input_data = sys.stdin.read()
-        tool_request = json.loads(input_data)
-    except (json.JSONDecodeError, Exception):
-        # If we can't parse the input, allow it through (fail open for safety)
-        print("Warning: Could not parse tool request, allowing execution", file=sys.stderr)
+        payload = json.load(sys.stdin)
+    except json.JSONDecodeError:
+        # Not a valid JSON payload, allow to proceed
         sys.exit(0)
     
-    # Extract the command from the tool request
-    command = tool_request.get("command", "") or tool_request.get("input", {}).get("command", "")
+    tool_name = payload.get("tool_name", "")
+    tool_input = payload.get("tool_input", {})
     
-    if not command:
-        # Not a bash tool or no command, allow through
+    # Only intercept bash tool
+    if tool_name != "bash":
         sys.exit(0)
     
-    dangerous, reason = is_dangerous(command)
+    command = tool_input.get("command", "")
     
-    if dangerous:
-        log_blocked_attempt(command, reason)
-        
-        # Print clear message to Claude (stdout is shown to Claude)
-        print(f"\n🛡️  SECURITY HOOK BLOCKED: This command was prevented from executing.\n", file=sys.stderr)
-        print(f"   Reason: {reason}\n", file=sys.stderr)
-        print(f"   Command: {command}\n", file=sys.stderr)
-        print(f"   This operation is destructive and could cause irreversible data loss.\n", file=sys.stderr)
-        print(f"   If you truly need to run this, please use a safer alternative or confirm with the user.\n", file=sys.stderr)
-        
-        # Exit with non-zero to block the command
+    blocked, reason = is_blocked(command)
+    if blocked:
+        log_blocked(command, reason)
+        print(f"🛡️  SECURITY: This command was blocked by the pre-tool-use hook.\n\nReason: {reason}\nCommand: {command}\n\nDestructive operations like `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without a WHERE clause are not allowed. If you need to run this command, please do so manually outside of Claude Code.", file=sys.stderr)
         sys.exit(1)
     
-    # Command is safe, allow execution
     sys.exit(0)
 
 
