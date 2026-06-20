@@ -4,40 +4,40 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  pull-requests: write
+  contents: read
+
 jobs:
-  review:
+  claude-review:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      contents: read
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
-          pip install -e .
-      
-      - name: Get PR diff
-        id: get-diff
-        run: |
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.event.pull_request.diff_url }}" > /tmp/pr.diff
-          echo "diff_path=/tmp/pr.diff" >> $GITHUB_OUTPUT
-      
-      - name: Run Claude Review
+          pip install -r claude-review/requirements.txt
+
+      - name: Run Claude PR Review
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          claude-review --pr "$PR_URL" --diff "${{ steps.get-diff.outputs.diff_path }}" --post-comment
-        working-directory: ${{ github.workspace }}
+          python -m claude-review.cli --pr "$PR_URL"
+
+      - name: Post review comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python -m claude-review.post_comment --pr-number "$PR_NUMBER"
+        if: always()
