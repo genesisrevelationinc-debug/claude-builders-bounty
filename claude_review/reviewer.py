@@ -1,82 +1,96 @@
-#!/usr/bin/env python3
-"""Claude Code PR Review Agent.
+"""Core PR review logic using Claude API."""
 
-Takes a PR diff as input, analyzes it with Claude, and returns
-a structured Markdown review comment.
-"""
-
-from __future__ import annotations
-
-import argparse
 import json
 import os
 import re
 import subprocess
 import sys
-import tempfile
-import urllib.parse
-from pathlib import Path
+from dataclasses import dataclass
+from typing import Optional
 
-try:
-    import requests
-except ImportError:
-    requests = None  # type: ignore
+import requests
 
 
-def fetch_pr_diff(pr_url: str, github_token: str | None = None) -> str:
-    """Fetch the diff for a GitHub PR URL."""
-    # Convert PR URL to diff URL
-    # https://github.com/owner/repo/pull/123 -> https://github.com/owner/repo/pull/123.diff
-    diff_url = pr_url.rstrip("/") + ".diff"
-
-    headers: dict[str, str] = {
-        "Accept": "application/vnd.github.v3.diff",
-    }
-    if github_token:
-        headers["Authorization"] = f"token {github_token}"
-
-    response = requests.get(diff_url, headers=headers, timeout=30)
-    response.raise_for_status()
-    return response.text
+@dataclass
+class ReviewResult:
+    """Structured review result."""
+    summary: str
+    risks: list[str]
+    suggestions: list[str]
+    confidence: str  # Low, Medium, High
+    raw_response: str
 
 
-def call_claude_api(diff_text: str, api_key: str | None = None) -> str:
-    """Call the Anthropic Claude API to analyze the diff."""
-    api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError(
-            "ANTHROPIC_API_KEY environment variable must be set. "
-            "Get one at https://console.anthropic.com/"
-        )
+class ClaudeReviewer:
+    """Reviews PR diffs using Claude API and produces structured Markdown output."""
+    
+    API_URL = "https://api.anthropic.com/v1/messages"
+    MODEL = "claude-3-5-sonnet-20241022"
+    
+    SYSTEM_PROMPT = """You are an expert code reviewer. Analyze the provided PR diff and produce a structured review.
 
-    prompt = f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
+Respond ONLY with a JSON object in this exact format:
+{
+    "summary": "2-3 sentence summary of the changes",
+    "risks": ["risk 1", "risk 2", ...],
+    "suggestions": ["suggestion 1", "suggestion 2", ...],
+    "confidence": "High" | "Medium" | "Low"
+}
 
-Please respond in the following format (Markdown):
+Guidelines:
+- Summary: Concise overview of what the PR does and its intent
+- Risks: List of potential issues, bugs, security concerns, or architectural problems. Empty list if none found.
+- Suggestions: Actionable improvements for code quality, performance, readability, or maintainability. Empty list if none.
+- Confidence: Your certainty about the review quality given the diff context. Use "Low" if the diff is very large or lacks context, "Medium" for typical PRs, "High" when you have strong confidence.
 
-## 🔍 PR Review
+Be thorough but concise. Focus on substantive issues over style nits."""
 
-### Summary
-[2-3 sentence summary of what the PR does]
-
-### Identified Risks
-- [Risk 1]
-- [Risk 2]
-- ...
-
-### Improvement Suggestions
-- [Suggestion 1]
-- [Suggestion 2]
-- ...
-
-### Confidence Score
-**Confidence: [Low/Medium/High]**
-
-Rules:
-- Be concise but thorough
-- Focus on code quality, security, performance, and maintainability
-- If the diff is too large to review fully, note that limitation
-- If you see no significant issues, say so clearly
-- The confidence score reflects how certain you are about your assessment
-
-Here is the diff to review:
-
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not self.api_key:
+            raise ValueError("ANTHROPIC_API_KEY must be provided or set as environment variable")
+    
+    def _fetch_pr_diff(self, pr_url: str) -> str:
+        """Fetch PR diff from GitHub API."""
+        # Extract owner, repo, PR number from URL
+        match = re.match(r'https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)', pr_url)
+        if not match:
+            raise ValueError(f"Invalid PR URL: {pr_url}")
+        
+        owner, repo, pr_number = match.groups()
+        
+        # Try to get token from env
+        token = os.environ.get("GITHUB_TOKEN")
+        headers = {
+            "Accept": "application/vnd.github.v3.diff",
+            "User-Agent": "claude-review/0.1.0"
+        }
+        if token:
+            headers["Authorization"] = f"token {token}"
+        
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+        
+        response = requests.get(api_url, headers=headers, timeout=30)
+        response.raise_for_status()
+        
+        # GitHub API returns diff directly when Accept header is set
+        if "diff" in response.headers.get("Content-Type", ""):
+            return response.text
+        
+        # Fallback: fetch diff URL
+        diff_url = response.json().get("diff_url")
+        if diff_url:
+            diff_response = requests.get(diff_url, headers=headers, timeout=30)
+            diff_response.raise_for_status()
+            return diff_response.text
+        
+        raise ValueError("Could not fetch PR diff")
+    
+    def _call_claude(self, diff_content: str) -> ReviewResult:
+        """Send diff to Claude API and parse response."""
+        # Truncate very large diffs
+        max_chars = 150000  # ~ Claude's context limit allowance
+        if len(diff_content) > max_chars:
+            diff_content = diff_content[:max_chars] + "\n\n[... diff truncated due to size ...]"
+        
+        user_message = f"Please review the following PR diff:\n\n
