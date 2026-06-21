@@ -1,23 +1,46 @@
 # n8n Weekly Dev Summary Workflow
 
-Automated weekly narrative summary of a GitHub repo's activity, powered by n8n and Claude API.
+Automated weekly narrative summary generator using n8n + Claude API.
 
 ## Setup (5 steps)
 
-1. **Import the workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
-2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in *Settings* → *Credentials*
-3. **Configure variables**: Open the *Set Config* node and edit: `repoOwner`, `repoName`, `destinationWebhook`, `language`
-4. **Activate the workflow**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
-5. **Test manually**: Click *Execute Workflow* to verify, then check your email/Discord for the summary
+1. **Import workflow**: In n8n, go to Workflows → Import from File → select `weekly-dev-summary.json`
 
-## Delivery Options
+2. **Set credentials**: Add your GitHub Personal Access Token, Claude API key, and email/SMTP or webhook credentials in n8n Settings → Credentials
 
-The workflow defaults to **Discord webhook**. To use Slack instead, replace the Discord node with a Slack node and update `destinationWebhook`. For email, replace with an Email node and configure SMTP credentials.
+3. **Configure variables**: Edit the "Set Variables" node with your repo, destination, and language (EN/FR)
+
+4. **Activate**: Toggle the workflow to "Active" — it runs Fridays at 5pm automatically
+
+5. **Test run**: Click "Execute Workflow" to verify, check execution history for ✅
 
 ## Required Credentials
 
-- **GitHub API**: Personal Access Token with `repo` scope
-- **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
+| Service | Type | Notes |
+|---------|------|-------|
+| GitHub | OAuth2 or Personal Access Token | Needs `repo` scope |
+| Claude | API Key | From [Anthropic Console](https://console.anthropic.com) |
+| Email/SMTP or Webhook | SMTP or HTTP Request | Choose one delivery method |
 
-## Workflow Overview
+## Configurable Variables
 
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `githubRepo` | Full repo path | `claude-builders-bounty/claude-builders-bounty` |
+| `destination` | Email or webhook URL | `https://hooks.slack.com/services/...` |
+| `language` | Summary language | `EN` or `FR` |
+
+## Delivery Methods
+
+- **Email**: Configure SMTP credentials, set `destination` to recipient email
+- **Slack/Discord**: Set `destination` to webhook URL, workflow auto-detects and formats accordingly
+
+## Claude Model
+
+Uses `claude-sonnet-4-20250514` as specified in bounty requirements.
+
+## Screenshot
+
+![Successful Execution](screenshot.png)
+
+*Include screenshot of successful n8n execution here*
