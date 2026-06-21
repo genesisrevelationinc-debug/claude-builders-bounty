@@ -1,47 +1,23 @@
 # n8n Weekly Dev Summary Workflow
 
-Automatically generate a weekly narrative summary of a GitHub repo's activity using Claude API.
+Automated weekly narrative summary of a GitHub repo's activity, powered by n8n and Claude API.
 
 ## Setup (5 steps)
 
-1. **Import workflow**: In n8n, go to *Workflows* → *Import from File* → select `workflow.json`
-2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API Key in *Settings* → *Credentials*
-3. **Configure variables**: Open the *Set Config* node and edit: `repo` (e.g. `owner/repo`), `webhookUrl`, `language` (`EN` or `FR`)
-4. **Activate**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
-5. **Test manually**: Click *Execute Workflow* to verify; check the *Execution* tab for results
+1. **Import the workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in *Settings* → *Credentials*
+3. **Configure variables**: Open the *Set Config* node and edit: `repoOwner`, `repoName`, `destinationWebhook`, `language`
+4. **Activate the workflow**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
+5. **Test manually**: Click *Execute Workflow* to verify, then check your email/Discord for the summary
 
-## What It Does
+## Delivery Options
 
-- Fetches commits, closed issues, and merged PRs from the past 7 days via GitHub API
-- Sends the data to Claude API (`claude-sonnet-4-20250514`) for a narrative summary
-- Delivers the summary via Discord/Slack webhook
+The workflow defaults to **Discord webhook**. To use Slack instead, replace the Discord node with a Slack node and update `destinationWebhook`. For email, replace with an Email node and configure SMTP credentials.
 
 ## Required Credentials
 
 - **GitHub API**: Personal Access Token with `repo` scope
 - **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
 
-## Configuration Variables
+## Workflow Overview
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `repo` | GitHub repository (owner/name) | `claude-builders-bounty/claude-builders-bounty` |
-| `webhookUrl` | Discord or Slack incoming webhook URL | `https://discord.com/api/webhooks/...` |
-| `language` | Output language | `EN` or `FR` |
-
-## Nodes Overview
-
-| Node | Purpose |
-|------|---------|
-| Cron | Weekly trigger (Fridays 17:00) |
-| Set Config | Define repo, webhook, language |
-| GitHub Commits | Fetch commits from past week |
-| GitHub Issues | Fetch closed issues from past week |
-| GitHub PRs | Fetch merged PRs from past week |
-| Merge Data | Combine all GitHub data |
-| Claude API | Generate narrative summary |
-| Discord/Slack Webhook | Send the summary |
-
-## Screenshot
-
-> Include a screenshot of a successful execution here (e.g., `screenshot.png`)
