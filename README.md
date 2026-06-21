@@ -10,19 +10,17 @@ You're in the right place.
 
 ## How it works
 
-
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
 2. Comment `/opire create $XXX` in the issue to set the reward
 3. Share the link — contributors will find it
 
 **To claim a bounty**
+1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
 
 ---
-
-## Active Bounties
 
 ## Active Bounties
 
@@ -38,10 +36,8 @@ You're in the right place.
 
 ## Rules
 
-
 - Tasks must be related to Claude Code or AI tooling
 - Every issue must have clear acceptance criteria before a bounty is activated
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Quality over speed — a solid PR beats a fast one
 
@@ -54,6 +50,18 @@ You're in the right place.
 
 ---
 
+*Started by the Claude builder community · March 2026 · MIT License*
+
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
+## Hooks
+
+| Hook | Description | Path |
+|------|-------------|------|
+| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) | `hooks/` |
+
+---
+
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
