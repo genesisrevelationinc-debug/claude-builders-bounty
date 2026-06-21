@@ -3,11 +3,11 @@
 Claude Code pre-tool-use hook to block destructive bash commands.
 
 This hook intercepts dangerous bash commands before they are executed
-and blocks them with a clear explanation.
+in Claude Code, preventing accidental data loss.
 
 Installation:
     mkdir -p ~/.claude/hooks
-    cp pre-tool-use ~/.claude/hooks/
+    cp hooks/pre-tool-use ~/.claude/hooks/pre-tool-use
     chmod +x ~/.claude/hooks/pre-tool-use
 """
 
@@ -18,92 +18,109 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Patterns that are always blocked (destructive commands)
+ALWAYS_BLOCKED = [
+    # rm -rf variants
+    r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|\s+)-[a-zA-Z]*r[a-zA-Z]*\s+\S+',
+    r'\brm\s+.*-[a-zA-Z]*rf[a-zA-Z]*\s+',
+    # git push --force variants
+    r'\bgit\s+push\s+.*--force\b',
+    r'\bgit\s+push\s+.*-f\b',
+    # SQL destructive commands
+    r'\bDROP\s+TABLE\b',
+    r'\bTRUNCATE\b',
+]
 
-BLOCKED_PATTERNS = [
-    # rm -rf / rm -r / rm -rfv etc.
-    {
-        "pattern": r"rm\s+(?:-\S*\s+)?-r\S*(?:\s+\S+)?",
-        "message": "Destructive file removal (rm -rf) is blocked to prevent accidental data loss.",
-    },
-    # DROP TABLE
-    {
-        "pattern": r"(?i)\bDROP\s+TABLE\b",
-        "message": "DROP TABLE is blocked to prevent accidental database table deletion.",
-    },
-    # git push --force / git push -f
-    {
-        "pattern": r"git\s+push\s+(?:.*\s)?--force(?:\s|$)",
-        "message": "git push --force is blocked to prevent overwriting remote history.",
-    },
-    {
-        "pattern": r"git\s+push\s+(?:.*\s)?-f(?:\s|$)",
-        "message": "git push -f is blocked to prevent overwriting remote history.",
-    },
-    # TRUNCATE
-    {
-        "pattern": r"(?i)\bTRUNCATE\b",
-        "message": "TRUNCATE is blocked to prevent accidental data deletion.",
-    },
-    # DELETE FROM without WHERE
-    {
-        "pattern": r"(?i)\bDELETE\s+FROM\s+\S+(?:\s+JOIN\s+\S+)*\s*$",
-        "message": "DELETE FROM without a WHERE clause is blocked to prevent deleting all rows.",
-    },
+# Patterns that require WHERE clause validation
+DANGEROUS_SQL = [
+    (r'\bDELETE\s+FROM\s+(\w+)', 'DELETE FROM without WHERE clause'),
 ]
 
 
-def log_blocked_attempt(command: str, project_path: str):
+def log_blocked_attempt(command: str, reason: str):
     """Log a blocked command attempt to the log file."""
-    log_dir = Path.home() / ".claude" / "hooks"
-    log_file = log_dir / "blocked.log"
+    log_dir = Path.home() / '.claude' / 'hooks'
+    log_file = log_dir / 'blocked.log'
+    
+    # Ensure log directory exists
+    log_dir.mkdir(parents=True, exist_ok=True)
     
     timestamp = datetime.now().isoformat()
-    log_entry = f"[{timestamp}] command={command!r} project={project_path}\n"
+    project_path = os.getcwd()
     
-    try:
-        log_dir.mkdir(parents=True, exist_ok=True)
-        with open(log_file, "a") as f:
-            f.write(log_entry)
-    except Exception as e:
-        print(f"Warning: Could not write to log file: {e}", file=sys.stderr)
+    log_entry = f'[{timestamp}] BLOCKED: {reason}\n  Command: {command}\n  Project: {project_path}\n\n'
+    
+    with open(log_file, 'a') as f:
+        f.write(log_entry)
+
+
+def check_command(command: str) -> tuple[bool, str]:
+    """Check if a command should be blocked. Returns (should_block, reason)."""
+    upper_cmd = command.upper()
+    
+    # Check always-blocked patterns
+    for pattern in ALWAYS_BLOCKED:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, f"Blocked destructive pattern: {pattern}"
+    
+    # Check SQL patterns that need WHERE clause
+    for pattern, description in DANGEROUS_SQL:
+        if re.search(pattern, command, re.IGNORECASE):
+            # Check if there's a WHERE clause after the table name
+            if not re.search(r'\bWHERE\b', upper_cmd):
+                return True, f"Blocked: {description}"
+    
+    return False, ""
 
 
 def main():
-    # Read the hook input from stdin (JSON)
+    # Read the tool use data from stdin (Claude Code hook protocol)
     try:
         data = json.load(sys.stdin)
     except json.JSONDecodeError:
-        sys.exit(0)  # If we can't parse, let it through
+        return 0  # Allow if we can't parse
     
-    command = data.get("command", "")
-    project_path = data.get("project_path", os.getcwd())
+    # Extract the command from the tool use data
+    command = data.get('command', '') or data.get('input', {}).get('command', '')
     
-    for blocked in BLOCKED_PATTERNS:
-        if re.search(blocked["pattern"], command):
-            log_blocked_attempt(command, project_path)
-            print(f"\n🚫 BLOCKED: {blocked['message']}", file=sys.stderr)
-            print(f"   Command: {command}", file=sys.stderr)
-            print(f"   If you need to run this, use a different method or disable the hook.\n", file=sys.stderr)
-            sys.exit(1)
+    if not command:
+        return 0  # No command to check, allow
     
-    sys.exit(0)
+    should_block, reason = check_command(command)
+    
+    if should_block:
+        log_blocked_attempt(command, reason)
+        
+        # Print clear message to stderr (Claude will see this)
+        print(f"\n🛡️  SECURITY HOOK BLOCKED: Destructive command prevented\n", file=sys.stderr)
+        print(f"   Reason: {reason}\n", file=sys.stderr)
+        print(f"   Command: {command}\n", file=sys.stderr)
+        print(f"   This command has been logged for security review.\n", file=sys.stderr)
+        print(f"   If you need to run this command, use the --no-hooks flag or disable the hook.\n", file=sys.stderr)
+        
+        return 1  # Block the command
+    
+    return 0  # Allow the command
 
 
-if __name__ == "__main__":
-    main()
-# Claude Code Pre-Tool-Use Hook: Block Destructive Commands
+if __name__ == '__main__':
+    sys.exit(main())
 
-A security hook for [Claude Code](https://docs.anthropic.com/claude-code/) that intercepts and blocks dangerous bash commands before they execute.
+
+--- /dev/null
+# Claude Code Security Hook
+
+A `pre-tool-use` hook for Claude Code that intercepts and blocks dangerous bash commands before they can be executed.
 
 ## What It Blocks
 
-| Pattern | Reason |
-|---------|--------|
-| `rm -rf` | Prevents accidental file/folder deletion |
-| `DROP TABLE` | Prevents database table deletion |
-| `git push --force` / `git push -f` | Prevents overwriting remote git history |
-| `TRUNCATE` | Prevents table data wipe |
-| `DELETE FROM` without `WHERE` | Prevents deleting all rows in a table |
+| Pattern | Example |
+|---------|---------|
+| `rm -rf` | `rm -rf /important/data` |
+| `DROP TABLE` | `DROP TABLE users;` |
+| `TRUNCATE` | `TRUNCATE TABLE orders;` |
+| `DELETE FROM` (without WHERE) | `DELETE FROM users;` |
+| `git push --force` | `git push --force origin main` |
 
-## Installation (2 commands)
+## Installation
 
