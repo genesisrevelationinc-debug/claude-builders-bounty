@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your conventions without asking.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at the root of your project. Claude Code reads it automatically.
 
 ---
 
@@ -8,18 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, `structuredClone` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Raw SQL + `better-sqlite3` | No ORM bloat; SQL is the source of truth |
-| Migrations | Custom Node.js scripts | `node scripts/migrate.js` — explicit, debuggable, no magic |
-| Auth | `iron-session` + bcrypt | Stateless sessions, no Redis/DB session table needed |
-| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
-| Forms | Server Actions + `useFormState` | No API routes for mutations; progressive enhancement |
-| Validation | `zod` | Single source of truth for server and client schemas |
-| Testing | Vitest (unit) + Playwright (E2E) | Fast unit tests; real browser for critical flows |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
+| Runtime | Node.js 20+ | Required for `fetch` improvements, `crypto` APIs, native `fetch` in tests |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need multi-region (see "What We Don't Do") |
+| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations, no codegen bloat |
+| Auth | Lucia + `oslo` | Session-based auth, works with any OAuth provider, no vendor lock-in |
+| Styling | Tailwind CSS + `shadcn/ui` | Utility-first, copy-paste components, no npm dependency hell for UI |
+| Validation | Zod | Same schemas for API, forms, and DB. Single source of truth |
+| Testing | Vitest + `next-test-api-route` | Unit tests for utilities; integration tests for API routes |
 
-**Non-negotiable:** We do not use `next-auth`, Prisma, or tRPC. They add indirection and lock-in that outpace their value for a SQLite-backed SaaS.
+**Lock these versions in `package.json`:** `next` >= 15.0.0, `react` >= 19.0.0, `better-sqlite3` >= 11.0.0, `drizzle-orm` >= 0.30.0.
 
 ---
 
