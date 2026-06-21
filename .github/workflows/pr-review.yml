@@ -2,7 +2,7 @@ name: PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
 
 jobs:
   review:
@@ -10,32 +10,117 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install -e .
-      
-      - name: Run PR Review
+
+      - name: Get PR diff
+        id: get-diff
+        run: |
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "${{ github.event.pull_request.diff_url }}" > pr.diff
+
+      - name: Run Claude Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          claude-review --pr "$PR_URL" --output review.md
-      
-      - name: Post Review Comment
-        run: |
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file review.md
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          claude-review --pr "$PR_URL" --diff pr.diff --post-comment
+
+"""Claude Code PR Review Agent."""
+
+__version__ = "0.1.0"
+
+from .reviewer import review_pr, generate_review_comment
+#!/usr/bin/env python3
+"""Claude Code PR Review Agent - Core Review Logic."""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from typing import Optional
+
+import requests
+
+
+@dataclass
+class ReviewResult:
+    """Structured review result."""
+    summary: str
+    risks: list[str]
+    suggestions: list[str]
+    confidence: str
+
+
+def fetch_pr_diff(pr_url: str) -> str:
+    """Fetch PR diff from GitHub API."""
+    # Extract owner, repo, PR number from URL
+    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
+    if not match:
+        raise ValueError(f"Invalid PR URL: {pr_url}")
+
+    owner, repo, pr_number = match.groups()
+
+    # Try to get token from environment
+    token = os.environ.get("GITHUB_TOKEN")
+    headers = {}
+    if token:
+        headers["Authorization"] = f"token {token}"
+
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    response = requests.get(api_url, headers=headers, timeout=30)
+    response.raise_for_status()
+
+    pr_data = response.json()
+    diff_url = pr_data.get("diff_url")
+
+    diff_response = requests.get(diff_url, headers=headers, timeout=30)
+    diff_response.raise_for_status()
+
+    return diff_response.text
+
+
+def call_claude_api(diff_text: str) -> ReviewResult:
+    """Call Claude API to analyze the diff."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+
+    # Truncate diff if too long (Claude has context limits)
+    max_diff_chars = 100000
+    if len(diff_text) > max_diff_chars:
+        diff_text = diff_text[:max_diff_chars] + "\n... (truncated for brevity)"
+
+    prompt = f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
+
+Please respond in JSON format with the following structure:
+{{
+  "summary": "2-3 sentence summary of the changes",
+  "risks": ["risk 1", "risk 2", ...],
+  "suggestions": ["suggestion 1", "suggestion 2", ...],
+  "confidence": "Low" | "Medium" | "High"
+}}
+
+Confidence levels:
+- Low: The diff is complex, unclear, or touches critical systems without sufficient tests
+- Medium: The changes are reasonable but have some areas of concern
+- High: The changes are wellinear, well-tested, and follow best practices
+
+PR Diff:
