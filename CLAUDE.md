@@ -1,6 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your project root and Claude will understand your conventions without asking questions.
+> Opinionated project context for Claude Code. Paste this at the root of any greenfield Next.js 15 + SQLite project. No clarifying questions should be needed.
 
 ---
 
@@ -8,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = simpler data fetching, less client JS |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need multi-region |
-| ORM/Query | Raw SQL + `better-sqlite3` | ORMs hide performance footguns. Migrations in SQL are the source of truth |
-| Auth | `oslo` + `better-sqlite3` sessions | No vendor lock-in, works offline, trivial to audit |
-| Styling | Tailwind CSS + `shadcn/ui` | Copy-paste components, full control, no runtime CSS |
-| Validation | `zod` | Type inference + runtime validation from single source |
-| Testing | Vitest + Playwright | Unit tests fast, E2E tests catch integration bugs |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable since 15.1 |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` |
+| Database | `better-sqlite3` | Synchronous, fast, no connection pool complexity for single-node deploys |
+| ORM/Query | Raw SQL + `zod` | ORMs hide performance footguns; Zod validates at boundaries |
+| Auth | `bcryptjs` + `jose` (JWT) | No third-party auth service dependency; works offline |
+| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime, design system via config |
+| Forms | Server Actions + `react-hook-form` | Server Actions for mutations; RHF for client validation UX |
+| Testing | Vitest + Playwright | Unit: Vitest (fast, ESM). E2E: Playwright (real browser) |
 
-**Non-negotiable:** We do not use Prisma, Drizzle, or any query builder. Raw SQL only.
+**Non-negotiable:** We do not use `turso` or any edge-hosted SQLite. This template targets single-node deploys (VPS, Railway, Fly.io single region). If you need multi-region, switch to Postgres — do not force SQLite into that shape.
 
 ---
 
