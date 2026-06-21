@@ -2,15 +2,15 @@ name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
-
-permissions:
-  pull-requests: write
-  contents: read
+    types: [opened, synchronize]
 
 jobs:
-  claude-review:
+  review:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,20 +24,39 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r claude-review/requirements.txt
+          pip install claude-review/
 
-      - name: Run Claude PR Review
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-        run: |
-          python -m claude-review.cli --pr "$PR_URL"
+     - name: Run Claude Review
+       env:
+         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+       run: |
+         claude-review --pr "${{ github.event.pull_request.html_url }}" --output review.md
 
-      - name: Post review comment
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          python -m claude-review.post_comment --pr-number "$PR_NUMBER"
-        if: always()
+     - name: Post review comment
+       uses: actions/github-script@v7
+       with:
+         script: |
+           const fs = require('fs');
+           const review = fs.readFileSync('review.md', 'utf8');
+           github.rest.issues.createComment({
+             issue_number: context.issue.number,
+             owner: context.repo.owner,
+             repo: context.repo.repo,
+             body: review
+           });
+
+# Claude PR Reviewer 🤖
+
+An autonomous agent that reviews GitHub PRs and posts structured Markdown comments using Claude Code.
+
+## Features
+
+- **Structured Analysis**: Every review includes summary, risks, suggestions, and confidence score
+- **CLI & GitHub Action**: Use locally or automate in CI/CD
+- **Real PR Analysis**: Fetches actual diff and context from GitHub
+
+## Installation
+
+### Local Setup
+
