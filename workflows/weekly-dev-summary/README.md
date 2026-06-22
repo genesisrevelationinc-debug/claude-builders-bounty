@@ -4,33 +4,46 @@ Automatically generates a weekly narrative summary of a GitHub repo's activity u
 
 ## Setup (5 steps)
 
-1. **Import workflow**: In n8n, click *Workflows → Import → From File* and select `weekly-dev-summary.json`
-2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API Key in *Settings → Credentials*
-3. **Configure variables**: Edit the *Set Variables* node with your repo, destination, and language
-4. **Activate**: Toggle the workflow to *Active* in the top-right corner
-5. **Test run**: Click *Execute Workflow* to verify, then check your email/Discord for the summary
+1. **Import the workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
+
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in *Settings* → *Credentials*
+
+3. **Configure variables**: Open the workflow and edit the `Configuration` node with your repo, channel, and language
+
+4. **Activate the workflow**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
+
+5. **Test it**: Click *Execute Workflow* to run manually and verify output
+
+---
+
+## What It Does
+
+- **Trigger**: Weekly cron (Fridays at 5:00 PM)
+- **Fetches**: Commits, closed issues, and merged PRs from the past 7 days
+- **Summarizes**: Sends data to Claude API (`claude-sonnet-4-20250514`) for a narrative summary
+- **Delivers**: Posts summary to a Discord webhook (configurable)
 
 ## Required Credentials
 
-- **GitHub API**: Personal Access Token with `repo` scope
-- **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
+| Service | Type | How to Get |
+|---------|------|-----------|
+| GitHub | Personal Access Token | [GitHub Settings → Developer Settings → Tokens](https://github.com/settings/tokens) |
+| Anthropic | API Key | [Anthropic Console](https://console.anthropic.com) |
 
-## Configurable Variables
+## Configuration Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `githubRepo` | Target repository | `claude-builders-bounty/claude-builders-bounty` |
-| `destinationChannel` | Email or webhook URL | `https://hooks.discord.com/...` |
+| `githubRepo` | Full repo path | `claude-builders-bounty/claude-builders-bounty` |
+| `discordWebhook` | Discord webhook URL | `https://discord.com/api/webhooks/...` |
 | `language` | Summary language | `EN` or `FR` |
 
-## Delivery Options
+## Screenshot
 
-- **Email**: Configure SMTP roundup in the *Send Email* node (SMTP credentials required)
-- **Discord/Slack**: Set `destinationChannel` to your webhook URL; the workflow auto-detects and routes to the *HTTP Request* node
+![Successful Execution](screenshot.png)
 
-## Cron Schedule
+---
 
-Default: Every Friday at 5:00 PM UTC (`0 17 * * 5`). Adjust in the *Cron* node as needed.
+## License
 
-## Workflow Overview
-
+MIT
