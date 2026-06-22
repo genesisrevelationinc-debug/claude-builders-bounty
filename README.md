@@ -51,11 +51,19 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
-Want to get paid for contributing to AI projects?
-You're in the right place.
+
+---
 
 ## Hooks
 
-This repository includes a security hook for Claude Code that blocks destructive bash commands:
+| Hook | Description | Path |
+|------|-------------|------|
+| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) | `~/.claude/hooks/pre-tool-use` |
 
+See [hooks/README.md](hooks/README.md) for installation and usage.
 
+---
+
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
