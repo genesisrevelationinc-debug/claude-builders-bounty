@@ -58,7 +58,7 @@ You're in the right place.
 
 | Hook | Description | Path |
 |------|-------------|------|
-| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) | `~/.claude/hooks/pre-tool-use` |
+| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands before execution | `hooks/pre-tool-use` |
 
 See [hooks/README.md](hooks/README.md) for installation and usage.
 
