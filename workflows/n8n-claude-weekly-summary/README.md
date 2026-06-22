@@ -1,44 +1,31 @@
 # n8n + Claude Weekly Dev Summary Workflow
 
-Automatically generate and deliver a weekly narrative summary of your GitHub repo's activity using n8n and Claude API.
+Automated weekly narrative summary of GitHub repo activity using n8n and Claude API.
 
 ## Setup (5 steps)
 
-### 1. Import the workflow
-In n8n, go to **Workflows → Import from File** and select `weekly-dev-summary.json`.
+1. **Import workflow**: In n8n, click "Import" and upload `weekly-dev-summary.json`
+2. **Set credentials**: Add your GitHub token and Claude API key in n8n credentials
+3. **Configure variables**: Edit the "Set Config" node with your repo, channel, and language
+4. **Activate**: Toggle the workflow to "Active" in n8n
+5. **Test**: Click "Execute Workflow" to verify, or wait for the Friday 5pm cron trigger
 
-### 2. Set your credentials
-- **GitHub API**: Create a [GitHub Personal Access Token](https://github.com/settings/tokens) with `repo` scope. Add it in n8n under **Settings → Credentials → GitHub API**.
-- **Claude API**: Get your API key from [Anthropic Console](https://console.anthropic.com). Add it in n8n under **Settings → Credentials → Anthropic API**.
+## Required Credentials
 
-### 3. Configure workflow variables
-Open the workflow and edit the **Set Variables** node:
-- `githubRepo`: Your target repo (e.g., `owner/repo-name`)
-- `destinationWebhook`: Your email/Discord/Slack webhook URL
-- `language`: `EN` or `FR`
+- **GitHub API**: Personal access token with `repo` scope
+- **Claude API**: Anthropic API key from [console.anthropic.com](https://console.anthropic.com)
 
-### 4. Activate the workflow
-Toggle the workflow to **Active**. The cron trigger runs every Friday at 5:00 PM UTC.
+## Configuration Variables
 
-### 5. Test it
-Click **Execute Workflow** to run manually and verify output in your chosen channel.
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `githubRepo` | Full repo path | `owner/repo-name` |
+| `destinationWebhook` | Email/Discord/Slack URL | `https://hooks.slack.com/...` |
+| `language` | Summary language | `EN` or `FR` |
 
----
+## Delivery Method
 
-## Delivery Options
+This workflow uses **Discord webhook** by default (configurable to Slack or email). Create a webhook in your Discord server settings → Integrations → Webhooks, and paste the URL in the config.
 
-| Channel | Webhook URL Format |
-|---------|-------------------|
-| Email | Use n8n's **Send Email** node (SMTP credentials required) |
-| Discord | `https://discord.com/api/webhooks/...` |
-| Slack | `https://hooks.slack.com/services/...` |
+## Workflow Overview
 
-Replace the **Deliver Summary** node with your preferred channel node, or keep the generic HTTP Request for webhooks.
-
----
-
-## Requirements
-
-- n8n v1.0+ (self-hosted or cloud)
-- GitHub Personal Access Token
-- Anthropic API key
