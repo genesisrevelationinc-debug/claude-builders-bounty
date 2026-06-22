@@ -1,174 +1,175 @@
  ```diff
 --- /dev/null
-+++ b/generate-changelog.sh
-@@ -0,0 +1,131 @@
++++ b/generate-changelog
+@@ -0,0 +1,95 @@
 +#!/usr/bin/env bash
-+
-+# generate-changelog.sh
-+# Automatically generates a structured CHANGELOG.md from git history
-+# Fetches commits since the last git tag and auto-categorizes them
++#
++# generate-changelog
++# Automatically generates a structured CHANGELOG.md from git history.
++# Fetches commits since the last git tag and auto-categorizes them.
++#
++# Usage:
++#   ./generate-changelog [output_file]
++#
++#   Or as a Claude Code skill command:
++#   /generate-changelog
 +
 +set -euo pipefail
 +
-+# Colors for output
-+RED='\033[0;31m'
-+GREEN='\033[0;32m'
-+YELLOW='\033[1;33m'
-+NC='\033[0m' # No Color
++OUTPUT_FILE="${1:-CHANGELOG.md}"
 +
-+# Get the directory where the script is located
-+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-+CHANGELOG_FILE="${SCRIPT_DIR}/CHANGELOG.md"
++# ── helpers ─────────────────────────────────────────────────────────
++die() { printf '%s\n' "$*" >&2; exit 1; }
 +
-+# Get the latest git tag
-+get_latest_tag() {
++has_git() { command -v git &>/dev/null; }
++
++get_last_tag() {
 +    git describe --tags --abbrev=0 2>/dev/null || echo ""
 +}
 +
-+# Get commits since the last tag (or all commits if no tag exists)
-+get_commits_since_tag() {
-+    local tag="$1"
-+    if [ -n "$tag" ]; then
-+        git log "${tag}..HEAD" --pretty=format:"%s" --no-merges
++get_commits_since() {
++    local since="$1"
++    if [[ -n "$since" ]]; then
++        git log "${since}..HEAD" --pretty=format:"%s" --no-merges
 +    else
 +        git log --pretty=format:"%s" --no-merges
 +    fi
 +}
 +
-+# Categorize a commit message into one of the changelog categories
-+categorize_commit() {
-+    local message="$1"
-+    local lower_msg
-+    lower_msg=$(echo "$message" | tr '[:upper:]' '[:lower:]')
-+    
-+    # Check for conventional commit prefixes first
-+    if [[ "$lower_msg" =~ ^feat(\(.*\))?: ]]; then
-+        echo "added"
-+        return
-+    elif [[ "$lower_msg" =~ ^fix(\(.*\))?: ]]; then
-+        echo "fixed"
-+        return
-+    elif [[ "$lower_msg" =~ ^(chore|docs|style|refactor|perf|test|build|ci|revert)(\(.*\))?: ]]; then
-+        echo "changed"
-+        return
-+    fi
-+    
-+    # Fallback to keyword matching
-+    case "$lower_msg" in
-+        *add*|*implement*|*introduce*|*create*|*new*)
-+            echo "added"
-+            ;;
-+        *fix*|*bugfix*|*resolve*|*patch*|*hotfix*|*correct*)
-+            echo "fixed"
-+            ;;
-+        *remove*|*delete*|*drop*|*deprecate*|*clean*)
-+            echo "removed"
-+            ;;
-+        *update*|*change*|*modify*|*refactor*|*improve*|*optimize*|*enhance*)
-+            echo "changed"
-+            ;;
++categorize() {
++    local msg="$1"
++    # normalize: lowercase first word
++    local first
++    first=$(echo "$msg" | awk '{print tolower($1)}')
++
++    case "$first" in
++        add|added|feat|feature|implement|introduce|create|new)
++            echo "Added" ;;
++        fix|fixed|bugfix|hotfix|resolve|patch|correct|repair)
++            echo "Fixed" ;;
++        change|changed|update|updated|modify|modified|refactor|rework|improve|enhance|upgrade|migrate|bump)
++            echo "Changed" ;;
++        remove|removed|delete|deleted|drop|dropped|deprecate|deprecate|clean|cleanup)
++            echo "Removed" ;;
 +        *)
-+            echo "changed"
-+            ;;
++            echo "Changed" ;;  # default bucket
 +    esac
 +}
 +
-+# Generate the changelog
-+generate_changelog() {
-+    echo -e "${YELLOW}🔍 Checking for git repository...${NC}"
-+    
-+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
-+        echo -e "${RED}Error: Not a git repository${NC}"
-+        exit 1
-+    fi
-+    
-+    local latest_tag
-+    latest_tag=$(get_latest_tag)
-+    
-+    if [ -n "$latest_tag" ]; then
-+        echo -e "${GREEN}📌 Latest tag: $latest_tag${NC}"
-+    else
-+        echo -e "${YELLOW}⚠️  No tags found. Using all commits.${NC}"
-+    fi
-+    
-+    echo -e "${YELLOW}📝 Generating CHANGELOG.md...${NC}"
-+    
-+    # Collect commits by category
-+    local added=()
-+    local fixed=()
-+    local changed=()
-+    local removed=()
-+    
-+    while IFS= read -r commit; do
-+        [ -z "$commit" ] && continue
-+        
-+        # Clean up the commit message (remove conventional commit prefix)
-+        local clean_commit
-+        clean_commit=$(echo "$commit" | sed -E 's/^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)(\([^)]*\))?:[[:space:]]*//')
-+        
-+        local category
-+        category=$(categorize_commit "$commit")
-+        
-+        case "$category" in
-+            added) added+=("$clean_commit") ;;
-+            fixed) fixed+=("$clean_commit") ;;
-+            removed) removed+=("$clean_commit") ;;
-+            changed) changed+=("$clean_commit") ;;
++# ── main ────────────────────────────────────────────────────────────
++main() {
++    has_git || die "Error: git is not installed."
++
++    [[ -d ".git" ]] || die "Error: not inside a git repository."
++
++    local last_tag
++    last_tag=$(get_last_tag)
++
++    local commits
++    commits=$(get_commits_since "$last_tag")
++
++    [[ -n "$commits" ]] || die "No commits found since last tag."
++
++    local added="" fixed="" changed="" removed=""
++
++    while IFS= read -r line; do
++        [[ -z "$line" ]] && continue
++        local cat
++        cat=$(categorize "$line")
++        case "$cat" in
++            Added)   added+="- $line"$'\n' ;;
++            Fixed)   fixed+="- $line"$'\n' ;;
++            Changed) changed+="- $line"$'\n' ;;
++            Removed) removed+="- $line"$'\n' ;;
 +        esac
-+    done < <(get_commits_since_tag "$latest_tag")
-+    
-+    # Generate the changelog file
++    done <<< "$commits"
++
 +    {
 +        echo "# Changelog"
 +        echo ""
 +        echo "All notable changes to this project will be documented in this file."
 +        echo ""
-+        echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),"
-+        echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)."
++        echo "## [Unreleased] ($(date +%Y-%m-%d))"
 +        echo ""
-+        
-+        if [ -n "$latest_tag" ]; then
-+            echo "## [Unreleased] - since $latest_tag"
-+        else
-+            echo "## [Unreleased]"
-+        fi
-+        echo ""
-+        
-+        # Added
-+        if [ ${#added[@]} -gt 0 ]; then
-+            echo "### Added"
-+            for item in "${added[@]}"; do
-+                echo "- $item"
-+            done
-+            echo ""
-+        fi
-+        
-+        # Fixed
-+        if [ ${#fixed[@]} -gt 0 ]; then
-+            echo "### Fixed"
-+            for item in "${fixed[@]}"; do
-+                echo "- $item"
-+            done
-+            echo ""
-+        fi
-+        
-+        # Changed
-+        if [ ${#changed[@]} -gt 0 ]; then
-+            echo "### Changed"
-+            for item in "${changed[@]}"; do
-+                echo "- $item"
-+            done
-+            echo ""
-+        fi
-+        
-+        # Removed
-+        if [ ${#removed[@]} -gt 0 ]; then
-+            echo "### Removed"
-+            for item in "${removed[@]}"; do
-+                echo "- $item"
-+            done
-+            echo ""
-+        fi
-+        
-+        # If no commits found
-+        if [ ${#added[@]} -eq 0 ] && [ ${#fixed[@]} -eq 0 ] && [ ${#changed[@]} -eq 0 ] && [ ${#removed[@]} -eq 0
++        [[ -n "$added" ]]   && { echo "### Added";   echo ""; echo -n "$added";   echo ""; }
++        [[ -n "$fixed" ]]   && { echo "### Fixed";   echo ""; echo -n "$fixed";   echo ""; }
++        [[ -n "$changed" ]] && { echo "### Changed"; echo ""; echo -n "$changed"; echo ""; }
++        [[ -n "$removed" ]] && { echo "### Removed"; echo ""; echo -n "$removed"; echo ""; }
++    } > "$OUTPUT_FILE"
++
++    echo "✅  CHANGELOG written to $OUTPUT_FILE"
++}
++
++main "$@"
+--- /dev/null
++++ b/generate-changelog
+@@ -0,0 +1,95 @@
++#!/usr/bin/env bash
++#
++# generate-changelog
++# Automatically generates a structured CHANGELOG.md from git history.
++# Fetches commits since the last git tag and auto-categorizes them.
++#
++# Usage:
++#   ./generate-changelog [output_file]
++#
++#   Or as a Claude Code skill command:
++#   /generate-changelog
++
++set -euo pipefail
++
++OUTPUT_FILE="${1:-CHANGELOG.md}"
++
++# ── helpers ─────────────────────────────────────────────────────────
++die() { printf '%s\n' "$*" >&2; exit 1; }
++
++has_git() { command -v git &>/dev/null; }
++
++get_last_tag() {
++    git describe --tags --abbrev=0 2>/dev/null || echo ""
++}
++
++get_commits_since() {
++    local since="$1"
++    if [[ -n "$since" ]]; then
++        git log "${since}..HEAD" --pretty=format:"%s" --no-merges
++    else
++        git log --pretty=format:"%s" --no-merges
++    fi
++}
++
++categorize() {
++    local msg="$1"
++    # normalize: lowercase first word
++    local first
++    first=$(echo "$msg" | awk '{print tolower($1)}')
++
++    case "$first" in
++        add|added|feat|feature|implement|introduce|create|new)
++            echo "Added" ;;
++        fix|fixed|bugfix|hotfix|resolve|patch|correct|repair)
++            echo "Fixed" ;;
++        change|changed|update|updated|modify|modified|refactor|rework|improve|enhance|upgrade|migrate|bump)
++            echo "Changed" ;;
++        remove|removed|delete|deleted|drop|dropped|deprecate|deprecate|clean|cleanup)
++            echo "Removed" ;;
++        *)
++            echo "Changed" ;;  # default bucket
++    esac
++}
++
++# ── main ────────────────────────────────────────────────────────────
++main() {
++    has_git || die "Error: git is not installed."
++
++    [[ -d ".git" ]] || die "Error: not inside a git repository."
++
++    local last_tag
++    last_tag=$(get_last_tag)
++
++    local commits
++    commits=$(get_commits_since "$last_tag")
++
++    [[ -n "$commits" ]] || die "No commits found since last tag."
++
++    local added="" fixed="" changed
