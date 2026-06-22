@@ -50,20 +50,10 @@ You're in the right place.
 
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
-
----
-
 ## Hooks
 
-| Hook | Description | Path |
-|------|-------------|------|
-| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands before execution | `hooks/pre-tool-use` |
+- [`hooks/pre-tool-use`](hooks/pre-tool-use) — Pre-tool-use hook that blocks destructive bash commands. See [hooks/README.md](hooks/README.md) for details.
 
-See [hooks/README.md](hooks/README.md) for installation and usage.
+## Rules
 
----
-
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- Tasks must be related to Claude Code or AI tooling
