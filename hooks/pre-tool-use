@@ -2,107 +2,103 @@
 """
 Claude Code pre-tool-use hook to block destructive bash commands.
 
-Installation:
-    cp hooks/pre-tool-use ~/.claude/hooks/pre-tool-use
-    chmod +x ~/.claude/hooks/pre-tool-use
+Place at: ~/.claude/hooks/pre-tool-use
+Make executable: chmod +x ~/.claude/hooks/pre-tool-use
 """
 
 import json
 import os
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
-
+# Path to the blocked attempts log file
 BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 
+# Destructive patterns to block
+DANGEROUS_PATTERNS = [
+    # rm -rf (recursive force delete)
+    (r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+', "rm -rf: recursive force deletion"),
+    (r'\brm\s+.*\s+-rf\b', "rm -rf: recursive force deletion"),
+    (r'\brm\s+-rf\s+', "rm -rf: recursive force deletion"),
+    
+    # DROP TABLE
+    (r'\bDROP\s+TABLE\b', "DROP TABLE: database table deletion"),
+    
+    # git push --force
+    (r'\bgit\s+push\s+.*--force\b', "git push --force: force push can overwrite history"),
+    (r'\bgit\s+push\s+-f\b', "git push --force: force push can overwrite history"),
+    
+    # TRUNCATE
+    (r'\bTRUNCATE\s+TABLE\b', "TRUNCATE TABLE: table data removal"),
+    (r'\bTRUNCATE\s+\w+', "TRUNCATE: data removal"),
+    
+    # DELETE FROM without WHERE
+    (r'\bDELETE\s+FROM\s+\w+\s*$', "DELETE FROM without WHERE: deletes all rows"),
+    (r'\bDELETE\s+FROM\s+\w+\s+(?!WHERE\b)', "DELETE FROM without WHERE: deletes all rows"),
+]
 
-def log_blocked(command: str, project_path: str):
-    """Log a blocked command attempt with timestamp and project path."""
-    timestamp = datetime.utcnow().isoformat() + "Z"
-    log_entry = f"[{timestamp}] BLOCKED: {command} | project: {project_path}\n"
+
+def log_blocked(command: str, reason: str):
+    """Log a blocked attempt with timestamp, command, and project path."""
+    timestamp = datetime.now(timezone.utc).isoformat()
+    project_path = os.getcwd()
+    
+    log_entry = f"[{timestamp}] BLOCKED: {reason} | Command: {command} | Project: {project_path}\n"
+    
     os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
     with open(BLOCKED_LOG, "a") as f:
         f.write(log_entry)
 
 
-def is_destructive(command: str) -> tuple[bool, str]:
-    """
-    Check if a command matches destructive patterns.
-    Returns (is_blocked, reason).
-    """
-    upper = command.upper()
-
-    # Pattern: rm -rf (or rm -r -f, rm -fr, etc.)
-    if re.search(r'\brm\s+(-[a-zA-Z]*[rf]\S*|[a-zA-Z]*\s+)*', command, re.IGNORECASE):
-        # More specific check for rm with -r and -f flags
-        rm_match = re.search(r'\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*|-[a-zA-Z]*\s+-[a-zA-Z]*[rf])', command, re.IGNORECASE)
-        if rm_match:
-            return True, "Destructive file deletion: `rm -rf` is blocked to prevent accidental data loss."
-
-    # Pattern: DROP TABLE
-    if re.search(r'\bDROP\s+TABLE\b', upper):
-        return True, "Destructive SQL: `DROP TABLE` is blocked to prevent data loss."
-
-    # Pattern: git push --force
-    if re.search(r'\bgit\s+push\s+.*--force\b', command, re.IGNORECASE) or \
-       re.search(r'\bgit\s+push\s+.*-f\b', command, re.IGNORECASE):
-        return True, "Destructive git operation: `git push --force` is blocked to prevent overwriting remote history."
-
-    # Pattern: TRUNCATE
-    if re.search(r'\bTRUNCATE\b', upper):
-        return True, "Destructive SQL: `TRUNCATE` is blocked to prevent data loss."
-
-    # Pattern: DELETE FROM without WHERE
-    if re.search(r'\bDELETE\s+FROM\b', upper) and not re.search(r'\bWHERE\b', upper):
-        return True, "Destructive SQL: `DELETE FROM` without a `WHERE` clause is blocked to prevent accidental deletion of all rows."
-
+def check_command(command: str) -> tuple[bool, str]:
+    """Check if a command matches any dangerous pattern. Returns (is_blocked, reason)."""
+    command_upper = command.upper()
+    
+    for pattern, reason in DANGEROUS_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, reason
+    
     return False, ""
 
 
 def main():
     # Read the hook input from stdin (JSON)
     try:
-        hook_input = json.load(sys.stdin)
+        data = json.load(sys.stdin)
     except json.JSONDecodeError:
-        # Not a valid JSON, let it pass
-        sys.exit(0)
-
-    tool_name = hook_input.get("tool_name", "")
-    tool_input = hook_input.get("tool_input", {})
-
-    # Only intercept bash tool
-    if tool_name != "bash":
-        sys.exit(0)
-
-    command = tool_input.get("command", "")
-    project_path = hook_input.get("project_path", os.getcwd())
-
-    blocked, reason = is_destructive(command)
-    if blocked:
-        log_blocked(command, project_path)
-        print(f"🛡️  BLOCKED: {reason}", file=sys.stderr)
-        print(f"   Attempted command: {command}", file=sys.stderr)
-        print(f"   See log: {BLOCKED_LOG}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(0)  # Allow on parse error
+    
+    tool_name = data.get("tool_name", "")
+    tool_input = data.get("tool_input", {})
+    
+    # Only check bash tool
+    if tool_name == "bash" and "command" in tool_input:
+        command = tool_input["command"]
+        is_blocked, reason = check_command(command)
+        
+        if is_blocked:
+            log_blocked(command, reason)
+            print(f"\n🚫 BLOCKED: This command was prevented from running.\n   Reason: {reason}\n   Command: {command}\n", file=sys.stderr)
+            sys.exit(1)  # Block the command
+    
+    sys.exit(0)  # Allow the command
 
 
 if __name__ == "__main__":
     main()
 
-# Claude Code Pre-Tool-Use Hook: Block Destructive Bash Commands
+# Pre-Tool-Use Hook: Block Destructive Bash Commands
 
-A `pre-tool-use` hook for [Claude Code](https://docs.anthropic.com/claude-code/hooks) that intercepts and blocks dangerous bash commands before they are executed.
+A Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash commands before they can be executed.
 
-## What it blocks
+## What It Blocks
 
-| Pattern | Reason |
-|---------|--------|
-| `rm -rf` | Prevents accidental recursive file deletion |
-| `DROP TABLE` | Prevents destructive SQL |
-| `git push --force` | Prevents force-pushing and overwriting remote history |
-| `TRUNCATE` | Prevents destructive SQL |
-| `DELETE FROM` without `WHERE` | Prevents accidental deletion of all table rows |
+- `rm -rf` — recursive force deletion
+- `DROP TABLE` — database table deletion
+- `git push --force` / `git push -f` — force push (overwrites history)
+- `TRUNCATE` — table data removal
+- `DELETE FROM` without a `WHERE` clause — deletes all rows
 
 ## Installation
 
