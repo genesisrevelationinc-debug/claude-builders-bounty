@@ -6,6 +6,13 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
+## Hooks
+
+This repository includes a **pre-tool-use hook** that blocks destructive bash commands in Claude Code.
+
+- **Location:** [`hooks/pre-tool-use`](hooks/pre-tool-use)
+- **Install:** `mkdir -p ~/.claude/hooks && cp hooks/pre-tool-use ~/.claude/hooks/pre-tool-use && chmod +x ~/.claude/hooks/pre-tool-use`
+
 ---
 
 ## How it works
@@ -50,10 +57,4 @@ You're in the right place.
 
 ---
 
-## Hooks
-
-- [`hooks/pre-tool-use`](hooks/pre-tool-use) — Pre-tool-use hook that blocks destructive bash commands. See [hooks/README.md](hooks/README.md) for details.
-
-## Rules
-
-- Tasks must be related to Claude Code or AI tooling
+*Started by the Claude builder community · March 2026 · MIT License*
