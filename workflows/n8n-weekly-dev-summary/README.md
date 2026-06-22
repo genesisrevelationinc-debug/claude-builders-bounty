@@ -1,46 +1,43 @@
 # n8n Weekly Dev Summary Workflow
 
-Automated weekly narrative summary generator using n8n + Claude API.
+Automated weekly narrative summary of GitHub repo activity using n8n + Claude API.
 
 ## Setup (5 steps)
 
-1. **Import workflow**: In n8n, go to Workflows → Import from File → select `weekly-dev-summary.json`
+### 1. Import the workflow
+In n8n, click **Add Workflow** → **Import from File** → select `weekly-dev-summary.json`.
 
-2. **Set credentials**: Add your GitHub Personal Access Token, Claude API key, and email/SMTP or webhook credentials in n8n Settings → Credentials
+### 2. Set credentials
+Create credentials in n8n for:
+- **GitHub API** (personal access token with `repo` scope)
+- **Anthropic API** (Claude API key from [console.anthropic.com](https://console.anthropic.com))
 
-3. **Configure variables**: Edit the "Set Variables" node with your repo, destination, and language (EN/FR)
+### 3. Configure variables
+Open the workflow, click the **⚙️ Settings** tab, and set:
+- `githubRepo`: e.g. `owner/repo-name`
+- `destinationWebhook`: your Discord/Slack webhook URL
+- `language`: `EN` or `FR`
 
-4. **Activate**: Toggle the workflow to "Active" — it runs Fridays at 5pm automatically
+### 4. Activate the workflow
+Toggle the workflow to **Active**. It runs every Friday at 5 PM UTC.
 
-5. **Test run**: Click "Execute Workflow" to verify, check execution history for ✅
+### 5. Test manually
+Click **Execute Workflow** to run a test. Check your Discord/Slack channel for the summary.
 
-## Required Credentials
+---
 
-| Service | Type | Notes |
-|---------|------|-------|
-| GitHub | OAuth2 or Personal Access Token | Needs `repo` scope |
-| Claude | API Key | From [Anthropic Console](https://console.anthropic.com) |
-| Email/SMTP or Webhook | SMTP or HTTP Request | Choose one delivery method |
+## Delivery: Discord Webhook
 
-## Configurable Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `githubRepo` | Full repo path | `claude-builders-bounty/claude-builders-bounty` |
-| `destination` | Email or webhook URL | `https://hooks.slack.com/services/...` |
-| `language` | Summary language | `EN` or `FR` |
-
-## Delivery Methods
-
-- **Email**: Configure SMTP credentials, set `destination` to recipient email
-- **Slack/Discord**: Set `destination` to webhook URL, workflow auto-detects and formats accordingly
-
-## Claude Model
-
-Uses `claude-sonnet-4-20250514` as specified in bounty requirements.
+This workflow delivers summaries via **Discord webhook**. To use Slack instead, replace the Discord node with an HTTP Request node pointing to your Slack webhook URL with the same payload structure.
 
 ## Screenshot
 
-![Successful Execution](screenshot.png)
+![Successful execution](screenshot.png)
 
-*Include screenshot of successful n8n execution here*
+> *Include a screenshot of your n8n execution here after testing.*
+
+---
+
+## License
+
+MIT
