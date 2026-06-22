@@ -12,73 +12,78 @@ import re
 import sys
 from datetime import datetime
 
-# Path to the blocked log file
+
 BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 
-# Destructive patterns to block
-# Each pattern is a tuple: (regex, description)
-DESTRUCTIVE_PATTERNS = [
-    # rm -rf / rm -rf *
-    (r"\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|-f\s+).*", "rm -rf: Recursive force delete"),
-    # DROP TABLE
-    (r"\bDROP\s+TABLE\b", "DROP TABLE: Deletes an entire table"),
-    # git push --force or git push -f
-    (r"\bgit\s+push\s+.*(--force\b|-f\b)", "git push --force: Force push can overwrite remote history"),
-    # TRUNCATE
-    (r"\bTRUNCATE\b", "TRUNCATE: Removes all rows from a table without logging individual row deletions"),
-    # DELETE FROM without WHERE
-    (r"\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)", "DELETE FROM without WHERE: Deletes all rows in a table"),
-]
 
-
-def log_blocked_attempt(command: str, reason: str):
-    """Log a blocked command attempt to the log file."""
+def log_blocked(command: str, project_path: str):
+    """Log a blocked command attempt to the blocked log file."""
     os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
     timestamp = datetime.now().isoformat()
-    project_path = os.getcwd()
-    
-    log_entry = f"[{timestamp}] BLOCKED: {reason} | Command: {command} | Project: {project_path}\n"
- log_entry = f"[{timestamp}] BLOCKED: {reason} | Command: {command} | Project: {project_path}\n"
-    
     with open(BLOCKED_LOG, "a") as f:
-        f.write(log_entry)
+        f.write(f"{timestamp} | {command} | {project_path}\n")
 
 
-def check_command(command: str) -> tuple[bool, str]:
-    """Check if a command matches any destructive pattern.
-    
-    Returns:
-        (is_blocked, reason)
+def is_destructive(command: str) -> tuple[bool, str]:
     """
-    for pattern, reason in DESTRUCTIVE_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True, reason
+    Check if a command is destructive.
+    Returns (is_blocked, reason).
+    """
+    upper = command.upper()
+    lower = command.lower()
+
+    # Pattern: rm -rf (and variants like rm -rfv, rm -fr, etc.)
+    if re.search(r'\brm\s+-(?:[a-zA-Z]*[rf])', lower):
+        return True, "Blocked: `rm -rf` and variants are destructive and can delete entire directories irreversibly."
+
+    # Pattern: DROP TABLE
+    if re.search(r'\bDROP\s+TABLE\b', upper):
+        return True, "Blocked: `DROP TABLE` permanently deletes database tables and their data."
+
+    # Pattern: git push --force (and --force-with-lease)
+    if re.search(r'\bgit\s+push\s+.*--force', lower):
+        return True, "Blocked: `git push --force` overwrites remote history and can cause data loss for the team."
+
+    # Pattern: TRUNCATE
+    if re.search(r'\bTRUNCATE\b', upper):
+        return True, "Blocked: `TRUNCATE` immediately removes all rows from a table without logging individual row deletions."
+
+    # Pattern: DELETE FROM without WHERE
+    if re.search(r'\bDELETE\s+FROM\b', upper) and not re.search(r'\bWHERE\b', upper):
+        return True, "Blocked: `DELETE FROM` without a `WHERE` clause deletes all rows in a table."
+
     return False, ""
 
 
 def main():
-    # Read the tool use data from stdin (Claude Code passes JSON)
+    # Read the hook input from stdin (JSON)
+    hook_input = sys.stdin.read()
+    
     try:
-        data = json.load(sys.stdin)
+        data = json.loads(hook_input)
     except json.JSONDecodeError:
-        # Not a JSON input, allow it through
-        sys.exit(0)
-    
-    # Check if this is a bash tool
-    tool_name = data.get("tool", "")
+        # Not JSON, allow to pass through
+        print(hook_input)
+        return
+
+    tool_name = data.get("tool_name", "")
+    tool_input = data.get("tool_input", {})
+
+    # Only intercept bash tool
     if tool_name != "bash":
-        sys.exit(0)
-    
-    command = data.get("command", "")
-    
-    is_blocked, reason = check_command(command)
-    if is_blocked:
-        log_blocked_attempt(command, reason)
-        print(f"🛡️  BLOCKED: This command was prevented from running.\n\nReason: {reason}\nCommand: {command}\n\nThis destructive operation has been logged. If you believe this is a mistake, please review the command and try a safer alternative.", file=sys.stderr)
-        sysARF
+        print(hook_input)
+        return
+
+    command = tool_input.get("command", "")
+    project_path = data.get("project_path", os.getcwd())
+
+    blocked, reason = is_destructive(command)
+    if blocked:
+        log_blocked(command, project_path)
+        print(json.dumps({"error": reason, "blocked": True}))
         sys.exit(1)
-    
-    sys.exit(0)
+
+    print(hook_input)
 
 
 if __name__ == "__main__":
