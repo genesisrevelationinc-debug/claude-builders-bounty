@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso).
+> Opinionated project conventions for a production SaaS built with Next.js 15 App Router and SQLite.
+> Paste this into your project root. Claude Code reads it automatically.
 
 ---
 
@@ -8,13 +9,18 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | Native `fetch`, stable `crypto`, long-term support |
-| Database | SQLite via `better-sqlite3` (local) or Turso (cloud) | Zero-config local dev, trivial to scale to edge |
-| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | Lucia + `oslo` (or NextAuth.js v5) | Session-based, works edge + Node, no vendor lock-in |
-| Styling | Tailwind CSS + `shadcn/ui` | Utility-first, accessible primitives, copy-paste components |
-| Validation | Zod | Single source of truth for schemas (API + forms) |
-| Testing | Vitest + Playwright | Unit tests in Node, E2E in real browser |
+| Framework | Next.js 15 (App Router) | Server Components by default = simpler data flow, less client JS |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
+| Database | `better-sqlite3` | Synchronous, fast, no connection pool complexity for SQLite |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia (or custom session) | Session cookies, no JWT in localStorage |
+| Styling | Tailwind CSS + shadcn/ui | Copy-paste components, no runtime CSS-in-JS |
+| Validation | Zod | Same schemas on server and client |
+| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
 
-**Pinned versions (lockfile is source of truth):**
+**Hard rule:** No `pg`, `mysql2`, or other drivers. SQLite only. Single file (`local.db`) for dev, Turso/libsql for prod.
+
+---
+
+## Folder Structure
+
