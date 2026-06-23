@@ -2,57 +2,44 @@
 #
 # generate-changelog
 # Automatically generates a structured CHANGELOG.md from git history.
-# Fetches commits since the last git tag and categorizes them.
 #
 # Usage:
-#   ./generate-changelog          # Generate CHANGELOG.md
-#   ./generate-changelog --dry-run  # Preview without writing
+#   ./generate-changelog [output_file]
+#
+# Fetches commits since the last git tag and auto-categorizes them into:
+#   - Added
+#   - Fixed
+#   - Changed
+#   - Removed
+#
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Configuration
-OUTPUT_FILE="CHANGELOG.md"
-DRY_RUN=false
-
-# Parse arguments
-for arg in "$@"; do
-    case "$arg" in
-        --dry-run) DRY_RUN=true ;;
-    esac
-done
+OUTPUT_FILE="${1:-CHANGELOG.md}"
 
 # Check if we're in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    echo -e "${RED}Error: Not a git repository.${NC}" >&2
+    echo "Error: Not a git repository." >&2
     exit 1
 fi
 
 # Get the latest tag
 LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
+# Determine the commit range
 if [ -z "$LATEST_TAG" ]; then
-    echo -e "${YELLOW}Warning: No tags found. Using all commits.${NC}" >&2
-    COMMIT_RANGE=""
+    echo "No tags found. Using all commits." >&2
+    COMMIT_RANGE="HEAD"
 else
-    echo -e "${GREEN}Found latest tag: $LATEST_TAG${NC}" >&2
+    echo "Latest tag: $LATEST_TAG" >&2
     COMMIT_RANGE="${LATEST_TAG}..HEAD"
 fi
 
 # Get commits since last tag (or all commits)
-if [ -z "$COMMIT_RANGE" ]; then
-    COMMITS=$(git log --pretty=format:"%s" --no-merges)
-else
-    COMMITS=$(git log "${COMMIT_RANGE}" --pretty=format:"%s" --no-merges 2>/dev/null || true)
-fi
+COMMITS=$(git log "$COMMIT_RANGE" --pretty=format:"%s" 2>/dev/null || true)
 
 if [ -z "$COMMITS" ]; then
-    echo -e "${YELLOW}No commits found since last tag.${NC}" >&2
+    echo "No commits found since last tag." >&2
     exit 0
 fi
 
@@ -67,54 +54,37 @@ while IFS= read -r line; do
     # Skip empty lines
     [ -z "$line" ] && continue
 
-    # Categorize based on conventional commit keywords
-    if echo "$line" | grep -qiE '^(feat|add|new|introduce|implement|create)'; then
+    # Categorize based on conventional commit keywords or patterns
+    if echo "$line" | grep -qiE "^(feat|add|new|introduce|implement|create)|\b(add|added|adding)\b"; then
         ADDED="${ADDED}- ${line}"$'\n'
-    elif echo "$line" | grep -qiE '^(fix|bugfix|hotfix|patch|resolve|correct)'; then
+    elif echo "$line" | grep -qiE "^(fix|bugfix|patch|hotfix)|\b(fix|fixed|fixing|bug|bugfix|resolve|resolves|resolved|close|closes|closed)\b"; then
         FIXED="${FIXED}- ${line}"$'\n'
-    elif echo "$line" | grep -qiE '^(change|update|modify|refactor|improve|enhance|upgrade|bump)'; then
-        CHANGED="${CHANGED}- ${line}"$'\n'
-    elif echo "$line" | grep -qiE '^(remove|delete|drop|revert|deprecate)'; then
+    elif echo "$line" | grep -qiE "^(remove|delete|drop|revert)|\b(remove|removed|removing|delete|deleted|deleting|drop|dropped|revert|reverted)\b"; then
         REMOVED="${REMOVED}- ${line}"$'\n'
+    elif echo "$line" | grep -qiE "^(change|update|modify|refactor|improve|upgrade|bump)|\b(change|changed|changing|update|updated|updating|modify|modified|modifying|refactor|refactored|improve|improved|upgrade|upgraded|bump|bumped)\b"; then
+        CHANGED="${CHANGED}- ${line}"$'\n'
     else
         OTHER="${OTHER}- ${line}"$'\n'
     fi
 done <<< "$COMMITS"
 
-# Build changelog content
-DATE=$(date +%Y-%m-%d)
-VERSION=${LATEST_TAG:-"Unreleased"}
+# Generate CHANGELOG.md
+{
+    echo "# Changelog"
+    echo ""
+    echo "## $(date +%Y-%m-%d)"
+    echo ""
 
-CHANGELOG="# Changelog\n\n"
-CHANGELOG+="## [${VERSION}] - ${DATE}\n\n"
+    # Output categorized sections
+    [ -n "$ADDED" ] && echo "### Added" && echo "" && echo -n "$ADDED" && echo ""
+    [ -n "$CHANGED" ] && echo "### Changed" && echo "" && echo -n "$CHANGED" && echo ""
+    [ -n "$FIXED" ] && echo "### Fixed" && echo "" && echo -n "$FIXED" && echo ""
+    [ -n "$REMOVED" ] && echo "### Removed" && echo "" && echo -n "$REMOVED" && echo ""
+    [ -n "$OTHER" ] && echo "### Other" && echo "" && echo -n "$OTHER" && echo ""
 
-if [ -n "$ADDED" ]; then
-    CHANGELOG+="### Added\n\n${ADDED}\n"
-fi
+} > "$OUTPUT_FILE"
 
-if [ -n "$FIXED" ]; then
-    CHANGELOG+="### Fixed\n\n${FIXED}\n"
-fi
-
-if [ -n "$CHANGED" ]; then
-    CHANGELOG+="### Changed\n\n${CHANGED}\n"
-fi
-
-if [ -n "$REMOVED" ]; then
-    CHANGELOG+="### Removed\n\n${REMOVED}\n"
-fi
-
-if [ -n "$OTHER" ]; then
-    CHANGELOG+="### Other\n\n${OTHER}\n"
-fi
-
-# Output
-if [ "$DRY_RUN" = true ]; then
-    echo -e "${GREEN}--- DRY RUN ---${NC}"
-    echo -e "$CHANGELOG"
-else
-    echo -e "$CHANGELOG" > "$OUTPUT_FILE"
-    echo -e "${GREEN}✓ CHANGELOG.md generated successfully!${NC}"
-    echo -e "${GREEN}  Latest tag: ${VERSION}${NC}"
-    echo -e "${GREEN}  Output: ${OUTPUT_FILE}${NC}"
-fi
+echo "CHANGELOG generated at: $OUTPUT_FILE" >&2
+echo "" >&2
+echo "Preview:" >&2
+head -n 30 "$OUTPUT_FILE" >&2
