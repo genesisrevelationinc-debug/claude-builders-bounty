@@ -1,18 +1,21 @@
-# claude-review 🤖
+# Claude Review Agent 🤖
 
-> A Claude Code sub-agent that reviews GitHub PRs and posts structured Markdown comments.
+A Claude Code sub-agent that reviews GitHub PRs and posts structured Markdown review comments.
 
 ## Features
 
-- Fetches PR diffs directly from GitHub
-- Analyzes code changes with Claude's intelligence
-- Generates structured Markdown reviews with:
-  - Summary of changes
-  - Identified risks
-  - Improvement suggestions
-  - Confidence score (Low/Medium/High)
-- Posts reviews as GitHub PR comments
-- Works via CLI or GitHub Actions
+- **CLI Tool**: Run `claude-review --pr <url>` from your terminal
+- **GitHub Action**: Automatically review PRs on pull request events
+- **Structured Output**: Summary, risks, suggestions, and confidence score
+- **Powered by Claude**: Uses Anthropic's Claude for intelligent code review
 
-## Installation
+## Setup
+
+### Prerequisites
+
+- Python 3.9+
+- Anthropic API key
+- GitHub token (for posting comments)
+
+### Installation
 
