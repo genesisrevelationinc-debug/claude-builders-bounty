@@ -1,8 +1,12 @@
 # Generate Changelog Skill
 
-Automatically generate a structured `CHANGELOG.md` from your project's git history.
+## Description
 
-## Setup
+Automatically generates a structured `CHANGELOG.md` from a project's git history.
+Fetches commits since the last git tag and auto-categorizes them into:
+`Added`, `Fixed`, `Changed`, and `Removed`.
 
-1. Make the script executable:
+## Installation
+
+1. Copy `generate-changelog` to your project root:
    
