@@ -1,24 +1,27 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
 > Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code will read it automatically and understand your stack without asking questions.
+> Paste this file at your repo root. Claude Code reads it automatically.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native fetch, stable ESM |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Raw SQL + `better-sqlite3` | No abstraction tax; schema lives in `.sql` files |
-| Auth | `iron-session` + bcrypt | Stateless sessions, no Redis/DB dependency for auth state |
-| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime, design system via config |
-| Forms | Server Actions + `zod` | No API routes needed; validation co-located with action |
-| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical flows |
+| Layer | Choice | Lock Version |
+|-------|--------|--------------|
+| Framework | Next.js 15 | `next@^15.0.0` |
+| Runtime | Node.js 20+ | `.nvmrc` enforced |
+| Router | App Router | Pages Router is forbidden |
+| Database | SQLite | `better-sqlite3@^11.0.0` |
+| ORM / Query Builder | Drizzle ORM | `drizzle-orm@^0.30.0` + `drizzle-kit` |
+| Migrations | Drizzle Kit | SQL-first, never manual |
+| Auth | Lucia (or custom session) | Cookie-based, no JWT in localStorage |
+| Styling | Tailwind CSS v4 | No CSS-in-JS |
+| Components | shadcn/ui | Radix-based, client-opt-in |
+| Validation | Zod | Shared schemas, server and client |
+| Testing | Vitest + Playwright | Unit + E2E split |
 
-**Non-negotiable:** We deploy to a single server or VPS. SQLite is file-backed; no Turso, no connection pooling, no distributed SQLite. If you outgrow this, migrate to Postgres explicitly.
+**Why these versions:** Next.js 15 ships stable App Router with `dynamicIO` and `unstable_after`. SQLite keeps ops simple (single file, no Docker). Drizzle gives type-safe SQL without query builder bloat. Locking versions prevents "works on my machine."
 
 ---
 
