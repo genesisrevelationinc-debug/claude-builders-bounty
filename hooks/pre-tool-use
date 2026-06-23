@@ -1,124 +1,93 @@
 #!/usr/bin/env python3
 """
-Claude Code pre-tool-use hook that blocks destructive bash commands.
+Claude Code pre-tool-use hook to block destructive bash commands.
 
-Place this file at: ~/.claude/hooks/pre-tool-use
-Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
+This hook intercepts dangerous bash commands before they are executed
+by Claude Code, preventing accidental data loss.
 """
 
 import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
+from pathlib import Path
 
-BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 
-# Patterns that are always blocked (case-insensitive)
-ALWAYS_BLOCKED = [
-    r"rm\s+(-[a-zA-Z]*\s+)*-[-a-zA-Z]*f",  # rm -rf or variants
-    r"git\s+push\s+.*--force",  # git push --force
-    r"git\s+push\s+.*-f\b",  # git push -f
-    r"\bDROP\s+TABLE\b",  # DROP TABLE
-    r"\bTRUNCATE\b",  # TRUNCATE
+# Patterns that are always blocked (destructive operations)
+BLOCKED_PATTERNS = [
+    # rm -rf variants
+    r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+.*',
+    r'\brm\s+.*\s+-[a-zA-Z]*rf[a-zA-Z]*\b',
+    r'\brm\s+-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*\s+',
+    
+    # SQL destructive operations
+    r'(?i)\bDROP\s+TABLE\b',
+    r'(?i)\bTRUNCATE\b',
+    
+    # DELETE without WHERE
+    r'(?i)^\s*DELETE\s+FROM\s+\S+\s*;?\s*$',
+    r'(?i)^\s*DELETE\s+FROM\s+\S+\s+(?!WHERE\b).*$',
+    
+    # Git force push
+    r'\bgit\s+push\s+.*--force\b',
+    r'\bgit\s+push\s+.*-f\b',
 ]
 
-# Patterns that require a WHERE clause (case-insensitive)
-DELETE_PATTERN = r"\bDELETE\s+FROM\b"
+# Compile patterns for efficiency
+COMPILED_PATTERNS = [re.compile(p) for p in BLOCKED_PATTERNS]
 
 
-def log_blocked(command: str, reason: str):
-    """Log a blocked command attempt to the log file."""
-    timestamp = datetime.now(timezone.utc).isoformat()
-    project_path = os.getcwd()
+def get_log_path() -> Path:
+    """Get the path to the blocked attempts log file."""
+    hooks_dir = Path.home() / ".claude" / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    return hooks_dir / "blocked.log"
 
-    log_entry = (
-        f"[{timestamp}] BLOCKED: {reason}\n"
-        f"  Command: {command}\n"
-        f"  Project: {project_path}\n"
-        f"  {'=' * 60}\n"
-    )
 
-    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
-    with open(BLOCKED_LOG, "a") as f:
+def log_blocked_attempt(command: str, project_path: str) -> None:
+    """Log a blocked command attempt with timestamp and project path."""
+    log_path = get_log_path()
+    timestamp = datetime.now().isoformat()
+    log_entry = f"{timestamp} | {project_path} | {command}\n"
+    
+    with open(log_path, "a") as f:
         f.write(log_entry)
 
 
-def is_blocked(command: str) -> tuple[bool, str]:
-    """
-    Check if a command should be blocked.
-
-    Returns:
-        Tuple of (is_blocked, reason)
-    """
-    upper_command = command.upper()
-
-    # Check always-blocked patterns
-    for pattern in ALWAYS_BLOCKED:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True, f"Destructive command pattern detected: matches '{pattern}'"
-
-    # Check DELETE FROM without WHERE
-    if re.search(DELETE_PATTERN, upper_command):
-        if "WHERE" not in upper_command:
-            return True, "DELETE FROM without a WHERE clause is not allowed"
-
-    return False, ""
+def is_command_blocked(command: str) -> bool:
+    """Check if a command matches any blocked pattern."""
+    for pattern in COMPILED_PATTERNS:
+        if pattern.search(command):
+            return True
+    return False
 
 
-def main():
-    # Read the tool use request from stdin (JSON)
+def main() -> int:
+    """Main entry point for the hook."""
+    # Read the tool use data from stdin (Claude Code hook protocol)
     try:
         data = json.load(sys.stdin)
     except json.JSONDecodeError:
-        # If not valid JSON, allow the command
-        sys.exit(0)
-
-    # Only intercept bash tool
-    if data.get("tool_name") != "bash":
-        sys.exit(0)
-
-    command = data.get("tool_input", {}).get("command", "")
-    if not command:
-        sys.exit(0)
-
-    blocked, reason = is_blocked(command)
-
-    if blocked:
-        log_blocked(command, reason)
-
-        # Print clear message to Claude (stderr)
-        print(
-            f"\n🛡️  SECURITY HOOK BLOCKED: This command was prevented from running.\n"
-            f"\n"
-            f"Reason: {reason}\n"
-            f"Command: {command}\n"
-            f"\n"
-            f"If you need to run this command, please review it carefully and "
-            f"consider using a safer alternative or running it manually.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    # Command is safe, allow it
-    sys.exit(0)
+        # If we can't parse the input, let it through (fail open for safety)
+        return 0
+    
+    # Extract command from the tool use data
+    command = data.get("command", "") if isinstance(data, dict) else ""
+    
+    if is_command_blocked(command):
+        project_path = data.get("project_path", os.getcwd()) if isinstance(data, dict) else os.getcwd()
+        log_blocked_attempt(command, project_path)
+        
+        # Print clear message to stderr (Claude will see this)
+        print(f"\n🛡️  BLOCKED: Destructive command detected and prevented.\n", file=sys.stderr)
+        print(f"   Command: {command}", file=sys.stderr)
+        print(f"\n   This command matches a known destructive pattern (e.g., rm -rf, DROP TABLE, force push).", file=sys.stderr)
+        print(f"   If you need to run this, please use a safer alternative or run it manually.\n", file=sys.stderr)
+        return 1  # Non-zero exit blocks the tool use
+    
+    return 0  # Zero exit allows the tool use
 
 
 if __name__ == "__main__":
-    main()
-# Claude Code Pre-Tool-Use Hook: Block Destructive Commands
-
-A security hook for [Claude Code](https://docs.anthropic.com/claude-code/) that intercepts and blocks dangerous bash commands before they execute.
-
-## What It Blocks
-
-| Pattern | Example |
-|---------|---------|
-| `rm -rf` | `rm -rf /important` |
-| `git push --force` | `git push --force origin main` |
-| `DROP TABLE` | `DROP TABLE users;` |
-| `TRUNCATE` | `TRUNCATE TABLE orders;` |
-| `DELETE FROM` (no WHERE) | `DELETE FROM users;` |
-
-## Installation
-
+    sys.exit(main())
