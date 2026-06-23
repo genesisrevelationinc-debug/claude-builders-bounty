@@ -2,7 +2,7 @@ name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize]
 
 jobs:
   review:
@@ -10,21 +10,12 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-    
+
     steps:
-      - name: Checkout PR
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Get PR diff
-        id: get-diff
-        run: |
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.event.pull_request.diff_url }}" > pr.diff
-          echo "diff<<EOF" >> $GITHUB_OUTPUT
-          cat pr.diff >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,17 +24,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install anthropic requests
+          pip install -e .
 
-      - name: Run Claude Review
+      - name: Run Claude PR Review
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_DIFF: ${{ steps.get-diff.outputs.diff }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
-          python -m claude_review.agent --pr-url "$PR_URL" --diff "$PR_DIFF" --post-comment
+          claude-review --pr "https://github.com/${REPO}/pull/${PR_NUMBER}" --output review.md
 
-      - name: Cleanup
-        if: always()
-        run: rm -f pr.diff
+      - name: Post review comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: review.md
+          header: claude-review
