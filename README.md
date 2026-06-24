@@ -50,18 +50,11 @@ You're in the right place.
 
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
-
----
-
 ## Hooks
 
-This repository includes a security hook for Claude Code that blocks destructive bash commands:
+This repository includes a `pre-tool-use` hook for Claude Code that blocks destructive bash commands.
 
-- **[pre-tool-use hook](hooks/)** — Prevents `rm -rf`, `DROP TABLE`, `git push --force`, and other dangerous operations
+### Quick Install
 
----
 
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+*Started by the Claude builder community · March 2026 · MIT License*
