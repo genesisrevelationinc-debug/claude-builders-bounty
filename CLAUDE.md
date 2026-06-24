@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root.
-> Assumes: Next.js 15 App Router, TypeScript, Tailwind CSS, better-sqlite3 (or Turso), shadcn/ui.
+> Opinionated project context for Claude Code. Paste this into the root of any greenfield Next.js 15 + SQLite project. No clarifying questions should be needed.
 
 ---
 
@@ -9,17 +8,19 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Language | TypeScript 5.x | Strict mode. No `any` without comment explaining why |
-| Styling | Tailwind CSS 3.4+ | Utility-first, no CSS-in-JS runtime cost |
-| Components | shadcn/ui | Copy-paste components, full control, no version lock-in |
-| Database | better-sqlite3 (dev) / Turso (prod) | Single file, zero-config local dev; libsql for edge |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
+| Runtime | Node.js 20+ | `better-sqlite3` requires native bindings |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-tenant SQLite |
 | ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | Lucia + oslo (or NextAuth.js v5) | Session-based, works edge + Node, no vendor lock |
-| Validation | Zod | Runtime validation mirrors TS types |
-| Testing | Vitest + Playwright | Unit: Vitest (fast). E2E: Playwright (real browser) |
+| Auth | Lucia + `oslo` | Session-based, works without external providers |
+| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `zod` | No API routes needed, validation co-located |
+| Testing | Vitest + Playwright | Unit + E2E without Jest's module pain |
 
-**Node version:** `>=20.0.0` (LTS). We use `fetch` globally, `structuredClone`, and `crypto` without polyfills.
+**Hard constraints:**
+- Node 20+ required (`better-sqlite3` native bindings)
+- No Edge Runtime (`better-sqlite3` is Node-only)
+- No Docker for local dev (SQLite is a file)
 
 ---
 
