@@ -1,100 +1,115 @@
 #!/usr/bin/env python3
 """
-Claude Code pre-tool-use hook: Blocks destructive bash commands.
+Claude Code pre-tool-use hook to block destructive bash commands.
 
-Place this file at: ~/.claude/hooks/pre-tool-use
-Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
+This hook intercepts dangerous bash commands before they are executed
+in Claude Code, preventing accidental data loss.
+
+Installation:
+    mkdir -p ~/.claude/hooks
+    cp pre-tool-use ~/.claude/hooks/pre-tool-use
+    chmod +x ~/.claude/hooks/pre-tool-use
 """
 
 import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
+from pathlib import Path
 
-
-# Patterns that are always blocked (no exceptions)
-ALWAYS_BLOCKED = [
-    r"rm\s+(-[a-zA-Z]*\s+)*-rf",  # rm -rf (with any flag combination)
-    r"git\s+push\s+.*--force",     # git push --force
-    r"git\s+push\s+-f",             # git push -f
-    r"DROP\s+TABLE",                # DROP TABLE
-    r"TRUNCATE(\s+TABLE)?",         # TRUNCATE [TABLE]
+# Configuration
+BLOCKED_LOG_PATH = Path.home() / ".claude" / "hooks" / "blocked.log"
+DANGEROUS_PATTERNS = [
+    # rm -rf (recursive force delete)
+    r"\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+.*",
+    r"\brm\s+.*\s+-[a-zA-Z]*rf[a-zA-Z]*",
+    # DROP TABLE
+    r"\bDROP\s+TABLE\b",
+    # git push --force
+    r"\bgit\s+push\s+.*(--force|-f)\b",
+    # TRUNCATE
+    r"\bTRUNCATE\s+TABLE\b",
+    # DELETE FROM without WHERE
+    r"\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)",
 ]
 
-# Patterns that are blocked only without a WHERE clause
-DANGEROUS_WITHOUT_WHERE = [
-    r"DELETE\s+FROM\s+\S+",        # DELETE FROM <table>
-]
 
-# Log file path
-LOG_FILE = os.path.expanduser("~/.claude/hooks/blocked.log")
+def get_project_path() -> str:
+    """Get the current project path from environment or current directory."""
+    return os.environ.get("PWD", os.getcwd())
 
 
-def log_blocked(command: str, reason: str):
-    """Log a blocked command attempt with timestamp and project path."""
-    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-    timestamp = datetime.now(timezone.utc).isoformat()
-    project_path = os.getcwd()
+def log_blocked_attempt(command: str, reason: str) -> None:
+    """Log a blocked command attempt to the log file."""
+    BLOCKED_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     
-    log_entry = f"[{timestamp}] REASON: {reason} | COMMAND: {command} | PROJECT: {project_path}\n"
+    timestamp = datetime.now().isoformat()
+    project_path = get_project_path()
     
-    with open(LOG_FILE, "a") as f:
+    log_entry = (
+        f"[{timestamp}] BLOCKED: {reason}\n"
+        f"  Command: {command}\n"
+        f"  Project: {project_path}\n"
+        f"{'=' * 60}\n"
+    )
+    
+    with open(BLOCKED_LOG_PATH, "a") as f:
         f.write(log_entry)
 
 
 def check_command(command: str) -> tuple[bool, str]:
-    """
-    Check if a command should be blocked.
-    
-    Returns:
-        tuple of (is_blocked, reason_message)
-    """
-    command_upper = command.upper()
-    command_stripped = command.strip()
-    
-    # Check always-blocked patterns
-    for pattern in ALWAYS_BLOCKED:
-        if re.search(pattern, command_stripped, re.IGNORECASE):
-            return True, f"Destructive command blocked: matches pattern '{pattern}'"
-    
-    # Check DELETE FROM without WHERE
-    for pattern in DANGEROUS_WITHOUT_WHERE:
-        if re.search(pattern, command_stripped, re.IGNORECASE):
-            # Check if there's a WHERE clause
-            if not re.search(r"WHERE\s+", command_upper):
-                return True, "Destructive command blocked: DELETE FROM without WHERE clause"
-    
+    """Check if a command matches dangerous patterns."""
+    for pattern in DANGEROUS_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, pattern
     return False, ""
 
 
-def main():
-    # Read the hook input from stdin (JSON)
+def main() -> None:
+    """Main entry point for the pre-tool-use hook."""
+    # Read the tool use request from stdin
     try:
-        hook_input = json.load(sys.stdin)
+        data = json.load(sys.stdin)
     except json.JSONDecodeError:
         # If not valid JSON, allow the command to proceed
         sys.exit(0)
     
-    # Extract the tool use details
-    tool_name = hook_input.get("tool_name", "")
-    tool_input = hook_input.get("tool_input", {})
+    # Extract the command from the tool use data
+    command = data.get("command", "") if isinstance(data, dict) else ""
+    if not command and isinstance(data, dict):
+        # Try to get command from nested structure
+        command = str(data)
     
-    # Only intercept bash tool
-    if tool_name != "bash":
-        sys.exit(0)
+    is_dangerous, matched_pattern = check_command(command)
     
-    command = tool_input.get("command", "")
-    
-    is_blocked, reason = check_command(command)
-    
-    if is_blocked:
-        log_blocked(command, reason)
-        print(f"\n🚫 COMMAND BLOCKED by pre-tool-use hook\n   Reason: {reason}\n   Command: {command}\n", file=sys.stderr)
+    if is_dangerous:
+        log_blocked_attempt(command, f"Matched pattern: {matched_pattern}")
+        print(f"🚫 BLOCKED: This command was prevented from executing.\n\n"
+              f"Command: {command}\n\n"
+              f"Reason: This command matches a dangerous pattern that could cause "
+              f"irreversible data loss. Please review your request and use safer alternatives.", file=sys.stderr)
         sys.exit(1)
     
+    # Allow the command to proceed
     sys.exit(0)
 
 
 if __name__ == "__main__":
     main()
+# Pre-Tool-Use Hook: Block Destructive Bash Commands
+
+A Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash commands before they can be executed.
+
+## What It Blocks
+
+| Pattern | Example | Risk |
+|---------|---------|------|
+| `rm -rf` | `rm -rf /important/data` | Irreversible data deletion |
+| `DROP TABLE` | `DROP TABLE users` | Database table destruction |
+| `git push --force` | `git push --force origin main` | Overwrites remote history |
+| `TRUNCATE` | `TRUNCATE TABLE orders` | Bulk data removal |
+| `DELETE FROM` (no WHERE) | `DELETE FROM users` | Deletes all table rows |
+
+## Installation
+
