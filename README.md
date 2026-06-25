@@ -6,6 +6,7 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
+This repository also includes a collection of useful [Claude Code hooks](hooks/) contributed by the community.
 ---
 
 ## How it works
@@ -46,15 +47,8 @@ You're in the right place.
 ## Community
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
 
 ---
 
-## Hooks
-
-This repository includes a `pre-tool-use` hook for Claude Code that blocks destructive bash commands.
-
-### Quick Install
-
-
+*Started by the Claude builder community · March 2026 · MIT License*
 *Started by the Claude builder community · March 2026 · MIT License*
