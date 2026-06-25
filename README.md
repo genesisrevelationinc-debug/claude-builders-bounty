@@ -6,7 +6,8 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
-This repository also includes a collection of useful [Claude Code hooks](hooks/) contributed by the community.
+This repository also contains useful [Claude Code hooks](hooks/) contributed by the community.
+
 ---
 
 ## How it works
@@ -47,8 +48,8 @@ This repository also includes a collection of useful [Claude Code hooks](hooks/)
 ## Community
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
 
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
 *Started by the Claude builder community · March 2026 · MIT License*
