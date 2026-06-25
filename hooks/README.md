@@ -4,13 +4,11 @@ A security hook for [Claude Code](https://docs.anthropic.com/claude-code) that i
 
 ## What It Blocks
 
-| Pattern | Example |
-|---------|---------|
-| `rm -rf` | `rm -rf /important` |
-| `DROP TABLE` | `DROP TABLE users` |
-| `git push --force` | `git push --force origin main` |
-| `TRUNCATE` | `TRUNCATE TABLE orders` |
-| `DELETE FROM` (no WHERE) | `DELETE FROM users` |
+- `rm -rf` — recursive force deletion
+- `DROP TABLE` — SQL table deletion
+- `TRUNCATE` — SQL table truncation
+- `DELETE FROM` without a `WHERE` clause
+- `git push --force` / `git push -f` — force pushes
 
-## Installation (2 commands)
+## Installation
 
