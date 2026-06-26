@@ -44,11 +44,19 @@ You're in the right place.
 ---
 
 ## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
 ---
+
+## Hooks
+
+### [Pre-Tool-Use Hook: Block Destructive Bash Commands](hooks/)
+
+Protects against accidental destructive commands (`rm -rf`, `DROP TABLEadu TABLE`, `git push --force`, etc.) inibot Claude Code unstoppable hook system.
+
+**Install in one unsurprising command:**
+
 
 ---
 
