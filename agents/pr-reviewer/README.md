@@ -1,16 +1,21 @@
-# Claude PR Reviewer 🤖
+# Claude Code PR Reviewer 🤖
 
-A Claude Code sub-agent that reviews GitHub PRs and posts structured Markdown review comments.
 
 ## Features
 
-- **CLI Tool**: Run locally with `claude-review --pr <url>`
-- **GitHub Action**: Automatic PR reviews on every push
+- **CLI Tool**: Run `claude-review --pr <url>` from your terminal
+- **GitHub Action**: Automatically review PRs on pull request events
 - **Structured Output**: Summary, risks, suggestions, and confidence score
-- **AI-Powered**: Uses Claude Code's analysis capabilities
+- **AI-Powered**: Uses Claude Code's capabilities for intelligent code review
 
 ## Installation
 
-### Local Setup
+### Prerequisites
 
-1. Clone the repository and navigate to the agent:
+- [Claude Code](https://claude.ai/code) installed and authenticated
+- Node.js 18+ (for CLI wrapper)
+- GitHub token with PR read access
+
+
+1. Clone this repository:
+   
