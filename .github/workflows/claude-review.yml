@@ -12,7 +12,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -24,91 +24,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r claude-review/requirements.txt
+          pip install -e .
 
-      - name: Run Claude PR Review
+      - name: Run Claude Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
         run: |
-          python -m claude-review.cli --pr "https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
---- /dev/null
-#!/usr/bin/env python3
-"""
-Claude Code PR Review Agent
-
-A CLI tool that takes a PR diff as input, analyzes it with Claude,
-and posts a structured Markdown review comment.
-"""
-
-import argparse
-import os
-import re
-import subprocess
-import sys
-from dataclasses import dataclass
-from typing import Optional
-
-import requests
-
-
-@dataclass
-class ReviewResult:
-    summary: str
-    risks: list[str]
-    suggestions: list[str]
-    confidence: str
-
-
-class ClaudeReviewer:
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.api_url = "https://api.anthropic.com/v1/messages"
-
-    def review_diff(self, diff: str) -> ReviewResult:
-        """Send diff to Claude and get structured review."""
-        headers = {
-            "x-api-key": self.api_key,
-            "Content-Type": "application/json",
-            "anthropic-version": "2023-06-01",
-        }
-
-        prompt = self._build_prompt(diff)
-
-        payload = {
-            "model": "claude-3-5-sonnet-20241022",
-            "max_tokens": 4096,
-            "messages": [{"role": "user", "content": prompt}],
-        }
-
-        response = requests.post(self.api_url, headers=headers, json=payload)
-        response.raise_for_status()
-
-        content = response.json()["content"][0]["text"]
-        return self._parse_response(content)
-
-    def _build_prompt(self, diff: str) -> str:
-        return f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
-
-Please format your response exactly as follows:
-
-## Summary
-[2-3 sentence summary of the changes]
-
-## Risks
-- [Risk 1]
-- [Risk 2]
-- [Risk 3]
-
-## Suggestions
-- [Suggestion 1]
-- [Suggestion 2]
-- [Suggestion 3]
-
-## Confidence
-[Low / Medium / High]
-
-Here is the diff to review:
-
+          claude-review \
+            --pr "${{ github.event.pull_request.html_url }}" \
+            --output review.md
+          cat review.md >> $GITHUB_STEP_SUMMARY
+          echo "REVIEW_BODY=$(cat review.md)" >> $GITHUB_ENV
