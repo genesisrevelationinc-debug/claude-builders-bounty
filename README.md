@@ -3,13 +3,13 @@
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
+Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
 ---
 
 ## How it works
-
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
 2. Comment `/opire create $XXX` in the issue to set the reward
@@ -48,14 +48,8 @@ You're in the right place.
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
-*Started by the Claude builder community · March 2026 · MIT License*
-
-## Hooks
-
-### Block Destructive Bash Commands
-
-A `pre-tool-use` hook that intercepts dangerous bash commands before they are executed. Blocks `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without a `WHERE` clause.
-
-[View hook →](hooks/block-destructive-bash/)
+---
 
 *Started by the Claude builder community · March 2026 · MIT License*
+*Started by the Claude builder community · March 2026 · MIT License*
+
