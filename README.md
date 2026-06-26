@@ -8,13 +8,6 @@ You're in the right place.
 
 ---
 
-## Quick Start
-
-Generate a changelog from your git history in one command:
-
-
----
-
 ## How it works
 
 **To post a bounty**
