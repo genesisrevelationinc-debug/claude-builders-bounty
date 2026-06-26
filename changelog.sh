@@ -1,126 +1,174 @@
 #!/usr/bin/env bash
-#
-# changelog.sh — Generate a structured CHANGELOG.md from git history
-#
+
+# changelog.sh - Generate a structured CHANGELOG.md from git history
 # Usage: bash changelog.sh
-#
-# Fetches commits since the last git tag, auto-categorizes them, and appends
-# a new section to CHANGELOG.md (creates it if missing).
-#
 
 set -euo pipefail
 
-# ── Config ───────────────────────────────────────────────────────────────────
-CHANGELOG_FILE="CHANGELOG.md"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Configuration
+OUTPUT_FILE="CHANGELOG.md"
 DATE=$(date +%Y-%m-%d)
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-error() {
-    echo "Error: $*" >&2
-    exit 1
+# Get the latest tag, or empty if no tags exist
+get_latest_tag() {
+    git describe --tags --abbrev=0 2>/dev/null || echo ""
 }
 
-git_last_tag() {
-    git describe --tags --abbrev=0 2>/dev/null || true
-}
-
-git_commits_since() {
-    local ref="$1"
-    if [[ -n "$ref" ]]; then
-        git log "${ref}..HEAD" --pretty=format:"%s" 2>/dev/null || true
+# Get commits since the last tag (or all commits if no tag)
+get_commits() {
+    local tag
+    tag=$(get_latest_tag)
+    if [ -n "$tag" ]; then
+        git log "${tag}..HEAD" --pretty=format:"%s" 2>/dev/null || echo ""
     else
-        git log --pretty=format:"%s" 2>/dev/null || true
+        git log --pretty=format:"%s" 2>/dev/null || echo ""
     fi
 }
 
 # Categorize a single commit message
-categorize() {
+categorize_commit() {
     local msg="$1"
-    local lower
-    lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
+    local lower_msg
+    lower_msg=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
 
-    case "$lower" in
-        *"fix"* | *"bug"* | *"patch"* | *"repair"* | *"resolve"* | *"close "* | *"closes "*)
-            echo "Fixed"
-            ;;
-        *"add"* | *"feat"* | *"feature"* | *"introduce"* | *"implement"* | *"new "*)
-            echo "Added"
-            ;;
-        *"remove"* | *"delete"* | *"drop"* | *"deprecate"* | *"clean"*)
-            echo "Removed"
-            ;;
-        *"change"* | *"update"* | *"refactor"* | *"rework"* | *"improve"* | *"optimize"* | *"upgrade"*)
-            echo "Changed"
-            ;;
- *)
-            echo "Changed"
-            ;;
-    esac
+    # Check for conventional commit prefixes and keywords
+    if echo "$lower_msg" | grep -qE '^(feat|add|new|introduce|implement)'; then
+        echo "added"
+    elif echo "$lower_msg" | grep -qE '^(fix|bugfix|hotfix|patch|resolve)'; then
+        echo "fixed"
+    elif echo "$lower_msg" | grep -qE '^(remove|delete|drop|revert)'; then
+        echo "removed"
+    elif echo "$lower_msg" | grep -qE '^(update|modify|change|refactor|improve|enhance|upgrade|deps)'; then
+        echo "changed"
+    # Keyword-based fallback
+    elif echo "$lower_msg" | grep -qE '\b(add|added|adding|introduce|implement|create)\b'; then
+        echo "added"
+    elif echo "$lower_msg" | grep -qE '\b(fix|fixed|fixing|resolve|resolved|bug|patch)\b'; then
+        echo "fixed"
+    elif echo "$lower_msg" | grep -qE '\b(remove|removed|removing|delete|deleted|drop|dropped)\b'; then
+        echo "removed"
+    else
+        echo "changed"
+    fi
 }
 
-# ── Main ─────────────────────────────────────────────────────────────────────
+# Generate the changelog
+generate_changelog() {
+    local commits
+    local tag
+    local version
 
-# Ensure we're in a git repo
-if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    error "Not a git repository. Please run from inside a git repo."
-fi
+    # Check if we're in a git repository
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        echo -e "${RED}Error: Not a git repository${NC}" >&2
+        exit 1
+    fi
 
-# Find last tag
-LAST_TAG=$(git_last_tag)
+    commits=$(get_commits)
+    tag=$(get_latest_tag)
+    version=${tag:-"Unreleased"}
 
-if [[ -z "$LAST_TAG" ]]; then
-    echo "ℹ️  No previous tag found. Using all commits."
-    VERSION="Unreleased"
-else
-    echo "ℹ️  Last tag: $LAST_TAG"
-    VERSION="$LAST_TAG → HEAD"
-fi
+    if [ -z "$commits" ]; then
+        echo -e "${YELLOW}No commits found since last tag${NC}"
+        # Still generate header if no commits
+    fi
 
-# Gather commits
-COMMITS=$(git_commits_since "$LAST_TAG")
+    # Initialize arrays for categories
+    local added=()
+    local fixed=()
+    local changed=()
+    local removed=()
 
-if [[ -z "$COMMITS" ]]; then
-    echo "No new commits since $LAST_TAG."
-    exit 0
-fi
+    # Categorize each commit
+    while IFS= read -r commit; do
+        [ -z "$commit" ] && continue
 
-# Build categorized lists
-ADDED=""
-FIXED=""
-CHANGED=""
-REMOVED=""
+        local category
+        category=$(categorize_commit "$commit")
 
-while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    cat=$(categorize "$line")
-    case "$cat" in
-        Added)   ADDED="$ADDED- $line"$'\n' ;;
-        Fixed)   FIXED="$FIXED- $line"$'\n' ;;
-        Changed) CHANGED="$CHANGED- $line"$'\n' ;;
-        Removed) REMOVED="$REMOVED- $line"$'\n' ;;
-    esac
-done <<< "$COMMITS"
+        case "$category" in
+            Mutable
+            added) added+=("$commit") ;;
+            fixed) fixed+=("$commit") ;;
+            changed) changed+=("$commit") ;;
+            removed) removed+=("$commit") ;;
+        esac
+    done <<< "$commits"
 
-# ── Write / Update CHANGELOG.md ──────────────────────────────────────────────
+    # Generate the changelog content
+    {
+        echo "# Changelog"
+        echo ""
+        echo "All notable changes to this project will be documented in this file."
+        echo ""
+        echo "## [${version}] - ${DATE}"
+        echo ""
 
-{
-    echo "## [$VERSION] - $DATE"
-    echo ""
-    [[ -n "$ADDED" ]]   && { echo "### Added";   echo "$ADDED"; }
-    [[ -n "$CHANGED" ]] && { echo "### Changed"; echo "$CHANGED"; }
-    [[ -n "$FIXED" ]]   && { echo "### Fixed";   echo "$FIXED"; }
-    [[ -n "$REMOVED" ]] && { echo "### Removed"; echo "$REMOVED"; }
-} > .changelog_new_section.md
+        if [ ${#added[@]} -gt 0 ]; then
+            echo "### Added"
+            for item in "${added[@]}"; do
+                echo "- ${item}"
+            done
+            echo ""
+        fi
 
-if [[ -f "$CHANGELOG_FILE" ]]; then
-    # Prepend new section after a header if it exists, else just prepend
-    cat .changelog_new_section.md > .changelog_tmp.md
-    cat "$CHANGELOG_FILE" >> .changelog_tmp.md
-    mv .changelog_tmp.md "$CHANGELOG_FILE"
-else
-    cat .changelog_new_section.md > "$CHANGELOG_FILE"
-fi
+        if [ ${#fixed[@]} -gt 0 ]; then
+            echo "### Fixed"
+            for item in "${fixed[@]}"; do
+                echo "- ${item}"
+            done
+            echo ""
+        fi
 
-rm -f .changelog_new_section.md
+        if [ ${#changed[@]} -gt 0 ]; then
+            echo "### Changed"
+            for item in "${changed[@]}"; do
+                echo "- ${item}"
+            done
+            echo ""
+        fi
 
-echo "✅  CHANGELOG updated in $CHANGELOG_FILE"
+        if [ ${#removed[@]} -gt 0 ]; then
+            echo "### Removed"
+            for item in "${removed[@]}"; do
+                echo "- ${item}"
+            done
+            echo ""
+        fi
+
+        # Append existing changelog content if it exists (skip the header)
+        if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
+            # Extract existing entries after the first version section
+            tail -n +6 "$OUTPUT_FILE" 2>/dev/null || true
+        fi
+    } > "${OUTPUT_FILE}.tmp"
+
+    mv "${OUTPUT_FILE}.tmp" "$OUTPUT_FILE"
+
+    echo -e "${GREEN}✓ CHANGELOG.md generated successfully${NC}"
+    echo -e "  Version: ${YELLOW}${version}${NC}"
+    echo -e "  Output: ${YELLOW}${OUTPUT_FILE}${NC}"
+}
+
+# Main execution
+main() {
+    generate_changelog
+}
+
+main "$@"
+
+--- /dev/null
+# Generate Changelog Skill
+
+A Claude Code skill to automatically generate a structured `CHANGELOG.md` from git history.
+
+## Usage
+
+Run the following command in Claude Code:
+
