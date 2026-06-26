@@ -1,3 +1,185 @@
-```diff --git a/CLAUDE.md /dev/null
-+++ b/CLAUDE.md
-@@ -14,11, 18, 11, 28, 32, 35, 41, 44, 50, 59, 62, 68, 71, 77, 80, 86, 92, 95, 101, 104, 110, 113, 119, 122, 128, 131, 137, 140, 146, 149, 155, 158, 164, 167, 173, 176, 182, 185, 191, 194, 200, 203, 209, 212, 218, 221, 227, 230, 236, 239, 245, 248, 254, 257, 263, 266, 272, 275, 281, 284, 290, 293, 299, 302, 308, 311, 317, 320, 326, 329, 335, 338, 344, 347, 353, 356, 362, 365, 371, 374, 380, 383, 389, 392, 398, 401, 407, 410, 416, 419, 425, 428, 434, 437, 443, 446, 452, 455, 461, 464, 470, 473, 479, 482, 488, 491, 497, 500, 506, 509, 515, 518, 524, 527, 533, 536, 542, 545, 551, 554, 560, 563, 569, 572, 578, 581, 587, 590, 596, 599, 605, 608, 614, 617, 623, 626, 632, 635, 641, 644, 650, 653, 659, 662, 668, 671, 677, 683, 686, 692, 695, 701, 704, 710, 713, 719, 722, 728, 731, 737, 740, 746, 749, 755, 758, 764, 767, 773, 776, 782, 785, 791, 794, 800, 803, 809, 812, 818, 821, 827, 830, 836, 839, 845, 848, 854, 857, 863, 866, 872, 875, 881, 884, 890, 893, 899, 902, 908, 911, 917, 920, 926, 929, 935, 938, 944, 947, 953, 956, 962, 965, 971, 974, 980, 983, 989, 992, 998, 1001, 1007, 1010, 1016, 1019, 1025, 1028, 1034, 1037, 1043, 1046, 1052, 1055, 1061, 1064, 1070, 1073, 1079, 1082, 1088, 1091, 1097, 1100, 1106, 10, 1112, 1115, 1121, 1124, 1130, 1133, 1139, 1142, 1148, 1151, 1157, 1160, 1166, 1169, 1175, 1178, 1184, 1187, 1193, 1196, 1202, 1205, 1211, 1214, 1220, 1223, 1229, 1232, 1238, 1241, 1247, 1250, 1256, 1259, 1265, 1268, 1274, 1277, 1283, 1286, 1292, 1295, 1
+  bounty, template
+
+Issue Description:
+## 💰 Bounty: $75 — powered by [Opire](https://opire.dev)
+
+## Description
+Create an opinionated, production-ready `CLAUDE.md` for a typical SaaS project
+built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso).
+
+## Acceptance Criteria
+- [ ] Covers: project structure, naming conventions, DB migration rules
+- [ ] Includes: dev commands, patterns to follow, anti-patterns to avoid
+- [ ] Opinionated — not generic. Every rule has a reason.
+- [ ] Usable without modification on a greenfield Next.js + SQLite project
+- [ ] Tested: create a new project, paste the CLAUDE.md, confirm Claude Code
+      understands the context without asking clarifying questions
+
+## How to Claim
+1. Comment `/opire try` in this issue
+2. Submit a PR with your CLAUDE.md
+3. Payment is released automatically on merge ✅
+
+## Expected Sections
+- Stack & versions
+- Folder structure
+- SQL / migration conventions
+- Component patterns
+- What we don't do (and why)
+
+
+=== RELEVANT REPO FILES (modify these, keep real paths) ===
+
+--- FILE: README.md ---
+# Claude Builders Bounty 🤖
+
+> A community bounty board for Claude Code builders.
+
+Building with Claude Code? Have tasks to delegate?
+Want to get paid for contributing to AI projects?
+You're in the right place.
+
+---
+
+## How it works
+
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
+2. Comment `/opire create $XXX` in the issue to set the reward
+3. Share the link — contributors will find it
+
+**To claim a bounty**
+1. Browse the open issues below
+2. Comment `/opire try` in the issue you want to work on
+3. Submit a PR — payment is automatic on merge ✅
+
+---
+
+## Active Bounties
+
+| # | Task | Amount | Status |
+|---|------|--------|--------|
+| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
+| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+
+---
+
+## Rules
+
+- Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
+
+---
+
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+
+---
+
+*Started by the Claude builder community · March 2026 · MIT License*
+
+--- FILE: README.md ---
+# Claude Builders Bounty 🤖
+
+> A community bounty board for Claude Code builders.
+
+Building with Claude Code? Have tasks to delegate?
+Want to get paid for contributing to AI projects?
+You're in the right place.
+
+---
+
+## How it works
+
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
+2. Comment `/opire create $XXX` in the issue to set the reward
+3. Share the link — contributors will find it
+
+**To claim a bounty**
+1. Browse the open issues below
+2. Comment `/opire try` in the issue you want to work on
+3. Submit a PR — payment is automatic on merge ✅
+
+---
+
+## Active Bounties
+
+| # | Task | Amount | Status |
+|---|------|--------|--------|
+| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
+| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+
+---
+
+## Rules
+
+- Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
+
+---
+
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+
+---
+
+*Started by the Claude builder community · March 2026 · MIT License*
+
+--- FILE: README.md ---
+# Claude Builders Bounty 🤖
+
+> A community bounty board for Claude Code builders.
+
+Building with Claude Code? Have tasks to delegate?
+Want to get paid for contributing to AI projects?
+You're in the right place.
+
+---
+
+## How it works
+
+**To post a bounty**
+1. Open a GitHub issue with a clear description and acceptance criteria
+2. Comment `/opire create $XXX` in the issue to set the reward
+3. Share the link — contributors will find it
+
+**To claim a bounty**
+1. Browse the open issues below
+2. Comment `/opire try` in the issue you want to work on
+3. Submit a PR — payment is automatic on merge ✅
+
+---
+
+## Active Bounties
+
+| # | Task | Amount | Status |
+|---|------|--------|--------|
+| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
+| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+
+---
+
+## Rules
+
+- Tasks must be related to Claude Code or AI tooling
+- Every issue must have clear acceptance criteria before a bounty is activated
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality
