@@ -1,46 +1,21 @@
 # n8n Weekly Dev Summary Workflow
 
-Automated weekly narrative summary of a GitHub repo's activity, powered by n8n and Claude API.
+Automatically generate and deliver a narrative weekly summary of your GitHub repo's activity using Claude API.
+
+## Prerequisites
+
+- n8n instance (cloud or self-hosted)
+- GitHub personal access token
+- Anthropic API key
+- Email SMTP credentials or webhook URL (Discord/Slack)
 
 ## Setup (5 steps)
 
-1. **Import the workflow**: In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`
+1. **Import the workflow**: In n8n, click *Import* → *From File* and select `workflow.json`
+2. **Set credentials**: Open the *GitHub*, *Anthropic*, and *Send Email*/*HTTP Request* nodes and enter your credentials
+3. **Configure variables**: Edit the *Set Variables* node — set `repo`, `owner`, `channel`, and `language` (EN/FR)
+4. **Set the cron schedule**: The *Schedule Trigger* is pre-configured for Fridays at 5 PM — adjust if needed
+5. **Activate and test**: Click *Activate*, then click *Execute Workflow* to run a test
 
-2. **Set credentials**: Add your GitHub Personal Access Token, Claude API key, and (optional) Slack/Discord webhook URL in *Settings → Credentials*
+## Workflow Overview
 
-3. **Configure variables**: Open the workflow and edit the `Configuration` node to set your repo, destination, and language
-
-4. **Activate the workflow**: Toggle the workflow to *Active* — it will run automatically every Friday at 5 PM
-
-5. **Test manually**: Click *Execute Workflow* to verify everything works, then check your chosen destination for the summary
-
----
-
-## Required Credentials
-
-| Service | How to Obtain |
-|---------|---------------|
-| GitHub Token | [Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens) — needs `repo` scope |
-| Claude API Key | [Anthropic Console](https://console.anthropic.com/settings/keys) |
-| Slack Webhook | [Slack Apps → Incoming Webhooks](https://api.slack.com/messaging/webhooks) (optional) |
-| Discord Webhook | Server Settings → Integrations → Webhooks (optional) |
-
-## Configuration Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `githubRepo` | Target repository (`owner/repo`) | `claude-builders-bounty/claude-builders-bounty` |
-| `destination` | `slack`, `discord`, or `email` | `slack` |
-| `webhookUrl` | Webhook URL for Slack/Discord | — |
-| `language` | Output language: `EN` or `FR` | `EN` |
-| `emailTo` | Recipient email (if email selected) | — |
-
-## Output Example
-
-> **Weekly Dev Summary: `claude-builders-bounty`**
->
-> This week saw 12 commits, 3 closed issues, and 2 merged PRs. The team focused on improving the bounty board UI and adding new workflow integrations...
-
----
-
-*Tested on n8n v1.50.0*
