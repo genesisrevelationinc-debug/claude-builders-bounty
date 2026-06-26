@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code.  
-> Last updated: 2025-01
+> Opinionated project conventions. Read this before writing code.
 
 ---
 
@@ -9,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Runtime | Node.js 20+ | `crypto.randomUUID` native, stable fetch, long-term support |
-| Database | `better-sqlite3` | Synchronous, fast, zero network latency. Use Turso only if you need multi-region |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly. No Prisma (engine binary bloat) |
-| Auth | Lucia + `oslo` | Session-based, works with SQLite out of the box. No JWT in cookies |
-| Styling | Tailwind CSS + `cn()` utility | No CSS-in-JS runtime cost. `cn()` merges without surprises |
-| Forms | Server Actions + `zod` | No API routes for mutations. Validate on the server, revalidate paths |
-| Deployment | Docker / VPS | SQLite is a file. Don't use serverless platforms that wipe ephemeral storage |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
+| Runtime | Node.js 20+ | `crypto` global, native fetch, performance |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, migrations in code, no hidden queries |
+| Auth | `oslo` + `argon2` | Stateless sessions, no OAuth lock-in, works at edge |
+| Styling | Tailwind CSS 3.4 | Utility-first, zero runtime, design system via config |
+| Forms | Server Actions + `zod` | No client state needed, validation on both boundaries |
+| Testing | Vitest + Playwright | Unit where it matters, E2E for critical paths |
 
-**Lock these versions.** Do not upgrade major versions without updating this file.
+**Non-negotiable:** We deploy to a single VPS (Fly.io, Railway, or similar). SQLite is a file on disk. If you need multi-node, fork the project and switch to Postgres—don't try to make SQLite work across nodes.
 
 ---
 
