@@ -1,41 +1,27 @@
 # n8n Weekly Dev Summary Workflow
 
-Automated weekly narrative summary of GitHub repo activity using n8n + Claude API.
+Automatically generate a weekly narrative summary of a GitHub repo's activity using Claude API.
 
 ## Setup (5 steps)
 
-1. **Import workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
+1. **Import the workflow**: In n8n, go to *Workflows* → *Import from File* → select `workflow.json`
+2. **Set credentials**: Add your GitHub Personal Access Token and Claude API key in n8n *Credentials*
+3. **Configure variables**: Open the workflow and edit the `Set Config` node — set your repo, destination, and language
+4. **Activate**: Toggle the workflow to *Active* in the top-right corner
+5. **Test**: Click *Execute Workflow* or wait for the weekly cron trigger (Fridays at 5pm UTC)
 
-2. **Set credentials**: Add your **Claude API** and **GitHub** credentials in n8n *Settings* → *Credentials*
+## Required Credentials
 
-3. **Configure variables**: Open the workflow and edit the `Set Config` node:
-   - `repo`: GitHub owner/repo (e.g., `claude-builders-bounty/claude-builders-bounty`)
-   - `channel`: Email address or webhook URL for delivery
-   - `language`: `EN` or `FR`
+- **GitHub API**: Personal Access Token with `repo` scope
+- **Claude API**: Anthropic API key from [console.anthropic.com](https://console.anthropic.com)
 
-4. **Set delivery method**: In the `Switch Delivery` node, choose `email` or `webhook` branch and configure the corresponding node
+## Configuration Variables
 
-5. **Activate**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `githubRepo` | Full repo path | `claude-builders-bounty/claude-builders-bounty` |
+| `destination` | Webhook URL for delivery | `https://hooks.slack.com/services/...` |
+| `language` | Summary language | `EN` or `FR` |
 
-## What It Does
+## Output Example
 
-- **Trigger**: Weekly cron (Fridays at 17:00)
-- **Fetches**: Commits, closed issues, and merged PRs from the past 7 days via GitHub API
-- **Summarizes**: Sends data to Claude API (`claude-sonnet-4-20250514`) for a narrative summary
-- **Delivers**: Posts summary via email (SMTP) or webhook (Discord/Slack)
-
-## Required Environment Variables / Credentials
-
-| Credential | Where to Get |
-|------------|-------------|
-| Claude API Key | [Anthropic Console](https://console.anthropic.com) |
-| GitHub Personal Access Token | [GitHub Settings](https://github.com/settings/tokens) |
-| SMTP credentials (optional) | Your email provider |
-
-## Testing
-
-Run the workflow manually in n8n and check the execution output. A successful run shows green checkmarks on all nodes.
-
----
-
-*Created for [Claude Builders Bounty #5](https://github.com/claude-builders-bounty/claude-builders-bounty/issues/5)*
