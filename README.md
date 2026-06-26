@@ -48,18 +48,14 @@ You're in the right place.
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
----
-
 *Started by the Claude builder community · March 2026 · MIT License*
-
-*Started by the Claude builder community · March 2026 · MIT License*
-
----
 
 ## Hooks
 
-This repository includes community-contributed Claude Code hooks:
+### Block Destructive Bash Commands
 
-- **[pre-tool-use](hooks/)** — Block destructive bash commands (`rm -rf`, `DROP TABLE`, `git etc.)
-  - [Installation & docs](hooks/README.md)
-  - Bounty: $100
+A `pre-tool-use` hook that intercepts dangerous bash commands before they are executed. Blocks `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without a `WHERE` clause.
+
+[View hook →](hooks/block-destructive-bash/)
+
+*Started by the Claude builder community · March 2026 · MIT License*
