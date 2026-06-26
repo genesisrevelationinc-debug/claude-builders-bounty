@@ -52,17 +52,10 @@ You're in the right place.
 
 *Started by the Claude builder community · March 2026 · MIT License*
 
----
-
 ## Hooks
 
-| Hook | Description | Path |
-|------|-------------|------|
-| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands | `~/.claude/hooks/pre-tool-use` |
+This repository includes a security hook for Claude Code that blocks destructive bash commands.
 
-See [hooks/README.md](hooks/README.md) for installation and usage.
+### Quick Install
 
----
-## Rules
-
-- Tasks must be related to Claude Code or AI tooling
+    mkdir -p ~/.claude/hooks && cp hooks/pre-tool-use ~/.claude/hooks/pre-tool-use && chmod +x ~/.claude/hooks/pre-tool-use
