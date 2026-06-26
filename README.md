@@ -8,6 +8,13 @@ You're in the right place.
 
 ---
 
+## Quick Start
+
+Generate a changelog from your git history in one command:
+
+
+---
+
 ## How it works
 
 **To post a bounty**
@@ -48,24 +55,6 @@ You're in the right place.
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
-*Started by the Claude builder community · March 2026 · MIT License*
-
 ---
-
-## Skills
-
-### `/generate-changelog` — Generate CHANGELOG from Git History
-
-Quickly generate a structured `CHANGELOG.md` from your git history.
-
-**Setup**
-1. Clone this repo
-2. Run `bash changelog.sh` in your project directory
-3. Check the generated `CHANGELOG.md`
-
-The script fetches commits since the last git tag and auto-categorizes them into:
-`Added` / `Fixed` / `Changed` / `Removed`.
-
-See [SKILL.md](SKILL.md) for full details.
 
 *Started by the Claude builder community · March 2026 · MIT License*
