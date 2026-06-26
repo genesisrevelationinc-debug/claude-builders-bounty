@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code.
+> Opinionated project conventions. Read this before writing code.  
+> Last updated: 2025-01
 
 ---
 
@@ -8,16 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable since 15.1 |
-| Runtime | Node.js 20+ | `crypto.randomUUID()` native, stable fetch, no polyfills |
-| Database | `better-sqlite3` | Synchronous, fast, zero network latency for single-node deploys |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | Lucia (or custom session) | No vendor lock-in, works with SQLite natively |
-| Styling | Tailwind CSS + shadcn/ui | Copy-paste components, no runtime CSS overhead |
-| Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit + E2E without Jest's baggage |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
+| Runtime | Node.js 20+ | `crypto.randomUUID` native, stable fetch, long-term support |
+| Database | `better-sqlite3` | Synchronous, fast, zero network latency. Use Turso only if you need multi-region |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly. No Prisma (engine binary bloat) |
+| Auth | Lucia + `oslo` | Session-based, works with SQLite out of the box. No JWT in cookies |
+| Styling | Tailwind CSS + `cn()` utility | No CSS-in-JS runtime cost. `cn()` merges without surprises |
+| Forms | Server Actions + `zod` | No API routes for mutations. Validate on the server, revalidate paths |
+| Deployment | Docker / VPS | SQLite is a file. Don't use serverless platforms that wipe ephemeral storage |
 
-**Non-negotiable:** We do not use `turso` or `libsql` unless deploying to the edge. `better-sqlite3` is simpler, faster, and has fewer failure modes for traditional server deploys (VPS, Railway, Fly.io).
+**Lock these versions.** Do not upgrade major versions without updating this file.
 
 ---
 
