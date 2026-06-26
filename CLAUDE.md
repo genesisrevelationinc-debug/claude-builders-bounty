@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at repo root. Claude Code reads it automatically for context.
 
 ---
 
@@ -8,17 +9,17 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
-| Runtime | Node.js 20+ | `crypto` global, native fetch, stable ESM |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Raw SQL + `better-sqlite3` | No abstraction tax; schema lives in `.sql` files |
-| Migrations | Custom runner (see below) | No ORM lock-in; versioned, reversible, testable |
-| Auth | `iron-session` + bcrypt | Stateless sessions, no external auth service dependency |
-| Styling | Tailwind CSS 3.4 | Utility-first, zero runtime, design system friendly |
-| Forms | Server Actions + `zod` | No API boilerplate; validation co-located with action |
-| Testing | Vitest + Playwright | Unit tests fast, E2E tests realistic |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` module |
+| Database | `better-sqlite3` | Synchronous, fast, zero async/await complexity for SQLite |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
+| Auth | Lucia (or custom session) | Cookie-based sessions stored in SQLite, no external deps |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `react-hook-form` | Progressive enhancement, no API route boilerplate |
+| Validation | Zod | Same schemas on server and client, TypeScript inference |
+| Testing | Vitest + Playwright | Unit tests in Node, E2E in real browser |
 
-**We do not use:** Prisma (migrations are opaque, slow on SQLite), tRPC (Server Actions replace it), PlanetScale/Neon (network latency, cost), Redux/Zustand (Server Components make most client state obsolete).
+**Hard rule:** No `pg`, `mysql2`, or other DB drivers. SQLite only. Single-file portability is a feature.
 
 ---
 
