@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""
+Claude Code pre-tool-use hook to block destructive bash commands.
+
+Place at: ~/.claude/hooks/pre-tool-use
+Make executable: chmod +x ~/.claude/hooks/pre-tool-use
+"""
+
+import json
+import os
+import re
+import sys
+from datetime import datetime, timezone
+
+LOG_FILE = os.path.expanduser("~/.claude/hooks/blocked.log")
+
+
+def log_blocked(command: str, project_path: str):
+    """Log a blocked command attempt."""
+    timestamp = datetime.now(timezone.utc).isoformat()
+    log_entry = f"{timestamp} | project={project_path} | command={command}\n"
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+    with open(LOG_FILE, "a") as f:
+        f.write(log_entry)
+
+
+def is_destructive(command: str) -> tuple[bool, str]:
+    """Check if a command is destructive. Returns (is_blocked, reason)."""
+    upper = command.upper()
+
+    if re.search(r'\brm\s+(-[a-zA-Z]*f|-[a-zA-Z]*r)\S*\s+-[a-zA-Z]*[rf]', command) or re.search(r'\brm\s+-[a-zA-Z]*rf', command):
+        return True, "Blocked: `rm -rf` and variants are destructive and can delete critical files."
+
+    if re.search(r'\bDROP\s+TABLE\b', upper, re.IGNORECASE):
+        return True, "Blocked: `DROP TABLE` permanently deletes database tables."
+
+    if re.search(r'\bgit\s+push\s+.*(--force|-f)\b', command, re.IGNORECASE):
+        return True, "Blocked: `git push --force` can overwrite remote history and cause data loss."
+
+    if re.search(r'\bTRUNCATE\b', upper, re.IGNORECASE):
+        return True, "Blocked: `TRUNCATE` removes all data from a table."
+
+    delete_match = re.search(r'\bDELETE\s+FROM\s+(\w+)', command, re.IGNORECASE)
+    if delete_match:
+        where_check = re.search(r'\bWHERE\b', command, re.IGNORECASE)
+        if not where_check:
+            return True, "Blocked: `DELETE FROM` without a `WHERE` clause would delete all rows."
+
+    return False, ""
+
+
+def main():
+    # Read the tool use payload from stdin
+    payload = json.load(sys.stdin)
+
+    if payload.get("tool_name") == "bash":
+        command = payload.get("tool_input", {}).get("command", "")
+        project_path = payload.get("project_path", "")
+
+        blocked, reason = is_destructive(command)
+        if blocked:
+            log_blocked(command, project_path)
+            print(reason, file=sys.stderr)
+            sys.exit(1)
+
+    # Allow the tool use to proceed
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
