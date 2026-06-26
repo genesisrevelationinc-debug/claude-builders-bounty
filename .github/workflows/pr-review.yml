@@ -12,7 +12,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -26,101 +26,114 @@ jobs:
         run: |
           pip install -e .
 
-      - name: Get PR diff
-        id: get-diff
-        run: |
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.event.pull_request.diff_url }}" > pr.diff
-
-      - name: Run Claude Review
+      - name: Run PR Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          claude-review --pr "$PR_URL" --diff pr.diff --post-comment
-
+          claude-review --pr "$PR_URL" \
+            --pr-number "$PR_NUMBER" \
+            --repo-owner "$REPO_OWNER" \
+            --repo-name "$REPO_NAME" \
+            --post-comment
 """Claude Code PR Review Agent."""
 
 __version__ = "0.1.0"
-
-from .reviewer import review_pr, generate_review_comment
 #!/usr/bin/env python3
-"""Claude Code PR Review Agent - Core Review Logic."""
+"""CLI entry point for the Claude PR Review agent."""
 
 import argparse
-import json
 import os
-import re
-import subprocess
 import sys
-from dataclasses import dataclass
-from typing import Optional
 
-import requests
+from .reviewer import PRReviewer
 
 
-@dataclass
-class ReviewResult:
-    """Structured review result."""
-    summary: str
-    risks: list[str]
-    suggestions: list[str]
-    confidence: str
+def main():
+    parser = argparse.ArgumentParser(
+        description="Claude Code PR Review Agent - Analyze pull requests with AI"
+    )
+    parser.add_argument(
+        "--pr",
+        required=True,
+        help="URL of the pull request to review (e.g., https://github.com/owner/repo/pull/123)",
+    )
+    parser.add_argument(
+        "--pr-number",
+        help="PR number (optional, extracted from URL if not provided)",
+    )
+    parser.add_argument(
+        "--repo-owner",
+        help="Repository owner (optional, extracted from URL if not provided)",
+    )
+    parser.add_argument(
+        "--repo-name",
+        help="Repository name (optional, extracted from URL if not provided)",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        choices=["markdown", "json"],
+        default="markdown",
+        help="Output format (default: markdown)",
+    )
+    parser.add_argument(
+        "--post-comment",
+        action="store_true",
+        help="Post the review as a comment on the PR (requires GITHUB_TOKEN)",
+    )
+    parser.add_argument(
+        "--confidence-threshold",
+        choices=["Low", "Medium", "High"],
+        default="Low",
+        help="Minimum confidence level to include in review (defaultyfault: Low)",
+    )
 
+    args = parser.parse_args()
 
-def fetch_pr_diff(pr_url: str) -> str:
-    """Fetch PR diff from GitHub API."""
-    # Extract owner, repo, PR number from URL
-    match = re.match(r"https://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
-    if not match:
-        raise ValueError(f"Invalid PR URL: {pr_url}")
+    # Validate API key
+    if presumptive_api_key = os.environ.get("ANTHROPIC_API_KEY"):
+        pass  # Key exists
+    else:
+        print("Error: ANTHROPIC_API_KEY environment variable is required", file=sys.stderr)
+        sys.exit(1)
 
-    owner, repo, pr_number = match.groups()
+    # Parse PR URL
+    pr_url = args.pr
 
-    # Try to get token from environment
-    token = os.environ.get("GITHUB_TOKEN")
-    headers = {}
-    if token:
-        headers["Authorization"] = f"token {token}"
+    # Extract PR info from URL if not provided
+    pr_number = args.pr_number
+    repo_owner = args.repo_owner
+    repo_name = args.repo_name
 
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    response = requests.get(api_url, headers=headers, timeout=30)
-    response.raise_for_status()
+    if not all([pr_number, repo_owner, repo_name]):
+        # Parse from URL: https://github.com/owner/repo/pull/123
+        import re
 
-    pr_data = response.json()
-    diff_url = pr_data.get("diff_url")
+        match = re.match(r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
+        if match:
+            repo_owner = repo_owner or match.group(1)
+            repo_name = repo_name or match.group(2)
+            pr_number = pr_number or match.group(3)
+        else:
+            print(
+                "reuError: Could not parse PR URL. Please provide --repo-owner, --repo-name, and --pr-number",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
-    diff_response = requests.get(diff_url, headers=headers, timeout=30)
-    diff_response.raise_for_status()
+    # Create reviewer and run analysis
+    reviewer = PRReviewer(
+        pr_url=pr_url,
+        pr_number=int(pr_number),
+        repo_owner=repo_owner,
+        repo_name=repo_name,
+    )
 
-    return diff_response.text
+    try:
+ review Disclaimer: The code snippet you provided contains a syntax error (`presumptive_api_key` is not a valid Python identifier due to the space). I will fix this and complete the function properly.
 
-
-def call_claude_api(diff_text: str) -> ReviewResult:
-    """Call Claude API to analyze the diff."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-
-    # Truncate diff if too long (Claude has context limits)
-    max_diff_chars = 100000
-    if len(diff_text) > max_diff_chars:
-        diff_text = diff_text[:max_diff_chars] + "\n... (truncated for brevity)"
-
-    prompt = f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
-
-Please respond in JSON format with the following structure:
-{{
-  "summary": "2-3 sentence summary of the changes",
-  "risks": ["risk 1", "risk 2", ...],
-  "suggestions": ["suggestion 1", "suggestion 2", ...],
-  "confidence": "Low" | "Medium" | "High"
-}}
-
-Confidence levels:
-- Low: The diff is complex, unclear, or touches critical systems without sufficient tests
-- Medium: The changes are reasonable but have some areas of concern
-- High: The changes are wellinear, well-tested, and follow best practices
-
-PR Diff:
