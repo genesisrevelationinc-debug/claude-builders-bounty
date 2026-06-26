@@ -12,59 +12,72 @@ import re
 import sys
 from datetime import datetime, timezone
 
-LOG_FILE = os.path.expanduser("~/.claude/hooks/blocked.log")
+# Patterns that are always blocked
+ALWAYS_BLOCKED = [
+    re.compile(r"rm\s+.*-rf", re.IGNORECASE),
+    re.compile(r"rm\s+-rf", re.IGNORECASE),
+    re.compile(r"rm\s+-[a-z]*f", re.IGNORECASE),
+    re.compile(r"git\s+push\s+.*--force", re.IGNORECASE),
+    re.compile(r"git\s+push\s+-f", re.IGNORECASE),
+    re.compile(r"DROP\s+TABLE", re.IGNORECASE),
+    re.compile(r"TRUNCATE\s+", re.IGNORECASE),
+]
+
+# Patterns that require a WHERE clause
+REQUIRES_WHERE = [
+    re.compile(r"DELETE\s+ the FROM\s+", re.IGNORECASE),
+]
 
 
-def log_blocked(command: str, project_path: str):
-    """Log a blocked command attempt."""
+def log_blocked(command: str, project_path: str, reason: str):
+    """Log a blocked command attempt to the blocked log file."""
+    log_dir = os.path.expanduser("~/.claude/hooks")
+    log_file = os.path.join(log_dir, "blocked.log")
+    os.makedirs(log_dir, exist_ok=True)
+
     timestamp = datetime.now(timezone.utc).isoformat()
-    log_entry = f"{timestamp} | project={project_path} | command={command}\n"
-    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-    with open(LOG_FILE, "a") as f:
+    log_entry = (
+        f"[{timestamp}] BLOCKED: {command.strip()}\n"
+        f"  Project: {project_path}\n"
+        f"  Reason: {reason}\n\n"
+    )
+
+    with open(log_file, "a") as f:
         f.write(log_entry)
 
 
-def is_destructive(command: str) -> tuple[bool, str]:
-    """Check if a command is destructive. Returns (is_blocked, reason)."""
-    upper = command.upper()
-
-    if re.search(r'\brm\s+(-[a-zA-Z]*f|-[a-zA-Z]*r)\S*\s+-[a-zA-Z]*[rf]', command) or re.search(r'\brm\s+-[a-zA-Z]*rf', command):
-        return True, "Blocked: `rm -rf` and variants are destructive and can delete critical files."
-
-    if re.search(r'\bDROP\s+TABLE\b', upper, re.IGNORECASE):
-        return True, "Blocked: `DROP TABLE` permanently deletes database tables."
-
-    if re.search(r'\bgit\s+push\s+.*(--force|-f)\b', command, re.IGNORECASE):
-        return True, "Blocked: `git push --force` can overwrite remote history and cause data loss."
-
-    if re.search(r'\bTRUNCATE\b', upper, re.IGNORECASE):
-        return True, "Blocked: `TRUNCATE` removes all data from a table."
-
-    delete_match = re.search(r'\bDELETE\s+FROM\s+(\w+)', command, re.IGNORECASE)
-    if delete_match:
-        where_check = re.search(r'\bWHERE\b', command, re.IGNORECASE)
-        if not where_check:
-            return True, "Blocked: `DELETE FROM` without a `WHERE` clause would delete all rows."
-
-    return False, ""
-
-
 def main():
-    # Read the tool use payload from stdin
-    payload = json.load(sys.stdin)
+    # Read the hook payload from stdin
+    try:
+        payload = json.load(sys.stdin)
+    except json.JSONDecodeError:
+        sys.exit(0)
 
-    if payload.get("tool_name") == "bash":
-        command = payload.get("tool_input", {}).get("command", "")
-        project_path = payload.get("project_path", "")
+    tool_name = payload.get("tool_name", "")
+    tool_input = payload.get("tool_input", {})
 
-        blocked, reason = is_destructive(command)
-        if blocked:
-            log_blocked(command, project_path)
-            print(reason, file=sys.stderr)
+    # Only intercept bash tool
+    if tool_name != "bash":
+        sys.exit(0)
+
+    command = tool_input.get("command", "")
+    project_path = payload.get("project_path", "")
+
+    # Check always-blocked patterns
+    for pattern in ALWAYS_BLOCKED:
+        if pattern.search(command):
+            reason = f"Matched blocked pattern: {pattern.pattern}"
+            log_blocked(command, project_path, reason)
+            print(f"🚫 BLOCKED: This command was prevented from running.\n\nReason: {reason}\n\nThe command '{command.strip()}' matches a known destructive pattern. If you need to run this, please use a safer alternative or confirm the operation manually.", file=sys.stderr)
             sys.exit(1)
 
-    # Allow the tool use to proceed
-    sys.exit(0)
+    # Check DELETE FROM without WHERE
+    if re.search(r"DELETE\s+FROM\s+", command, re.IGNORECASE):
+        if not re.search(r"WHERE\s+", command, re.IGNORECASE):
+            reason = "DELETE FROM without WHERE clause"
+            log_blocked(command, project_path, reason)
+            print(f"🚫 BLOCKED: This command was prevented from running.\n\nReason: {reason}\n\nThe command '{command.strip()}' appears to be an unbounded DELETE statement. Add a WHERE clause to proceed.", file=sys.stderr)
+            sys.exit(1)
 
 
 if __name__ == "__main__":
