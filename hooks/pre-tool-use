@@ -2,87 +2,110 @@
 """
 Claude Code pre-tool-use hook to block destructive bash commands.
 
-Place at: ~/.claude/hooks/pre-tool-use
-Make executable: chmod +x ~/.claude/hooks/pre-tool-use
+This hook intercepts dangerous bash commands before they are executed
+by Claude Code, preventing accidental data loss or destructive operations.
 """
 
 import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
+from pathlib import Path
 
-BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 
-# Patterns to block with their human-readable descriptions
-DANGEROUS_PATTERNS = [
-    (r"\brm\s+(-[a-zA-Z]*f|--force)\b", "rm -rf / rm with force flag"),
-    (r"\bDROP\s+TABLE\b", "DROP TABLE"),
-    (r"\bgit\s+push\s+.*(--force|-f)\b", "git push --force"),
-    (r"\bTRUNCATE\b", "TRUNCATE"),
-    (r"\bDELETE\s+FROM\b", "DELETE FROM without WHERE clause"),
+# Patterns that are considered destructive and should be blocked
+DESTRUCTIVE_PATTERNS = [
+    # rm -rf pattern (removes directories recursively and forcefully)
+    {
+        "pattern": r"rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+",
+        "name": "rm -rf (recursive force delete)",
+    },
+    # DROP TABLE pattern (deletes database tables)
+    {
+        "pattern": r"(?i)\bDROP\s+TABLE\b",
+        "name": "DROP TABLE (database table deletion)",
+    },
+    # git push --force pattern (force overwrites remote history)
+    {
+        "pattern": r"(?i)git\s+push\s+.*--force\b",
+        "name": "git push --force (force overwrite remote history)",
+    },
+    {
+        "pattern": r"(?i)git\s+push\s+.*-f\b",
+        "name": "git push -f (force overwrite remote history)",
+    },
+    # TRUNCATE pattern (removes all data from a table)
+    {
+        "pattern": r"(?i)\bTRUNCATE\b",
+        "name": "TRUNCATE (table data removal)",
+    },
+    # DELETE FROM without WHERE clause
+    {
+        "pattern": r"(?i)\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)",
+        "name": "DELETE FROM without WHERE (unconditional row deletion)",
+    },
 ]
 
 
-def log_blocked_attempt(command: str, reason: str):
-    """Log a blocked command attempt with timestamp and project path."""
-    timestamp = datetime.now(timezone.utc).isoformat()
+def get_log_path() -> Path:
+    """Get the path to the blocked attempts log file."""
+    hooks_dir = Path(__file__).parent
+    return hooks_dir / "blocked.log"
+
+
+def log_blocked_attempt(command: str, reason: str) -> None:
+    """Log a blocked attempt with timestamp, command, and project path."""
+    log_path = get_log_path()
+    timestamp = datetime.now().isoformat()
     project_path = os.getcwd()
-
-    log_entry = f"[{timestamp}] BLOCKED: {reason} | Command: {command.strip()} | Project: {project_path}\n"
-
-    # Ensure the hooks directory exists
-    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
-
-    with open(BLOCKED_LOG, "a") as f:
-        f.write(log_entry)
-
-
-def check_command(command: str) -> tuple[bool, str]:
-    """
-    Check if a command contains dangerous patterns.
-    Returns (is_blocked, reason).
-    """
-    # Special check for DELETE FROM without WHERE
-    delete_pattern = re.compile(r"\bDELETE\s+FROM\b", re.IGNORECASE)
-    where_pattern = re.compile(r"\bWHERE\b", re.IGNORECASE)
-
-    if delete_pattern.search(command) and not where_pattern.search(command):
-        return True, "DELETE FROM without WHERE clause"
-
-    for pattern, description in DANGEROUS_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True, description
-
-    return False, ""
+    
+    log_entry = f"[{timestamp}] BLOCKED: {reason}\n  Command: {command}\n  Project: {project_path}\n\n"
+    
+    # Ensure the log file exists
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(log_path, "a") as writer:
+        writer.write(log_entry)
 
 
-def main():
-    # Read the hook payload from stdin
+def main() -> None:
+    """Main entry point for the pre-tool-use hook."""
+    # Read the tool use input from stdin
     try:
-        payload = json.load(sys.stdin)
+        input_data = json.loads(sys.stdin.read())
     except json.JSONDecodeError:
-        # If not valid JSON, allow the tool use to proceed
+        # If we can't parse the input, allow it to proceed
         sys.exit(0)
-
-    # Only intercept bash tool
-    tool_name = payload.get("tool_name", "")
-    if tool_name != "bash":
-        sys.exit(0)
-
-    command = payload.get("tool_input", {}).get("command", "")
-    if not command:
-        sys.exit(0)
-
-    is_blocked, reason = check_command(command)
-
-    if is_blocked:
-        log_blocked_attempt(command, reason)
-        print(f"🛡️  BLOCKED: This command was prevented from running.\n", file=sys.stderr)
-        print(f"   Reason: Detected destructive pattern '{reason}'.\n", file=sys.stderr)
-        print(f"   Command: {command.strip()}\n", file=sys.stderr)
-        sys.exit(1)
+    
+    # Extract the command from the tool use
+    command = input_data.get("command", "") or input_data.get("input", "") or ""
+    
+    # Check against destructive patterns
+    for rule in DESTRUCTIVE_PATTERNS:
+        if re.search(rule["pattern"], command):
+            # Log the blocked attempt
+            log_blocked_attempt(command, rule["name"])
+            
+            # Print a clear message to Claude explaining why it was blocked
+            print(f"🚫 BLOCKED: This command was prevented from executing.", file=sys.stderr)
+            print(f"   Reason: {rule['name']}", file=sys.stderr)
+            print(f"   The command '{command[:100]}{'...' if len(command) > 100 else ''}' matches a destructive pattern.", file=sys.stderr)
+            print(f"   If you need to run this command, please ask the user for explicit confirmation.", file=sys.stderr)
+            
+            # Exit with non-zero to block the command
+            sys.exit(1)
+    
+    # Allow normal commands to proceed
+    sys.exit(0)
 
 
 if __name__ == "__main__":
     main()
+--- /dev/null
+# Claude Code Pre-Tool-Use Hook: Block Destructive Commands
+
+A security hook for Claude Code that intercepts and blocks dangerous bash commands before they can execute.
+
+## Installation
+
