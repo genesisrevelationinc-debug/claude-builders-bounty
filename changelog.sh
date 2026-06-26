@@ -4,123 +4,130 @@ set -euo pipefail
 # changelog.sh — Generate a structured CHANGELOG.md from git history
 # Usage: bash changelog.sh
 
-REPO_URL=""
 CHANGELOG_FILE="CHANGELOG.md"
+TEMP_FILE=$(mktemp)
 
-# Get the latest git tag
+# Get the latest git tag, or empty if none
 get_latest_tag() {
     git describe --tags --abbrev=0 2>/dev/null || echo ""
 }
 
 # Get commits since a given tag (or all commits if no tag)
-get_commits_since() {
+get_commits() {
     local tag="$1"
     if [ -n "$tag" ]; then
-        git log "${tag}..HEAD" --pretty=format:"%s" 2>/dev/null || true
+        git log "${tag}..HEAD" --pretty=format:"%s" --reverse 2>/dev/null || true
     else
-        git log --pretty=format:"%s" 2>/dev/null || true
+        git log --pretty=format:"%s" --reverse 2>/dev/null || true
     fi
 }
 
-# Categorize a commit message
-categorize_commit() {
+# Categorize a commit message into a section
+categorize() {
     local msg="$1"
-    local lower_msg
-    lower_msg=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
+    local lower
+    lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
     
-    # Check for conventional commit prefixes first
-    if echo "$lower_msg" | grep -qE '^(feat|add|introduce|implement|create)'; then
-        echo "added"
-    elif echo "$lower_msg" | grep -qE '^(fix|bugfix|hotfix|patch|resolve)'; then
-        echo "fixed"
-    elif echo "$lower_msg" | grep -qE '^(remove|delete|drop|revert)'; then
-        echo "removed"
-    elif echo "$lower_msg" | grep -qE '^(update|change|modify|refactor|improve|upgrade|deps)'; then
-        echo "changed"
-    # Check for keywords in message
-    elif echo "$lower_msg" | grep -qE '\b(add|added|adding|introduce|implement|create|feat)\b'; then
-        echo "added"
-    elif echo "$lower_msg" | grep -qE '\b(fix|fixed|fixing|bug|bugfix|resolve|resolves|resolved|patch)\b'; then
-        echo "fixed"
-    elif echo "$lower_msg" | grep -qE '\b(remove|removed|removing|delete|deleted|drop|dropped|revert|reverts)\b'; then
-        echo "removed"
-    elif echo "$lower_msg" | grep -qE '\b(update|updated|updating|change|changed|modify|modified|refactor|refactored|improve|improved|upgrade|upgraded|deps)\b'; then
-        echo "changed"
+    # Check for conventional commit prefixes
+    if echo "$lower" | grep -qE '^(feat|add|create|introduce)'; then
+        echo "Added"
+    elif echo "$lower" | grep -qE '^(fix|bugfix|hotfix|patch|resolve)'; then
+        echo "Fixed"
+    elif echo "$lower" | grep -qE '^(remove|delete|drop|revert)'; then
+        echo "Removed"
+    elif echo "$lower" | grep -qE '^(change|update|modify|refactor|improve|enhance|upgrade)'; then
+        echo "Changed"
     else
-        echo "changed"
+        # Keyword-based fallback
+        if echo "$lower" | grep -qE '\b(add|added|adding|introduce|introduces|new)\b'; then
+            echo "Added"
+        elif echo "$lower" | grep -qE '\b(fix|fixed|fixes|fixing|resolve|resolves|resolved|bug|patch)\b'; then
+            echo "Fixed"
+        elif echo "$lower" | grep -qE '\b(remove|removed|removes|removing|delete|deleted|deletes|dropping|drop|revert|reverts|reverted)\b'; then
+            echo "Removed"
+        elif echo "$lower" | grep -qE '\b(update|updated|updates|updating|change|changed|changes|changing|modify|modified|modifies|modifying|refactor|refactored|refactoring|improve|improved|improves|improving|enhance|enhanced|enhances|enhancing|upgrade|upgraded|upgrades|upgrading)\b'; then
+            echo "Changed"
+        else
+            echo "Changed"  # Default category
+        fi
     fi
+}
+
+# Clean commit message for changelog (remove conventional commit prefix)
+clean_message() {
+    local msg="$1"
+    # Remove conventional commit prefix like "feat:", "fix:", etc.
+    echo "$msg" | sed -E 's/^[a-z]+(\([^)]*\))?:[[:space:]]*//i'
 }
 
 # Generate the changelog
 generate_changelog() {
-    local latest_tag
-    latest_tag=$(get_latest_tag)
+    local tag
+    tag=$(get_latest_tag)
     
-    local tag_for_header="$latest_tag"
-    if [ -z "$tag_for_header" ]; then
-        tag_for_header="previous release"
-    fi
-    
-    # Get commits
     local commits
-    commits=$(get_commits_since "$latest_tag")
+    commits=$(get_commits "$tag")
     
     if [ -z "$commits" ]; then
-        echo "No commits found since $tag_for_header."
+        echo "No commits found since last tag."
         exit 0
     fi
     
-    # Categorize commits
-    local added=""
-    local fixed=""
-    local changed=""
-    local removed=""
+    # Initialize category arrays
+    declare -A categories
+    categories["Added"]=""
+    categories["Fixed"]=""
+    categories["Changed"]=""
+    categories["Removed"]=""
     
+    # Process each commit
     while IFS= read -r commit; do
         [ -z "$commit" ] && continue
         
         local category
-        category=$(categorize_commit "$commit")
+        category=$(categorize "$commit")
+        local clean_msg
+        clean_msg=$(clean_message "$commit")
         
-        case "$category" in
-            added)  added="${added}- ${commit}"$'\n' ;;
-            fixed)  fixed="${fixed}- ${commit}"$'\n' ;;
-            removed) removed="${removed}- ${commit}"$'\n' ;;
-            changed) changed="${changed}- ${commit}"$'\n' ;;
-        esac
+        categories["$category"]+="- $clean_msg"$'\n'
     done <<< "$commits"
     
-    # Build changelog
+    # Write changelog
     {
         echo "# Changelog"
         echo ""
-        echo "## [Unreleased] — since $tag_for_header"
+        echo "All notable changes to this project will be documented in this file."
         echo ""
         
-        [ -n "$added" ] && echo "### Added" && echo "" && echo -n "$added" && echo ""
-        [ -n "$changed" ] && echo "### Changed" && echo "" && echo -n "$changed" && echo ""
-        [ -n "$fixed" ] && echo "### Fixed" && echo "" && echo -n "$fixed" && echo ""
-        [ -n "$removed" ] && echo "### Removed" && echo "" && echo -n "$removed" && echo ""
-    } > "$CHANGELOG_FILE"
+        local version_date
+        version_date=$(date +%Y-%m-%d)
+        echo "## [Unreleased] - $version_date"
+        echo ""
+        
+        for cat in "Added" "Changed" "Fixed" "Removed"; do
+            if [ -n "${categories[$cat]}" ]; then
+                echo "### $cat"
+                echo ""
+                echo -n "${categories[$cat]}"
+                echo ""
+            fi
+        done
+    } > "$TEMP_FILE"
     
-    echo "✅ Generated $CHANGELOG_FILE with commits since $tag_for_header"
+    mv "$TEMP_FILE" "$CHANGELOG_FILE"
+    echo "Generated $CHANGELOG_FILE"
 }
 
 # Main
-main() {
-    if ! git rev-parse --git-dir > /dev/null 2>&1; then
-        echo "Error: Not a git repository."
-        exit 1
-    fi
-    
-    generate_changelog
-}
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "Error: Not a git repository." >&2
+    exit 1
+fi
 
-main "$@"
-
+generate_changelog
 # Generate Changelog Skill
 
-Automatically generate a structured `CHANGELOG.md` from your project's git history.
+Generate a structured `CHANGELOG.md` from a project's git history.
 
 ## Usage
 
