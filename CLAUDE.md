@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project conventions. Read this before writing code.
 
 ---
 
@@ -9,16 +8,17 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable |
+| Runtime | Node.js 20+ | `crypto` global, native fetch, stable ESM |
 | Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | `oslo` + `bcryptjs` | Minimal, no vendor lock-in, works with any user table schema |
-| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
-| Forms | Server Actions + `zod` | No client-side form libraries needed |
-| Testing | Vitest + Playwright | Unit + E2E without Jest's config complexity |
+| ORM/Query | Raw SQL + `better-sqlite3` | No abstraction tax; schema lives in `.sql` files |
+| Migrations | Custom runner (see below) | No ORM lock-in; versioned, reversible, testable |
+| Auth | `iron-session` + bcrypt | Stateless sessions, no external auth service dependency |
+| Styling | Tailwind CSS 3.4 | Utility-first, zero runtime, design system friendly |
+| Forms | Server Actions + `zod` | No API boilerplate; validation co-located with action |
+| Testing | Vitest + Playwright | Unit tests fast, E2E tests realistic |
 
-**Non-negotiable:** We do not use `pg`, `mysql2`, or Prisma. SQLite is the production database. If you need read replicas later, use LiteStream or migrate then—not now.
+**We do not use:** Prisma (migrations are opaque, slow on SQLite), tRPC (Server Actions replace it), PlanetScale/Neon (network latency, cost), Redux/Zustand (Server Components make most client state obsolete).
 
 ---
 
