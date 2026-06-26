@@ -1,27 +1,23 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at your repo root. Claude Code reads it automatically.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3).
+> 
+> **Purpose:** Paste this into your project root. Claude Code reads it automatically and knows exactly how to work with your codebase without asking questions.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = simpler data fetching, less client JS |
-| Runtime | Node.js 20+ | `next dev` requires 18+; 20 has stable fetch, built-in test runner |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need multi-region |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations. No Prisma (see Anti-Patterns) |
-| Auth | Lucia + `oslo` | Session-based, works with SQLite out of the box. No JWT in cookies |
-| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
-| Components | shadcn/ui | Copy-pasteable, Radix-based, no npm dependency hell |
-| Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit + E2E. `next test` is not stable enough |
+| Layer | Choice | Rationale |
+|-------|--------|-----------|
+| Framework | Next.js 15 (App Router) | Server Components by default = simpler data flow, less client JS |
+| Runtime | Node.js 20+ | Required for `crypto` global, native fetch stability |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need multi-region (adds async complexity) |
+| ORM/Query Builder | None — raw SQL with helper functions | ORMs hide performance footguns; SQL is explicit and portable |
+| Auth | `bcryptjs` + `jose` (JWT) | No third-party auth service lock-in. Sessions stored in SQLite |
+| Styling | Tailwind CSS + CSS variables | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `useActionState` | No form libraries. Native progressive enhancement |
+| Validation | Zod | Schema validation shared between server and client |
+| Testing | Vitest (unit), Playwright (E2E) | Fast unit tests; real browser for critical paths |
 
-**Lockfile:** `pnpm-lock.yaml` only. No `package-lock.json` or `yarn.lock`.
-
----
-
-## Folder Structure
-
+**Lock these versions in `package.json`:**
