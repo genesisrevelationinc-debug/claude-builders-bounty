@@ -2,8 +2,7 @@
 
 > A community bounty board for Claude Code builders.
 
-
----
+Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
@@ -42,9 +41,22 @@ You're in the right place.
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Quality over speed — a solid PR beats a fast one
 
+
+*Started by the Claude builder community · March 2026 · MIT License*
+
 ---
 
-## Community
+## Workflow: n8n + Claude API — Automated Weekly Dev Summary
+
+See [`workflows/n8n-weekly-dev-summary/`](workflows/n8n-weekly-dev-summary/) for the complete deliverable.
+
+- **Trigger**: Weekly cron (Fridays at 5 PM)
+- **Sources**: GitHub API (commits, closed issues, merged PRs)
+- **AI**: Claude API (`claude-sonnet-4-20250514`)
+- **Delivery**: Configurable (email / Discord / Slack)
+- **Languages**: EN / FR
+
+Quick start: [workflows/n8n-weekly-dev-summary/README.md](workflows/n8n-weekly-dev-summary/README.md)
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
