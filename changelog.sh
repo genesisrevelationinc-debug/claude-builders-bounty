@@ -1,163 +1,126 @@
 #!/usr/bin/env bash
+#
+# changelog.sh — Generate a structured CHANGELOG.md from git history
+#
+# Usage: bash changelog.sh
+#
+# Fetches commits since the last git tag, auto-categorizes them, and appends
+# a new section to CHANGELOG.md (creates it if missing).
+#
+
 set -euo pipefail
 
-# changelog.sh — Generate a structured CHANGELOG.md from git history
-# Usage: bash changelog.sh
+# ── Config ───────────────────────────────────────────────────────────────────
+CHANGELOG_FILE="CHANGELOG.md"
+DATE=$(date +%Y-%m-%d)
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CHANGELOG_FILE="${SCRIPT_DIR}/CHANGELOG.md"
-
-# Get the latest git tag, or empty if none
-get_latest_tag() {
-    git describe --tags --abbrev=0 2>/dev/null || echo ""
+# ── Helpers ──────────────────────────────────────────────────────────────────
+error() {
+    echo "Error: $*" >&2
+    exit 1
 }
 
-# Get commits since the last tag (or all commits if no tag)
-get_commits() {
-    local tag
-    tag=$(get_latest_tag)
-    if [ -n "$tag" ]; then
-        git log "${tag}..HEAD" --pretty=format:"%s" 2>/dev/null || true
+git_last_tag() {
+    git describe --tags --abbrev=0 2>/dev/null || true
+}
+
+git_commits_since() {
+    local ref="$1"
+    if [[ -n "$ref" ]]; then
+        git log "${ref}..HEAD" --pretty=format:"%s" 2>/dev/null || true
     else
         git log --pretty=format:"%s" 2>/dev/null || true
     fi
 }
 
-# Get the date of the latest tag commit or repo creation
-get_date() {
-    local tag
-    tag=$(get_latest_tag)
-    if [ -n "$tag" ]; then
-        git log -1 --format=%ad --date=short "$tag" 2>/dev/null || date +%Y-%m-%d
-    else
-        date +%Y-%m-%d
-    fi
-}
-
-# Get the next version (bump patch of latest tag, or start at 0.1.0)
-get_next_version() {
-    local tag
-    tag=$(get_latest_tag)
-    if [ -n "$tag" ]; then
-        # Remove 'v' prefix if present
-        local version="${tag#v}"
-        # Split version into parts
-        local major minor patch
-        IFS='.' read -r major minor patch <<< "$version"
-        # Increment patch
-        patch=$((patch + 1))
-        echo "${major}.${minor}.${patch}"
-    else
-        echo "0.1.0"
-    fi
-}
-
 # Categorize a single commit message
-categorize_commit() {
+categorize() {
     local msg="$1"
     local lower
     lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
-    
-    if echo "$lower" | grep -qE '^(feat|add|new|introduce|implement|create)'; then
-        echo "added"
-    elif echo "$lower" | grep -qE '^(fix|bugfix|hotfix|resolve|patch|correct)'; then
-        echo "fixed"
-    elif echo "$lower" | grep -qE '^(remove|delete|drop|revert|undo)'; then
-        echo "removed"
-    elif echo "$lower" | grep -qE '^(update|change|modify|refactor|improve|enhance|upgrade)'; then
-        echo "changed"
-    else
-        # Default categorization based on keywords in message
-        if echo "$lower" | grep -qE '\b(add|added|adding|introduce|implement)\b'; then
-            echo "added"
-        elif echo "$lower" | grep -qE '\b(fix|fixed|fixing|resolve|resolved|bug)\b'; then
-            echo "fixed"
-        elif echo "$lower" | grep -qE '\b(remove|removed|removing|delete|deleted|drop)\b'; then
-            echo "removed"
-        else
-            echo "changed"
-        fi
-    fi
+
+    case "$lower" in
+        *"fix"* | *"bug"* | *"patch"* | *"repair"* | *"resolve"* | *"close "* | *"closes "*)
+            echo "Fixed"
+            ;;
+        *"add"* | *"feat"* | *"feature"* | *"introduce"* | *"implement"* | *"new "*)
+            echo "Added"
+            ;;
+        *"remove"* | *"delete"* | *"drop"* | *"deprecate"* | *"clean"*)
+            echo "Removed"
+            ;;
+        *"change"* | *"update"* | *"refactor"* | *"rework"* | *"improve"* | *"optimize"* | *"upgrade"*)
+            echo "Changed"
+            ;;
+ *)
+            echo "Changed"
+            ;;
+    esac
 }
 
-# Main
-main() {
-    if ! git rev-parse --git-dir > /dev/null 2>&1; then
-        echo "Error: Not a git repository." >&2
-        exit 1
-    fi
+# ── Main ─────────────────────────────────────────────────────────────────────
 
-    local version date added fixed changed removed
-    version=$(get_next_version)
-    date=$(get_date)
+# Ensure we're in a git repo
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    error "Not a git repository. Please run from inside a git repo."
+fi
 
-    # Initialize category arrays
-    added=""
-    fixed=""
-    changed=""
-    removed=""
+# Find last tag
+LAST_TAG=$(git_last_tag)
 
-    # Read and categorize commits
-    while IFS= read -r commit; do
-        [ -z "$commit" ] && continue
-        local category
-        category=$(categorize_commit "$commit")
-        case "$category" in
-            added)   added="${added}- ${commit}"$'\n' ;;
-            fixed)   fixed="${fixed}- ${commit}"$'\n' ;;
-            changed) changed="${changed}- ${commit}"$'\n' ;;
-            removed) removed="${removed}- ${commit}"$'\n' ;;
-        esac
-    done < <(get_commits)
+if [[ -z "$LAST_TAG" ]]; then
+    echo "ℹ️  No previous tag found. Using all commits."
+    VERSION="Unreleased"
+else
+    echo "ℹ️  Last tag: $LAST_TAG"
+    VERSION="$LAST_TAG → HEAD"
+fi
 
-    # Build CHANGELOG.md
-    {
-        echo "# Changelog"
-        echo ""
-        echo "## [${version}] - ${date}"
-        echo ""
-        
-        if [ -n "$added" ]; then
-            echo "### Added"
-            echo ""
-            echo -n "$added"
-            echo ""
-        fi
-        
-        if [ -n "$changed" ]; then
-            echo "### Changed"
-            echo ""
-            echo -n "$changed"
-            echo ""
-        fi
-        
-        if [ -n "$fixed" ]; then
-            echo "### Fixed"
-            echo ""
-            echo -n "$fixed"
-            echo ""
-        fi
-        
-        if [ -n "$removed" ]; then
-            echo "### Removed"
-            echo ""
-            echo -n "$removed"
-            echo ""
-        fi
-    } > "$CHANGELOG_FILE"
+# Gather commits
+COMMITS=$(git_commits_since "$LAST_TAG")
 
-    echo "CHANGELOG.md generated at: $CHANGELOG_FILE"
-    echo "Version: $version"
+if [[ -z "$COMMITS" ]]; then
+    echo "No new commits since $LAST_TAG."
+    exit 0
+fi
+
+# Build categorized lists
+ADDED=""
+FIXED=""
+CHANGED=""
+REMOVED=""
+
+while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    cat=$(categorize "$line")
+    case "$cat" in
+        Added)   ADDED="$ADDED- $line"$'\n' ;;
+        Fixed)   FIXED="$FIXED- $line"$'\n' ;;
+        Changed) CHANGED="$CHANGED- $line"$'\n' ;;
+        Removed) REMOVED="$REMOVED- $line"$'\n' ;;
+    esac
+done <<< "$COMMITS"
+
+# ── Write / Update CHANGELOG.md ──────────────────────────────────────────────
+
+{
+    echo "## [$VERSION] - $DATE"
     echo ""
-    cat "$CHANGELOG_FILE"
-}
+    [[ -n "$ADDED" ]]   && { echo "### Added";   echo "$ADDED"; }
+    [[ -n "$CHANGED" ]] && { echo "### Changed"; echo "$CHANGED"; }
+    [[ -n "$FIXED" ]]   && { echo "### Fixed";   echo "$FIXED"; }
+    [[ -n "$REMOVED" ]] && { echo "### Removed"; echo "$REMOVED"; }
+} > .changelog_new_section.md
 
-main "$@"
+if [[ -f "$CHANGELOG_FILE" ]]; then
+    # Prepend new section after a header if it exists, else just prepend
+    cat .changelog_new_section.md > .changelog_tmp.md
+    cat "$CHANGELOG_FILE" >> .changelog_tmp.md
+    mv .changelog_tmp.md "$CHANGELOG_FILE"
+else
+    cat .changelog_new_section.md > "$CHANGELOG_FILE"
+fi
 
---- /dev/null
-# Generate Changelog Skill
+rm -f .changelog_new_section.md
 
-A Claude Code skill to generate a structured `CHANGELOG.md` from git history.
-
-## Usage
-
+echo "✅  CHANGELOG updated in $CHANGELOG_FILE"
