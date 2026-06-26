@@ -4,42 +4,43 @@ Automated weekly narrative summary of a GitHub repo's activity, powered by n8n a
 
 ## Setup (5 steps)
 
-1. **Import the workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
-2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in *Settings* → *Credentials*
-3. **Configure variables**: Open the workflow and edit the *Set Config* node with your repo, destination, and language
-4. **Activate**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
-5. **Test**: Click *Execute Workflow* to run manually and verify output
+1. **Import the workflow**: In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`
 
-## Configuration
+2. **Set credentials**: Add your GitHub Personal Access Token, Claude API key, and (optional) Slack/Discord webhook URL in *Settings → Credentials*
 
-Edit the **Set Config** node to customize:
+3. **Configure variables**: Open the workflow and edit the `Configuration` node to set your repo, destination, and language
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `githubRepo` | Target repository | `claude-builders-bounty/claude-builders-bounty` |
-| `destination` | Webhook URL for delivery | `https://hooks.slack.com/services/...` |
-| `language` | Summary language | `EN` or `FR` |
+4. **Activate the workflow**: Toggle the workflow to *Active* — it will run automatically every Friday at 5 PM
 
-## What It Does
+5. **Test manually**: Click *Execute Workflow* to verify everything works, then check your chosen destination for the summary
 
-- **Trigger**: Cron schedule (weekly, Friday 5 PM)
-- **Fetch**: Commits, closed issues, and merged PRs from the past 7 days via GitHub API
-- **Summarize**: Sends data to Claude API (`claude-sonnet-4-20250514`) for narrative generation
-- **Deliver**: Posts the summary to your configured Slack/Discord webhook or email
+---
 
 ## Required Credentials
 
-- **GitHub API**: Personal Access Token with `repo` scope
-- **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
+| Service | How to Obtain |
+|---------|---------------|
+| GitHub Token | [Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens) — needs `repo` scope |
+| Claude API Key | [Anthropic Console](https://console.anthropic.com/settings/keys) |
+| Slack Webhook | [Slack Apps → Incoming Webhooks](https://api.slack.com/messaging/webhooks) (optional) |
+| Discord Webhook | Server Settings → Integrations → Webhooks (optional) |
 
-## Delivery Options
+## Configuration Variables
 
-The workflow defaults to **Slack/Discord webhook**. To switch to **email**:
-1. Replace the *HTTP Request* node with an *Email* node
-2. Configure SMTP credentials in n8n settings
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `githubRepo` | Target repository (`owner/repo`) | `claude-builders-bounty/claude-builders-bounty` |
+| `destination` | `slack`, `discord`, or `email` | `slack` |
+| `webhookUrl` | Webhook URL for Slack/Discord | — |
+| `language` | Output language: `EN` or `FR` | `EN` |
+| `emailTo` | Recipient email (if email selected) | — |
 
-## Screenshot
+## Output Example
 
-![Successful Execution](screenshot.png)
+> **Weekly Dev Summary: `claude-builders-bounty`**
+>
+> This week saw 12 commits, 3 closed issues, and 2 merged PRs. The team focused on improving the bounty board UI and adding new workflow integrations...
 
-*Include a screenshot of a successful execution from your n8n instance here.*
+---
+
+*Tested on n8n v1.50.0*
