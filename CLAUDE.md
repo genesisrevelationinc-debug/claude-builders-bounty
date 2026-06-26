@@ -1,6 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your conventions without asking questions.
+> Opinionated project conventions. Read this before writing code.
 
 ---
 
@@ -8,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
-| Runtime | Node.js 20+ | `fetch` cache changes, native `crypto`, LTS |
-| Database | better-sqlite3 | Synchronous, fast, zero network overhead for single-tenant or small SaaS |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable since 15.1 |
+| Runtime | Node.js 20+ | `crypto.randomUUID()` native, stable fetch, no polyfills |
+| Database | `better-sqlite3` | Synchronous, fast, zero network latency for single-node deploys |
 | ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
 | Auth | Lucia (or custom session) | No vendor lock-in, works with SQLite natively |
-| Styling | Tailwind CSS + shadcn/ui | Copy-paste components, no runtime CSS-in-JS |
+| Styling | Tailwind CSS + shadcn/ui | Copy-paste components, no runtime CSS overhead |
 | Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit + E2E without Jest config hell |
+| Testing | Vitest + Playwright | Unit + E2E without Jest's baggage |
 
-**Non-negotiable:** We do not use Prisma. The query engine binary adds Docker complexity and cold-start latency that defeats the purpose of SQLite.
+**Non-negotiable:** We do not use `turso` or `libsql` unless deploying to the edge. `better-sqlite3` is simpler, faster, and has fewer failure modes for traditional server deploys (VPS, Railway, Fly.io).
 
 ---
 
