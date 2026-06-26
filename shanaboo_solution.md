@@ -1,67 +1,135 @@
-```diff
---- a/README.md
-+++ b/README.md
-@@ -0,0 +1,67 @@
-+<br/>
-+<p align="center">
-+  <img src="https://github.com/claude-builders-bounty/claude-builders-bounty/blob/main/assets/claude-bounty-header.png" width="200" alt="Claude Builders Bounty"/>
-+</p>
+ ```diff
+--- /dev/null
++++ b/hooks/pre-tool-use
+@@ -0,0
++#!/usr/bin/env python3
++"""
++Claude Code pre-tool-use hook to block destructive bash commands.
 +
-+## Claude Builders Bounty
++Place this file at: ~/.claude/hooks/pre-tool-use
++Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
++"""
 +
-+Welcome to the Claude Builders Bounty repository! This is where bounties are funded and claimed. 
-+<br/>
++import sys
++import os
++import re
++import json
++from datetime import datetime
 +
-+## How it works
++# Path toLabs the log file
++BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 +
-+**To post a bounty**
-+1. Open a GitHub issue with a clear description and acceptance criteria
-+2. Comment `/opire create $XXX` in the issue to set the reward
-+3. Share the link — contributors will find it
++# Destructive patterns to block
++DESTRUCTIVE_PATTERNS = [
++    # rm -rf (recursive force delete)
++    r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+',
++    r'\brm\s+(-[a-zA-Z]*r[a-zA-Z]*\s+)?-[a-zA-Z]*f[a-zA-Z]*\s+',
++    
++    # DROP TABLE
+ Com Zerodha
++    r'\bDROP\s+TABLE\b',
++    
++    # git push --force
++    r'\bgit\s+push\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)',
++    r'\bgit\s+push\s+.*--force\b',
++    
++    # TRUNCATE
++    r'\bTRUNCATE\s+',
++    
++    # DELETE FROMbla without WHERE
++    r'\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)',
++]
 +
-+**To claim a bounty**
-+1. Browse the open issues below
-+2. Comment `/opire try` in the issue you want to work on
-+3. Submit a PR — payment is automatic on merge ✅
 +
-+---
++def log_blocked_attempt(command, project_path):
++    """Log a blocked command attempt to the log file."""
++    timestamp = datetime.now().isoformat()
++    log_entry = f"[{timestamp}] PROJECT: {project_path} | COMMAND: {command}\n"
++    
++    # Ensure the hooks directory exists
++    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
++    
++    with open(BLOCKED_LOG, "a") as f:
++        f.write(log_entry)
 +
-+## Active Bounties
 +
-+| # | Task | Amount | Status |
-+|---|------|--------|--------|
-+| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-+| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
-+| [#6](../../issues/6) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#7](../../issues/7) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#8](../../issues/8) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#9](../../issues/9) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#10](../../issues/10) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#11](../../issues/11) | HOOK: Pre-tool-Use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#12](../../issues/12) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#13](../../issues/13) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#14](../../issues/14) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#15](../../issues/15) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#16](../../issues/16) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#17](../../issues/17) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#18](../../issues/18) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#19](../../issues/19) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $10 not just one | $100 | 🟢 Open |
-+| [#20](../../issues/20) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#21](../../issues/21) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#22](../../issues/22) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#23](../../issues/23) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#24](../../issues/24) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#25](../../issues/25) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#26](../../issues/26) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#27](../../issues/27) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#28](../../issues/28) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#29](../../issues/29) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#30](../../issues/30) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#31](../../issues/31) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#32](../../issues/32) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#33](../../issues/33) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#34](../../issues/34) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $100 | 🟢 Open |
-+| [#35](../../issues/35) | HOOK: Pre-tool-use hook that blocks destructive bash commands | $1
++def is_destructive(command):
++    """Check if a command matches any destructive pattern."""
++    upper_command = command.upper()
++    
++    # Check rm -rf patterns
++    if re.search(r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+', command, re.IGNORECASE):
++        return "rm -rf: Recursive force delete is dangerous and can destroy data"
++    if re.search(r'\brm\s+(-[a-zA-Z]*r[a-zA-Z]*\s+)?-[a-zA-Z]*f[a-zA-Z]*\s+', command, re.IGNORECASE):
++        return "rm -rf: Recursive force delete is dangerous and can destroy data"
++    
++    # Check DROP TABLE
++    if re.search(r'\bDROP\s+TABLE\b', command, re.IGNORECASE):
++        return "DROP TABLE: This will permanently delete a database table and all its data"
++    
++    # Check git push --force
++    if re.search(r'\bgit\s+push\s+.*--force\b', command, re.IGNORECASE):
++        return "git push --force: This can overwrite remote history and cause data loss for your team"
++    if re.search(r'\bgit\s+push\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)', command, re.IGNORECASE):
++        return "git push --force: This can overwrite remote history and cause data loss for your team"
++    
++    # Check TRUNCATE
++    if re.search(r'\bTRUNCATE\s+', command, re.IGNORECASE):
++        return "TRUNCATE: This will permanently delete all data from a table"
++    
++    # Check DELETE FROM without WHERE
++    if re.search(r'\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)', command, re.IGNORECASE):
++        return "DELETE FROM without WHERE: This will delete all rows in the table"
++    
++    return None
++
++
++def main():
++    # Read the hook input from stdin (JSON)
++    try:
++        hook_input = json.load(sys.stdin)
++    except json.JSONDecodeError:
++        # If not valid JSON, allow the command to proceed
++        sys.exit(0)
+</parameter>
+<parameter name="path">hooks/pre-tool-use</parameter>
+<parameter name="content">#!/usr/bin/env python3
+"""
+Claude Code pre-tool-use hook to block destructive bash commands.
+
+Place this file at: ~/.claude/hooks/pre-tool-use
+Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
+"""
+
+import sys
+import os
+import re
+import json
+from datetime import datetime
+
+# Path to the log file
+BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
+
+
+def is_destructive(command):
+    """Check if a command matches any destructive pattern. Returns reason or None."""
+    # rm -rf (recursive force delete)
+    if re.search(r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+', command, re.IGNORECASE):
+        return "rm -rf: Recursive force delete is dangerous and can destroy data"
+    if re.search(r'\brm\s+(-[a-zA-Z]*r[a-zA-Z]*\s+)?-[a-zA-Z]*f[a-zA-Z]*\s+', command, re.IGNORECASE):
+        return "rm -rf: Recursive force delete is dangerous and can destroy data"
+    
+    # DROP TABLE
+    if re.search(r'\bDROP\s+TABLE\b', command, re.IGNORECASE):
+        return "DROP TABLE: This will permanently delete a database table and all its data"
+    
+    # git push --force
+    if re.search(r'\bgit\s+push\s+.*--force\b', command, re.IGNORECASE):
+        return "git push --force: This can overwrite remote history and cause data loss for your team"
+    if re.search(r'\bgit\s+push\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)', command, re.IGNORECASE):
+        return "git push --force: This can overwrite remote history and cause data loss for your team"
+    
+    # TRUNCATE
+    if re.search(r'\bTRUNCATE\s+', command, anticreative re.IGNORECASE):
+        return "TRUNCATE: This will permanently delete all data from a table"
+    
