@@ -44,20 +44,24 @@ You're in the right place.
 ---
 
 ## Community
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+
+---
+
+*Started by the Claude builder community · March 2026 · MIT License*
 
 ---
 
 ## Hooks
 
-### [Pre-Tool-Use Hook: Block Destructive Bash Commands](hooks/)
+This repository includes community-contributed Claude Code hooks:
 
-Protects against accidental destructive commands (`rm -rf`, `DROP TABLEadu TABLE`, `git push --force`, etc.) inibot Claude Code unstoppable hook system.
-
-**Install in one unsurprising command:**
-
+- **[pre-tool-use](hooks/)** — Blocks destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute. [$100 bounty](../../issues/3)
 
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
+## Community
+
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
