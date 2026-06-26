@@ -2,88 +2,108 @@
 """
 Claude Code pre-tool-use hook to block destructive bash commands.
 
-Place this file at: ~/.claude/hooks/pre-tool-use
-Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
+This hook intercepts dangerous bash commands before they are executed
+by Claude Code, preventing accidental data loss or destructive operations.
 """
 
 import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
+from pathlib import Path
 
 
-BLOCKED_LOG_PATH = os.path.expanduser("~/.claude/hooks/blocked.log")
+HOOKS_DIR = Path.home() / ".claude" / "hooks"
+LOG_FILE = HOOKS_DIR / "blocked.log"
 
 
-def log_blocked_attempt(command: str, project_path: str):
-    """Log a blocked command attempt with timestamp and project path."""
-    os.makedirs(os.path.dirname(BLOCKED_LOG_PATH), exist_ok=True)
-    timestamp = datetime.now(timezone.utc).isoformat()
-    log_entry = f"{timestamp} | {project_path} | {command}\n"
-    with open(BLOCKED_LOG_PATH, "a") as f:
+# Patterns that are always blocked (no exceptions)
+ALWAYS_BLOCKED = [
+    r"rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+.*",  # rm -rf ...
+    r"git\s+push\s+.*--force",  # git push --force
+    r"git\s+push\s+.*-f\b",  # git push -f
+    r"\bDROP\s+TABLE\b",  # DROP TABLE
+    r"\bTRUNCATE\b",  # TRUNCATE
+]
+
+# Patterns that require a WHERE clause
+REQUIRES_WHERE = [
+    r"\bDELETE\s+FROM\b",
+]
+
+
+def get_project_path() -> str:
+    """Get the current project path from environment or working directory."""
+    return os.getcwd()
+
+
+def log_blocked_attempt(command: str, reason: str) -> None:
+    """Log a blocked command attempt to the log file."""
+    HOOKS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.now().isoformat()
+    project_path = get_project_path()
+    
+    log_entry = (
+        f"[{timestamp}] "
+        f"BLOCKED: {reason} | "
+        f"Command: {command} | "
+        f"Project: {project_path}\n"
+    )
+    
+    with open(LOG_FILE, "a") as f:
         f.write(log_entry)
 
 
-def is_destructive_bash(command: str) -> tuple[bool, str]:
+def is_destructive(command: str) -> tuple[bool, str]:
     """
-    Check if a bash command is destructive.
-    Returns (is_blocked, reason).
+    Check if a command is destructive.
+    
+    Returns:
+        Tuple of (is_blocked, reason)
     """
-    upper = command.upper()
-    stripped = command.strip()
-
-    # Pattern: rm -rf (and variants like rm -rfv, rm -fr)
-    if re.search(r'\brm\s+-(?:[a-zA-Z]*[rf])', stripped, re.IGNORECASE):
-        return True, "Destructive file deletion (rm -rf) is blocked to prevent accidental data loss."
-
-    # Pattern: DROP TABLE
-    if re.search(r'\bDROP\s+TABLE\b', upper):
-        return True, "DROP TABLE is blocked to prevent accidental database table deletion."
-
-    # Pattern: git push --force (and -f)
-    if re.search(r'\bgit\s+push\s+.*--?f', stripped, re.IGNORECASE):
-        return True, "git push --force is blocked to prevent overwriting remote history."
-
-    # Pattern: TRUNCATE
-    if re.search(r'\bTRUNCATE\b', upper):
-        return True, "TRUNCATE is blocked to prevent accidental data removal."
-
-    # Pattern: DELETE FROM without WHERE
-    if re.search(r'\bDELETE\s+FROM\b', upper) and not re.search(r'\bWHERE\b', upper):
-        return True, "DELETE FROM without a WHERE clause is blocked to prevent deleting all table rows."
-
+    command_upper = command.upper()
+    command_stripped = command.strip()
+    
+    # Check always-blocked patterns
+    for pattern in ALWAYS_BLOCKED:
+        if re.search(pattern, command_stripped, re.IGNORECASE):
+            return True, f"Command matches blocked pattern: {pattern}"
+    
+    # Check DELETE FROM without WHERE
+    for pattern in REQUIRES_WHERE:
+        if re.search(pattern, command_stripped, re.IGNORECASE):
+            # Check if there's a WHERE clause
+            if not re.search(r"\bWHERE\b", command_upper):
+                return True, "DELETE FROM without a WHERE clause is not allowed"
+    
     return False, ""
 
 
 def main():
-    # Read stdin for the tool use JSON
+    # Read the tool use data from stdin (Claude Code hook format)
     try:
-        tool_input = sys.stdin.read()
-        tool_data = json.loads(tool_input)
+        tool_data = json.loads(sys.stdin.read())
     except json.JSONDecodeError:
         # Not a valid JSON, pass through
         sys.exit(0)
-
+    
     # Only intercept bash tool
     if tool_data.get("tool_name") != "bash":
         sys.exit(0)
-
-    command = tool_data.get("command", "")
-    project_path = tool_data.get("project_path", os.getcwd())
-
-    is_blocked, reason = is_destructive_bash(command)
-
+    
+    command = tool_data.get("params", {}).get("command", "")
+    
+    is_blocked, reason = is_destructive(command)
+    
     if is_blocked:
-        log_blocked_attempt(command, project_path)
-        print(f"🛡️  BLOCKED: {reason}", file=sys.stderr)
-        print(f"   Command: {command}", file=sys.stderr)
-        print(f"   This command has been prevented from executing.", file=sys.stderr)
-        print(f"   Logged to: {BLOCKED_LOG_PATH}", file=sys.stderr)
+        log_blocked_attempt(command, reason)
+        print(f"🚫 BLOCKED: This command has been prevented from running.\n", file=sys.stderr)
+        print(f"Reason: {reason}\n", file=sys.stderr)
+        print(f"Command: {command}\n", file=sys.stderr)
+        print("If you need to run this command, please do so manually outside of Claude Code.", file=sys.stderr)
         sys.exit(1)
-
-    # Command is safe, allow it
-    sys.exit(0)
 
 
 if __name__ == "__main__":
