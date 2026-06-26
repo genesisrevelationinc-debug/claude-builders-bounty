@@ -6,8 +6,6 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
-This repository also contains useful [Claude Code hooks](hooks/) contributed by the community.
-
 ---
 
 ## How it works
@@ -53,3 +51,18 @@ This repository also contains useful [Claude Code hooks](hooks/) contributed by 
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
+
+---
+
+## Hooks
+
+| Hook | Description | Path |
+|------|-------------|------|
+| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands | `~/.claude/hooks/pre-tool-use` |
+
+See [hooks/README.md](hooks/README.md) for installation and usage.
+
+---
+## Rules
+
+- Tasks must be related to Claude Code or AI tooling
