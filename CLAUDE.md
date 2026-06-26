@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read before generating code. Every rule has a reason.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at the root of your project. Claude Code reads it automatically.
 
 ---
 
@@ -8,20 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, minimal client JS |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `structuredClone` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network latency, works on server |
-| ORM/Query | Raw SQL + `better-sqlite3` | No ORM bloat; SQL is the source of truth, easy to optimize |
-| Migrations | Custom Node.js scripts | One dependency fewer; full control over transaction boundaries |
-| Auth | `bcryptjs` + `jose` (JWT) | No third-party auth service lock-in; works offline |
-| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS, tree-shakes dead styles |
-| Forms | Server Actions + `zod` | No API routes to maintain; validation co-located with action |
-| Testing | Vitest + `better-sqlite3` in-memory | Same DB in tests and production; no Docker required |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | `oslo` + `bcryptjs` | Minimal, no vendor lock-in, works with any user table schema |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `zod` | No client-side form libraries needed |
+| Testing | Vitest + Playwright | Unit + E2E without Jest's config complexity |
 
-**Pinned versions** (do not upgrade without team discussion):
-- `next`: `^15.0.0`
-- `better-sqlite3`: `^11.0.0`
-- `tailwindcss`: `^3.4.0`
+**Non-negotiable:** We do not use `pg`, `mysql2`, or Prisma. SQLite is the production database. If you need read replicas later, use LiteStream or migrate then—not now.
 
 ---
 
