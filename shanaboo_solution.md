@@ -1,185 +1,175 @@
-  bounty, template
+  forbidden  1.  look at the issue, this is a template bounty. The user wants a `CLAUDE.md` file created for a Next.js + SQLite SaaS project. The repo currently only has `README.md` and `LICENSE`. I need to create a new file `CLAUDE.md` at the root. The diff should be for a new file.
 
-Issue Description:
-## 💰 Bounty: $75 — powered by [Opire](https://opire.dev)
+The issue says:
+- Covers: project structure, naming conventions, DB migration rules
+- Includes: dev commands, patterns to follow, anti-patterns to avoid
+- Opinionated — not generic. Every rule has a reason.
+- Usable without modification on a greenfield Next.js + SQLite project
+- Tested: create a new project, paste the CLAUDE.md, confirm Claude Code understands the context without asking clarifying questions
 
-## Description
-Create an opinionated, production-ready `CLAUDE.md` for a typical SaaS project
-built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso).
-
-## Acceptance Criteria
-- [ ] Covers: project structure, naming conventions, DB migration rules
-- [ ] Includes: dev commands, patterns to follow, anti-patterns to avoid
-- [ ] Opinionated — not generic. Every rule has a reason.
-- [ ] Usable without modification on a greenfield Next.js + SQLite project
-- [ ] Tested: create a new project, paste the CLAUDE.md, confirm Claude Code
-      understands the context without asking clarifying questions
-
-## How to Claim
-1. Comment `/opire try` in this issue
-2. Submit a PR with your CLAUDE.md
-3. Payment is released automatically on merge ✅
-
-## Expected Sections
+Expected Sections:
 - Stack & versions
 - Folder structure
 - SQL / migration conventions
 - Component patterns
 - What we don't do (and why)
 
+I need to create a comprehensive, opinionated CLAUDE.md. Since the repo is `claude-builders-bounty/claude-builders-bounty`, and the issue is about creating a template, the file should be created at the root. The file listing shows `README.md` and `LICENSE`. So the new file is `CLAUDE.md`.
 
-=== RELEVANT REPO FILES (modify these, keep real paths) ===
+I will write a detailed CLAUDE.md that meets all criteria. It should be production-ready and opinionated.
 
---- FILE: README.md ---
-# Claude Builders Bounty 🤖
+Let's draft the content:
 
-> A community bounty board for Claude Code builders.
+```markdown
+# CLAUDE.md — Next.js 15 + SQLite SaaS
 
-Building with Claude Code? Have tasks to delegate?
-Want to get paid for contributing to AI projects?
-You're in the right place.
+## Stack & Versions
 
----
+- **Next.js 15** (App Router, Server Components by default)
+- **React 19** (Server Components first; client components only when needed)
+- **TypeScript** (strict mode, no `any` without comment)
+- **SQLite** via `better-sqlite3` (local) or **Turso** (cloud)
+- **Drizzle ORM** (type-safe SQL, not Prisma — zero runtime bloat)
+- **Tailwind CSS** (utility-first, no arbitrary values in markup)
+- **Zod** (schema validation, shared between server and client)
+- **next-safe-action** (type-safe server actions with input validation)
 
-## How it works
-
-**To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
-3. Share the link — contributors will find it
-
-**To claim a bounty**
-1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
-3. Submit a PR — payment is automatic on merge ✅
+> **Why this stack?** Next.js 15 App Router eliminates API boilerplate. Drizzle keeps SQL visible and type-safe. SQLite keeps ops simple until you outgrow it. Zod + next-safe-action removes the need for a separate tRPC layer.
 
 ---
 
-## Active Bounties
+## Folder Structure
 
-| # | Task | Amount | Status |
-|---|------|--------|--------|
-| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+\`\`\`
+src/
+  app/                    # Next.js App Router
+    (auth)/               # Route groups for layout isolation
+      login/
+      register/
+    (dashboard)/
+      dashboard/
+        page.tsx
+        layout.tsx
+    api/                  # Only for webhooks or external API routes
+    layout.tsx
+    page.tsx
+  components/
+    ui/                   # shadcn/ui primitives (button, input, etc.)
+    forms/                # Form-specific components (LoginForm, etc.)
+    layout/               # Header, Sidebar, Footer
+  lib/
+    db/                   # Drizzle schema & connection
+      schema.ts
+      index.ts            # Database client singleton
+    actions/              # next-safe-action server actions
+      auth.ts
+      billing.ts
+    validations/          # Zod schemas
+      auth.ts
+    utils.ts              # cn(), formatters, etc.
+  hooks/                  # Shared React hooks (useUser, etc.)
+  types/                  # Global TypeScript types
+\`\`\`
 
----
-
-## Rules
-
-- Tasks must be related to Claude Code or AI tooling
-- Every issue must have clear acceptance criteria before a bounty is activated
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
-- Quality over speed — a solid PR beats a fast one
-
----
-
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
-
----
-
-*Started by the Claude builder community · March 2026 · MIT License*
-
---- FILE: README.md ---
-# Claude Builders Bounty 🤖
-
-> A community bounty board for Claude Code builders.
-
-Building with Claude Code? Have tasks to delegate?
-Want to get paid for contributing to AI projects?
-You're in the right place.
+> **Why this structure?** Co-locating server actions in `lib/actions/` keeps them testable and discoverable. UI primitives stay separate from business logic. Route groups keep layouts clean.
 
 ---
 
-## How it works
+## SQL / Migration Conventions
 
-**To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
-3. Share the link — contributors will find it
+1. **Use Drizzle Kit for migrations.** Run `npx drizzle-kit generate` after every schema change. Commit `.sql` files.
+2. **Schema in `src/lib/db/schema.ts` only.** No inline table definitions.
+3. **Naming:**
+   - Tables: plural, snake_case (`users`, `subscriptions`)
+   - Columns: snake_case (`created_at`, `stripe_customer_id`)
+   - Foreign keys: `table_id` referencing `table.id`
+4. **Every table must have:**
+   - `id: text("id").$defaultFn(() => createId())` — CUID, not auto-increment (avoids ID enumeration)
+   - `created_at` and `updated_at` timestamps
+5. **Soft deletes only.** Add `deleted_at` timestamp. Never `DELETE` a user row; filter with `.where(isNull(schema.users.deletedAt))`.
+6. **Indexes:** Define in schema. Any query filtering on a column needs an index. Name them: `idx_table_column`.
 
-**To claim a bounty**
-1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
-3. Submit a PR — payment is automatic on merge ✅
-
----
-
-## Active Bounties
-
-| # | Task | Amount | Status |
-|---|------|--------|--------|
-| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+> **Why?** Soft deletes prevent accidental data loss and simplify GDPR "right to be forgotten" (anonymize instead of hard delete). CUIDs prevent enumeration attacks and make DB sharding trivial later.
 
 ---
 
-## Rules
+## Component Patterns
 
-- Tasks must be related to Claude Code or AI tooling
-- Every issue must have clear acceptance criteria before a bounty is activated
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
-- Quality over speed — a solid PR beats a fast one
+### Server Components (default)
 
----
+Fetch data directly in the component. Pass primitives to children.
 
-## Community
+\`\`\`tsx
+// app/dashboard/page.tsx
+import { db } from "@/lib/db";
+import { DashboardClient } from "./DashboardClient";
 
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
+export default async function DashboardPage() {
+  const user = await db.query.users.findFirst(); // Drizzle
+  if (!user) return <div>Not logged in</div>;
+  return <DashboardClient initialData={user} />;
+}
+\`\`\`
 
----
+### Client Components
 
-*Started by the Claude builder community · March 2026 · MIT License*
+Only when using `useState`, `useEffect`, or browser APIs. Mark explicitly:
 
---- FILE: README.md ---
-# Claude Builders Bounty 🤖
+\`\`\`tsx
+"use client";
 
-> A community bounty board for Claude Code builders.
+import { useState } from "react";
 
-Building with Claude Code? Have tasks to delegate?
-Want to get paid for contributing to AI projects?
-You're in the right place.
+export function Counter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(c => c + 1)}>{count}</button>;
+}
+\`\`\`
 
----
+### Forms
 
-## How it works
+Always use `next-safe-action` with Zod.
 
-**To post a bounty**
-1. Open a GitHub issue with a clear description and acceptance criteria
-2. Comment `/opire create $XXX` in the issue to set the reward
-3. Share the link — contributors will find it
+\`\`\`tsx
+// lib/actions/auth.ts
+"use server";
 
-**To claim a bounty**
-1. Browse the open issues below
-2. Comment `/opire try` in the issue you want to work on
-3. Submit a PR — payment is automatic on merge ✅
+import { actionClient } from "@/lib/safe-action";
+import { z } from "zod";
 
----
-
-## Active Bounties
-
-| # | Task | Amount | Status |
-|---|------|--------|--------|
-| [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
-| [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
-| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+export const login = actionClient
+  .schema(z.object({ email: z.string().email(), password: z.string().min(8) }))
+  .action(async ({ parsedInput }) => {
+    // ... auth logic
+  });
+\`\`\`
 
 ---
 
-## Rules
+## Dev Commands
 
-- Tasks must be related to Claude Code or AI tooling
-- Every issue must have clear acceptance criteria before a bounty is activated
-- Payment is handled by [Opire](https://opire.dev) (Stripe)
-- Quality
+\`\`\`bash
+# Install
+pnpm install
+
+# Dev server
+pnpm dev
+
+# Generate & run migrations
+pnpm db:generate
+pnpm db:migrate
+
+# Type check & lint (run before every commit)
+pnpm typecheck
+pnpm lint
+pnpm format
+\`\`\`
+
+---
+
+## Anti-Patterns (What We Don't Do)
+
+| Anti-Pattern | Why | What We Do Instead |
+|--------------|-----|--------------------|
+| \`"use client"\` at the top of every file | Defeats Server Components; ships more JS to client | Keep server components default; use client components only for interactivity |
+| Storing secrets in \`.env.local\` only | Easy to leak; no shared config | Use \`.env.example\` + 1Password/
