@@ -1,42 +1,47 @@
 # n8n Weekly Dev Summary Workflow
 
-Automated weekly narrative summary of GitHub repo activity using n8n + Claude API.
+Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
 
 ## Setup (5 steps)
 
-1. **Import workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
+1. **Import the workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
 
-2. **Set credentials**: Add your **Claude API** key and **GitHub Personal Access Token** in n8n *Credentials*
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API Key in n8n *Settings* → *Credentials*
 
-3. **Configure variables**: Open the *Set Config* node and edit:
-   - `repo` — GitHub owner/repo (e.g., `claude-builders-bounty/claude-builders-bounty`)
-   - `channel` — email address or webhook URL for delivery
-   - `language` — `EN` or `FR`
+3. **Configure variables**: Open the workflow and edit the *Set Variables* node with your repo, destination, and language
 
-4. **Activate**: Toggle the workflow to *Active* — it runs automatically every Friday at 5 PM
+4. **Activate the workflow**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
 
-5. **Test manually**: Click *Execute Workflow* to run a test and verify output
+5. **Test it**: Click *Execute Workflow* to run manually and verify output
 
 ---
-
-## Delivery Options
-
-The workflow supports **email** (SMTP) or **webhook** (Discord/Slack) delivery. Configure in the *Set Config* node:
-
-- For **email**: set `deliveryMethod` to `email` and `channel` to your email address
-- For **webhook**: set `deliveryMethod` to `webhook` and `channel` to your Discord/Slack webhook URL
 
 ## Required Credentials
 
 | Service | Credential Type | How to Get |
 |---------|----------------|------------|
-| Claude API | `anthropicApi` | [Anthropic Console](https://console.anthropic.com) |
-| GitHub | `githubApi` | [GitHub Settings → Tokens](https://github.com/settings/tokens) |
+| GitHub | Personal Access Token | [Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens) |
+| Anthropic | API Key | [Console → API keys](https://console.anthropic.com/settings/keys) |
 
-## Workflow Overview
+## Configurable Variables
 
-1. **Cron Trigger** — Every Friday at 5:00 PM
-2. **Set Config** — Define repo, channel, language
-3. **GitHub Nodes** — Fetch commits, closed issues, merged PRs (last 7 days)
-4. **Claude API** — Generate narrative summary
-5. **Deliver** — Send via email or webhook
+Edit the **Set Variables** node to customize:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `githubRepo` | Full repo path | `owner/repo-name` |
+| `destinationWebhook` | Email or webhook URL | `https://hooks.slack.com/services/...` |
+| `language` | Output language | `EN` or `FR` |
+
+## Delivery Options
+
+The workflow supports **Slack**, **Discord**, and **Email** out of the box. Set your `destinationWebhook` to:
+- Slack incoming webhook URL
+- Discord webhook URL (adds `/slack` suffix automatically)
+- SMTP settings for email (configure *Send Email* node instead)
+
+## Screenshot
+
+> 📸 *Include a screenshot of a successful execution here after testing*
+
+---
