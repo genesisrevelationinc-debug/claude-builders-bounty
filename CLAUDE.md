@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project context for Claude Code. Paste this into your repo root.
+> Assumes: Next.js 15 App Router, TypeScript, Tailwind, better-sqlite3 (or Turso), tRPC or Server Actions.
 
 ---
 
@@ -9,18 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead, works in Server Components |
-| ORM/Query | Raw SQL + `better-sqlite3` | No ORM bloat; SQL is the source of truth. Use `db.prepare()` for everything |
-| Migrations | Custom `.sql` files + Node script | Schema changes must be reviewable, reversible, and run in a transaction |
-| Auth | `iron-session` + bcrypt | Stateless sessions, no external auth service dependency |
-| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime, colocated with components |
-| Forms | Server Actions + `useFormState` | No API routes for mutations; progressive enhancement built-in |
-| Validation | `zod` | Share schemas between Server Actions and client |
-| Testing | Vitest (unit) + Playwright (E2E) | Fast unit tests, real browser for critical paths |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
+| Language | TypeScript 5.x | Strict mode. No `any` without comment explaining why |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
+| Database | better-sqlite3 (dev) / Turso (prod) | SQLite is enough until 10k+ concurrent writes. Zero-config local dev |
+| ORM/Query | Drizzle ORM | Type-safe SQL. Migrations are plain SQL files, not black boxes |
+| Auth | Lucia + oslo (or NextAuth v5) | Session-based, works edgeless, no vendor lock-in |
+| Validation | Zod | Same schemas on server and client. Single source of truth |
+| Testing | Vitest + Playwright | Unit for logic, E2E for critical paths |
 
-**Lockfile rule:** `package-lock.json` is the source of truth. Delete `yarn.lock` / `pnpm-lock.yaml` on sight.
+**Node version:** `>=20.11.0` (LTS). We use `--experimental-sqlite` only in scripts, never in app code.
 
 ---
 
