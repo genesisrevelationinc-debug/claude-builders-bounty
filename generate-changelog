@@ -1,127 +1,122 @@
 #!/usr/bin/env bash
-# Run this script to generate a CHANGELOG.md from git history
-exec bash "$(dirname "$0")/scripts/changelog.sh" "$@"
+set -euo pipefail
+bash "$(dirname "$0")/changelog.sh" "$@"
 #!/usr/bin/env bash
 set -euo pipefail
 
-# generate-changelog — create a structured CHANGELOG.md from git history
-# Usage: bash scripts/changelog.sh [--output FILE]
+# generate-changelog.sh
+# Generates a structured CHANGELOG.md from git history since the last tag.
 
-OUTPUT="${1:-CHANGELOG.md}"
-TMPDIR="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR"' EXIT
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OUTPUT_FILE="${1:-CHANGELOG.md}"
 
-# ── helpers ─────────────────────────────────────────────────────────
+# Determine the last tag
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
-get_last_tag() {
-    git describe --tags --abbrev=0 2>/dev/null || echo ""
-}
+if [ -z "$LAST_TAG" ]; then
+    echo "No previous tag found. Using all commits."
+    COMMIT_RANGE=""
+else
+    echo "Last tag: $LAST_TAG"
+    COMMIT_RANGE="${LAST_TAG}..HEAD"
+fi
 
-get_commits_since() {
-    local since="$1"
-    if [[ -n "$since" ]]; then
-        git log "${since}..HEAD" --pretty=format:"%s" --no-merges
+# Get commits
+if [ -z "$COMMIT_RANGE" ]; then
+    COMMITS=$(git log --pretty=format:"%s" --no-merges)
+else
+    COMMITS=$(git log --pretty=format:"%s" --no-merges "$COMMIT_RANGE")
+fi
+
+if [ -z "$COMMITS" ]; then
+    echo "No new commits found since last tag."
+    exit 0
+fi
+
+# Categorization
+ADDED=""
+FIXED=""
+CHANGED=""
+REMOVED=""
+
+while IFS= read -r line; do
+    [ -z "$line" ] && continue
+
+    lower=$(echo "$line" | tr '[:upper:]' '[:lower:]')
+
+    if echo "$lower" | grep -qE '^(feat|add|new|introduce|implement|create|support)'; then
+        ADDED="${ADDED}- ${line}"$'\n'
+    elif echo "$lower" | grep -qE '^(fix|bugfix|hotfix|patch|resolve|correct)'; then
+        FIXED="${FIXED}- ${line}"$'\n'
+    elif echo "$lower" | grep -qE '^(remove|delete|drop|revert|deprecate)'; then
+        REMOVED="${REMOVED}- ${line}"$'\n'
+    elif echo "$lower" | grep -qE '^(update|change|modify|refactor|improve|enhance|upgrade|bump|style|docs|test|chore)'; then
+        CHANGED="${CHANGED}- ${line}"$'\n'
     else
-        git log --pretty=format:"%s" --no-merges
+        # Default to Changed if no clear prefix
+        CHANGED="${CHANGED}- ${line}"$'\n'
     fi
-}
+done <<< "$COMMITS"
 
-categorize() {
-    local msg="$1"
-    local lower
-    lower="$(echo "$msg" | tr '[:upper:]' '[:lower:]')"
+# Build changelog
+DATE=$(date +%Y-%m-%d)
+VERSION="Unreleased"
 
-    case "$lower" in
-        feat*|add*|introduce*|implement*|new*)
-            echo "added" ;;
-        fix*|bugfix*|patch*|resolve*|hotfix*)
-            echo "fixed" ;;
-        remove*|delete*|drop*|deprecate*|clean*)
-            echo "removed" ;;
-        change*|update*|refactor*|rework*|improve*|modify*|upgrade*|bump*|style*|docs*|test*|chore*|perf*|ci*|build*)
-            echo "changed" ;;
-        *)
-            echo "changed" ;;
-    esac
-}
+if [ -n "$LAST_TAG" ]; then
+    VERSION="$LAST_TAG → HEAD"
+fi
 
-format_commit() {
-    local msg="$1"
-    # Strip common prefixes like "feat:", "fix:", etc.
-    echo "$msg" | sed -E 's/^[a-zA-Z]+(\([^)]*\))?:[[:space:]]*//'
-}
+CHANGELOG="# Changelog
 
-# ── main ────────────────────────────────────────────────────────────
+All notable changes to this project will be documented in this file.
 
-main() {
-    if ! git rev-parse --git-dir > /dev/null 2>&1; then
-        echo "Error: Not a git repository." >&2
-        exit 1
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [${VERSION}] - ${DATE}
+"
+
+if [ -n "$ADDED" ]; then
+    CHANGELOG="${CHANGELOG}
+### Added
+${ADDED}"
+fi
+
+if [ -n "$CHANGED" ]; then
+    CHANGELOG="${CHANGELOG}
+### Changed
+${CHANGED}"
+fi
+
+if [ -n "$FIXED" ]; then
+    CHANGELOG="${CHANGELOG}
+### Fixed
+${FIXED}"
+fi
+
+if [ -n "$REMOVED" ]; then
+    CHANGELOG="${CHANGELOG
+### Removed
+${REMOVED}}"
+fi
+
+# Append existing changelog if present
+if [ -f "$OUTPUT_FILE" ]; then
+    # Extract header and existing entries (skip our generated header)
+    EXISTING=$(tail -n +8 "$OUTPUT_FILE" 2>/dev/null || true)
+    if [ -n "$EXISTING" ]; then
+        CHANGELOG="${CHANGELOG}
+${EXISTING}"
     fi
+fi
 
-    local last_tag
-    last_tag="$(get_last_tag)"
+# Write output
+echo "$CHANGELOG" > "$OUTPUT_FILE"
+echo "CHANGELOG written to $OUTPUT_FILE"
+# Generate Changelog Skill
 
-    local range_desc
-    if [[ -n "$last_tag" ]]; then
-        range_desc="since ${last_tag}"
-    else
-        range_desc="(all commits)"
-    fi
-
-    echo "Generating changelog ${range_desc} → ${OUTPUT}" >&2
-
-    # Collect commits into temp files per category
-    while IFS= read -r commit; do
-        [[ -z "$commit" ]] && continue
-        local cat
-        cat="$(categorize "$commit")"
-        local formatted
-        formatted="$(format_commit "$commit")"
-        echo "- ${formatted}" >> CHANGELOG.md >> "${TMPDIR}/${cat}.txt"
-    done < <(get_commits_since "$last_tag")
-
-    # Build the changelog
-    {
-        echo "# Changelog"
-        echo ""
-        echo "All notable changes to this project are documented in this file."
-        echo ""
-        echo "## Unreleased ${range_desc}"
-        echo ""
-
-        if [[ -s "${TMPDIR}/added.txt" ]]; then
-            echo "### Added"
-            cat "${TMPDIR}/added.txt"
-            echo ""
-        fi
-
-        if [[ -s "${TMPDIR}/changed.txt" ]]; then
-            echo "### Changed"
-            cat "${TMPDIR}/changed.txt"
-            echo ""
-        fi
-
-        if [[ -s "${TMPDIR}/fixed.txt" ]]; then
-            echo "### Fixed"
-            cat "${TMPDIR}/fixed.txt"
-            echo ""
-        fi
-
-        if [[ -s "${TMPDIR}/removed.txt" ]]; then
-            echo "### Removed"
-            cat "${TMPDIR}/removed.txt"
-            echo ""
-        fi
-    } > "$OUTPUT"
-
-    echo "Done. See ${OUTPUT}" >&2
-}
-
-main "$@"
-# /generate-changelog
-
-Generate a structured `CHANGELOG.md` from the project's git history.
+## Description
+Automatically generate a structured `CHANGELOG.md` from git history.
 
 ## Usage
 
