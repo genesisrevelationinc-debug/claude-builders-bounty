@@ -4,14 +4,13 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-permissions:
-  pull-requests: write
-  contents: read
-
 jobs:
   review:
     runs-on: ubuntu-latest
-    name: Claude Code PR Review
+    permissions:
+      pull-requests: write
+      contents: read
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,102 +30,31 @@ jobs:
         id: get-diff
         run: |
           curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" \
-            | jq -r '.diff_url' | xargs curl -s > pr.diff
-          echo "diff_file=pr.diff" >> $GITHUB_OUTPUT
+            "${{ github.event.pull_request.diff_url }}" > /tmp/pr.diff
 
       - name: Run Claude Review
-        id: review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          python claude-review/claude_review.py \
-            --pr ${{ github.event.pull_request.html_url }} \
-            --diff-file pr.diff \
-            --github-token ${{ secrets.GITHUB_TOKEN }} \
-            --post-comment
+          cd claude-review
+          python -m claude_review --pr "$PR_URL" --diff-file /tmp/pr.diff --post-comment
+--- /dev/null
+# Claude PR Review Agent 🤖
 
-#!/usr/bin/env python3
-"""
-Claude Code PR Review Agent
+An autonomous sub-agent for [Claude Code](https://claude.ai/code) that reviews GitHub PRs and posts structured Markdown review comments.
 
-A CLI tool that takes a PR diff as input, analyzes it using Claude,
-and returns a structured Markdown review comment.
+## Features
 
-Usage:
-    claude-review --pr https://github.com/owner/repo/pull/123
-    claude-review --pr https://github.com/owner/repo/pull/123 --diff-file path/to/diff
-    claude-review --pr URL --github-token TOKEN --post-comment
-"""
+- **Structured output**: Summary, risks, suggestions, and confidence score
+- **CLI usage**: Run locally with `claude-review --pr <url>`
+- **GitHub Action**: Auto-reviews PRs on open/synchronize
+- **Smart analysis**: Powered by Claude 3.5 Sonnet via Anthropic API
 
-import argparse
-import json
-import os
-import re
-import subprocess
-import sys
-import tempfile
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
+## Setup
 
-import requests
+### Local / CLI
 
-
-@dataclass
-class ReviewResult:
-    """Structured PR review result."""
-    summary: str
-    risks: list[str]
-    suggestions: list[str]
-    confidence: str  # Low, Medium, High
-    raw_response: str
-
-
-class ClaudeReviewer:
-    """PR reviewer powered by Claude API."""
-
-    API_URL = "https://api.anthropic.com/v1/messages"
-    MODEL = "claude-3-5-sonnet-20241022"
-
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not self.api_key:
-            raise ValueError(
-                "Anthropic API key required. Set ANTHROPIC_API_KEY env var "
-                "or pass --anthropic-api-key."
-            )
-
-    def _call_claude(self, prompt: str) -> str:
-        """Call Claude API with the given prompt."""
-        headers = {
-            "x-api-key": self.api_key,
-            "Content-Type": "application/json",
-            "anthropic-version": "2023-06-01",
-        }
-
-        payload = {
-            "model": self.MODEL,
-            "max_tokens": 4096,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-        }
-
-        response = requests.post(self.API_URL, headers=headers, json=payload, timeout=120)
-        response.raise_for_status()
-
-        data = response.json()
-        return data["content"][0]["text"]
-
-    def _build_prompt(self, diff_content: str, pr_url: str) -> str:
-        """Build the review prompt for Claude."""
-        return f"""You are an expert code reviewer. Analyze the following pull request diff and provide a structured review.
-
-PR URL: {pr_url}
-
-## Diff Content
-
+1. **Install dependencies**
+   
