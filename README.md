@@ -48,11 +48,7 @@ You're in the right place.
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
 
----
-
 *Started by the Claude builder community · March 2026 · MIT License*
-
----
 
 ## Skills
 
@@ -61,3 +57,4 @@ You're in the right place.
 Quickly generate a structured `CHANGELOG.md` from your git history:
 
 
+*Started by the Claude builder community · March 2026 · MIT License*
