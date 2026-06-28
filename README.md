@@ -45,23 +45,17 @@ You're in the right place.
 
 ## Community
 
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
-
----
-
-*Started by the Claude builder community · March 2026 · MIT License*
 
 ---
 
 ## Hooks
 
-This repository includes community-contributed Claude Code hooks:
+### Pre-Tool-Use Hook: Block Destructive Commands
 
-- **[pre-tool-use](hooks/)** — Blocks destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute. [$100 bounty](../../issues/3)
+A security hook that intercepts dangerous bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute in Claude Code.
+
+**Quick install:**
 
 ---
 
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+*Started by the Claude builder community · March 2026 · MIT License*
