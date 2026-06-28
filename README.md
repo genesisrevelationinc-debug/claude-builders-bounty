@@ -8,12 +8,7 @@ You're in the right place.
 
 ---
 
----
-
-## Quick Start
-
-Generate a changelog from your git history in 3 steps:
-
+## How it works
 
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
@@ -56,3 +51,13 @@ Generate a changelog from your git history in 3 steps:
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
+
+---
+
+## Skills
+
+### Generate Changelog
+
+Quickly generate a structured `CHANGELOG.md` from your git history:
+
+
