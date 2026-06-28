@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root.
-> Assumes: Next.js 15 App Router, TypeScript, Tailwind CSS, better-sqlite3 or Turso, and a single developer or small team shipping fast.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at your repo root. Claude Code reads it automatically for context.
 
 ---
 
@@ -9,16 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Language | TypeScript 5.x | Strict mode. No `any` without a comment explaining why |
-| Styling | Tailwind CSS 3.4+ | Utility-first, no CSS-in-JS runtime cost |
-| Database | better-sqlite3 (dev) / Turso (prod) | SQLite is enough until you have >10k concurrent writes. Zero config locally |
-| ORM/Query | Drizzle ORM | Type-safe SQL. Migrations are plain SQL files. No hidden queries |
-| Auth | Lucia + oslo | Session-based, works with SQLite out of the box. No JWT bloat |
-| Validation | Zod | Share schemas between server and client where possible |
-| Testing | Vitest + Playwright | Unit for logic, E2E for critical paths only |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia (or custom session) | Cookie-based sessions stored in SQLite, no external deps |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, no runtime CSS |
+| Validation | Zod | Schema validation shared between server and client |
+| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
 
-**Node version:** `>=20.0.0` (LTS). Use `nvm` or `fnm` to pin.
+**Non-negotiable:** We do not use Prisma. The query engine adds complexity and binary bloat that contradicts SQLite's simplicity.
 
 ---
 
