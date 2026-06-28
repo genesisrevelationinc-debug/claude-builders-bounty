@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Claude Code pre-tool-use hook: Blocks destructive bash commands.
+Claude Code pre-tool-use hook to block destructive bash commands.
 
-Place this file at: ~/.claude/hooks/pre-tool-use
-Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
+This hook intercepts dangerous bash commands before they are executed
+by Claude Code, preventing accidental data loss.
 """
 
 import json
@@ -14,92 +14,98 @@ from datetime import datetime
 from pathlib import Path
 
 
-BLOCKED_PATTERNS = [
-    # rm -rf (and variations like rm -rf /, rm -rf *)
-    (r'\brm\s+(-[a-zA-Z]*\s+)?-rf(\s+|$)', 'rm -rf: recursively and forcefully removes files/directories'),
-    # DROP TABLE
-    (r'\bDROP\s+TABLE\b', 'DROP TABLE: deletes database tables'),
-    # git push --force (and -f)
-    (r'\bgit\s+push\s+.*--force\b', 'git push --force: overwrites remote history'),
-    (r'\bgit\s+push\s+.*-f\b', 'git push -f: overwrites remote history'),
-    # TRUNCATE
-    (r'\bTRUNCATE\s+TABLE?\b', 'TRUNCATE: removes all data from a table'),
-    # DELETE FROM without WHERE
-    (r'\bDELETE\s+FROM\s+\S+\s*(?!.*\bWHERE\b)', 'DELETE FROM without WHERE: removes all rows from table'),
+# Patterns that are always blocked (no exceptions)
+ALWAYS_BLOCKED = [
+    r"rm\s+(-[a-zA-Z]*\s+)*-[-a-zA-Z]*f",  # rm with -f flag
+    r"git\s+push\s+.*--force",  # git push --force
+    r"git\s+push\s+.*-f\b",  # git push -f
+    r"DROP\s+TABLE",  # SQL DROP TABLE
+    r"TRUNCATE(\s+TABLE)?",  # SQL TRUNCATE
 ]
 
-LOG_FILE = Path.home() / '.claude' / 'hooks' / 'blocked.log'
+# Patterns that require additional checks
+CONDITIONAL_PATTERNS = [
+    r"DELETE\s+FROM",  # DELETE FROM without WHERE
+]
+
+
+def get_log_path() -> Path:
+    """Get the path to the blocked log file."""
+    hooks_dir = Path(__file__).parent
+    return hooks_dir / "blocked.log"
 
 
 def get_project_path() -> str:
-    """Get the current project path from environment or cwd."""
-    return os.environ.get('PWD', os.getcwd())
+    """Get the current project path."""
+    return os.getcwd()
 
 
 def log_blocked_attempt(command: str, reason: str) -> None:
     """Log a blocked command attempt to the log file."""
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    log_path = get_log_path()
     timestamp = datetime.now().isoformat()
     project = get_project_path()
-    with open(LOG_FILE, 'a') as f:
-        f.write(f"{timestamp} | {project} | {command} | {reason}\n")
+    
+    log_entry = f"{timestamp} | {reason} | {command} | {project}\n"
+    
+    # Ensure the log directory exists
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(log_path, "a") as f:
+        f.write(log_entry)
 
 
-def check_command(command: str) -> tuple[bool, str]:
+def is_dangerous_command(command: str) -> tuple[bool, str]:
     """
-    Check if a command matches any blocked pattern.
-    Returns (is_blocked, reason).
+    Check if a command is dangerous and should be blocked.
+    
+    Returns:
+        Tuple of (is_blocked, reason)
     """
-    upper = command.upper()
-    for pattern, reason in BLOCKED_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True, reason
+    command_upper = command.upper()
+    command_stripped = command.strip()
+    
+    # Check always-blocked patterns
+    for pattern in ALWAYS_BLOCKED:
+        if re.search(pattern, command_stripped, re.IGNORECASE):
+            return True, f"Matches blocked pattern: {pattern}"
+    
+    # Check DELETE FROM without WHERE
+    if re.search(r"DELETE\s+FROM", command_stripped, re.IGNORECASE):
+        # Check if there's a WHERE clause
+        if not re.search(r"WHERE\s+", command_upper):
+            return True, "DELETE FROM without WHERE clause"
+    
     return False, ""
 
 
-def main():
-    # Read the hook input from stdin (Claude Code passes JSON)
+def main() -> None:
+    """Main entry point for the hook."""
+    # Read the tool use data from stdin (Claude Code passes JSON)
     try:
-        data = json.load(sys.stdin)
+        tool_data = json.loads(sys.stdin.read())
     except json.JSONDecodeError:
-        # Not a valid JSON, pass through
+        # If not valid JSON, allow the command to proceed
         sys.exit(0)
-
-    # Only intercept bash tool usage
-    tool_name = data.get('tool_name', '')
-    if tool_name != 'bash':
+    
+    # Check if this is a bash tool
+    tool_name = tool_data.get("tool", "")
+    if tool_name != "Bash":
         sys.exit(0)
-
-    command = data.get('tool_input', {}).get('command', '')
-    if not command:
-        sys.exit(0)
-
-    is_blocked, reason = check_command(command)
+    
+    # Get the command being executed
+    command = tool_data.get("command", "")
+    
+    # Check if the command is dangerous
+    is_blocked, reason = is_dangerous_command(command)
+    
     if is_blocked:
         log_blocked_attempt(command, reason)
-        print(f"\n🚫 BLOCKED: This command was prevented from running.\n", file=sys.stderr)
-        print(f"   Reason: {reason}\n", file=sys.stderr)
-        print(f"   Command: {command}\n", file=sys.stderr)
-        print(f"   This hook protects against destructive operations. If you need to run this command, disable the hook temporarily or run it manually.\n", file=sys.stderr)
+        print(f"🚫 BLOCKED: This command was prevented from running.\nReason: {reason}\nCommand: {command}", file=sys.stderr)
         sys.exit(1)
+    
+    sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-
-# Claude Code Pre-Tool-Use Hook: Block Destructive Bash Commands
-
-A security hook for [Claude Code](https://docs.anthropic.com/claude-code) that intercepts and blocks dangerous bash commands before they execute.
-
-## What It Blocks
-
-| Pattern | Reason |
-|---------|--------|
-| `rm -rf` | Recursively and forcefully removes files/directories |
-| `DROP TABLE` | Deletes database tables |
-| `git push --force` / `git push -f` | Overwrites remote history |
-| `TRUNCATE` | Removes all data from a table |
-| `DELETE FROM` without `WHERE` | Removes all rows from a table |
-
-## Installation
-
