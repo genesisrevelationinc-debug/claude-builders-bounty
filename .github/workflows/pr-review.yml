@@ -2,30 +2,28 @@ name: PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize]
 
 jobs:
   review:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install -e .
-      
+
       - name: Run PR Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -33,10 +31,111 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
           claude-review --pr "$PR_URL" --output review.md
-      
+
       - name: Post review comment
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr comment "${{ github.event.pull_request.html_url }}" --body-file review.md
-        if: always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: review.md
+          header: claude-review
+"""Claude Code PR Review Agent."""
+
+__version__ = "0.1.0"
+
+from .reviewer import review_pr, main
+#!/usr/bin/env python3
+"""Claude Code PR Review Agent.
+
+Analyzes a GitHub PR diff and produces a structured Markdown review comment.
+"""
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass
+from typing import Optional
+
+import requests
+
+
+@dataclass
+class ReviewResult:
+    """Structured PR review result."""
+
+    summary: str
+    risks: list[str]
+    suggestions: list[str]
+    confidence: str  # Low / Medium / High
+
+
+def run_command(cmd: list[str], cwd: Optional[str] = None) -> str:
+    """Run a shell command and return stdout."""
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Command failed: {' '.join(cmd)}\n{result.stderr}")
+    return result.stdout
+
+
+def extract_pr_info(pr_url: str) -> tuple[str, str, int]:
+    """Extract owner, repo, and PR number from a GitHub PR URL."""
+    patterns = [
+        r"github\.com/([^/]+)/([^/]+)/pull/(\d+)",
+        r"github\.com/([^/]+)/([^/]+)/pulls/(\d+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, pr_url)
+        if match:
+            return match.group(1), match.group(2), int(match.group(3))
+    raise ValueError(f"Invalid GitHub PR URL: {pr_url}")
+
+
+def fetch_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
+    """Fetch the PR diff from GitHub API."""
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3.diff",
+    }
+    response = requests.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
+    return response.text
+
+
+def fetch_pr_info_api(owner: str, repo: str, pr_number: int, token: str) -> dict:
+    """Fetch PR metadata from GitHub API."""
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+    response = requests.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
+    return response.json()
+
+
+def call_claude_api(diff_text: str, pr_info: dict) -> ReviewResult:
+    """Call Claude API to analyze the PR diff."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY environment variable not set")
+
+    # Truncate diff if too long (Claude has context limits)
+    max_diff_chars = 100000  # ~100k chars to leave room for prompt
+    truncated_diff = diff_text[:max_diff_chars]
+    if len(diff_text) > max_diff_chars:
+        truncated_diff += "\n\n[... diff truncated due to length ...]"
+
+    prompt = f"""You are an expert code reviewer. Analyze the following pull request diff and provide a structured review.
+
+PR Title: {pr_info.get('title', 'N/A')}
+PR Description: {pr_info.get('body', 'N/A') or 'No description provided'}
+
+Diff:
