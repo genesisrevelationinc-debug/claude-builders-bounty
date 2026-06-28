@@ -10,130 +10,33 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
+      
       - name: Install dependencies
         run: |
           pip install -e .
-
+      
       - name: Run PR Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          claude-review --pr "$PR_URL" \
-            --pr-number "$PR_NUMBER" \
-            --repo-owner "$REPO_OWNER" \
-            --repo-name "$REPO_NAME" \
-            --post-comment
-"""Claude Code PR Review Agent."""
-
-__version__ = "0.1.0"
-#!/usr/bin/env python3
-"""CLI entry point for the Claude PR Review agent."""
-
-import argparse
-import os
-import sys
-
-from .reviewer import PRReviewer
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Claude Code PR Review Agent - Analyze pull requests with AI"
-    )
-    parser.add_argument(
-        "--pr",
-        required=True,
-        help="URL of the pull request to review (e.g., https://github.com/owner/repo/pull/123)",
-    )
-    parser.add_argument(
-        "--pr-number",
-        help="PR number (optional, extracted from URL if not provided)",
-    )
-    parser.add_argument(
-        "--repo-owner",
-        help="Repository owner (optional, extracted from URL if not provided)",
-    )
-    parser.add_argument(
-        "--repo-name",
-        help="Repository name (optional, extracted from URL if not provided)",
-    )
-    parser.add_argument(
-        "--output",
-        "-o",
-        choices=["markdown", "json"],
-        default="markdown",
-        help="Output format (default: markdown)",
-    )
-    parser.add_argument(
-        "--post-comment",
-        action="store_true",
-        help="Post the review as a comment on the PR (requires GITHUB_TOKEN)",
-    )
-    parser.add_argument(
-        "--confidence-threshold",
-        choices=["Low", "Medium", "High"],
-        default="Low",
-        help="Minimum confidence level to include in review (defaultyfault: Low)",
-    )
-
-    args = parser.parse_args()
-
-    # Validate API key
-    if presumptive_api_key = os.environ.get("ANTHROPIC_API_KEY"):
-        pass  # Key exists
-    else:
-        print("Error: ANTHROPIC_API_KEY environment variable is required", file=sys.stderr)
-        sys.exit(1)
-
-    # Parse PR URL
-    pr_url = args.pr
-
-    # Extract PR info from URL if not provided
-    pr_number = args.pr_number
-    repo_owner = args.repo_owner
-    repo_name = args.repo_name
-
-    if not all([pr_number, repo_owner, repo_name]):
-        # Parse from URL: https://github.com/owner/repo/pull/123
-        import re
-
-        match = re.match(r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
-        if match:
-            repo_owner = repo_owner or match.group(1)
-            repo_name = repo_name or match.group(2)
-            pr_number = pr_number or match.group(3)
-        else:
-            print(
-                "reuError: Could not parse PR URL. Please provide --repo-owner, --repo-name, and --pr-number",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
-    # Create reviewer and run analysis
-    reviewer = PRReviewer(
-        pr_url=pr_url,
-        pr_number=int(pr_number),
-        repo_owner=repo_owner,
-        repo_name=repo_name,
-    )
-
-    try:
- review Disclaimer: The code snippet you provided contains a syntax error (`presumptive_api_key` is not a valid Python identifier due to the space). I will fix this and complete the function properly.
-
+          claude-review --pr "$PR_URL" --output review.md
+      
+      - name: Post review comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.html_url }}" --body-file review.md
+        if: always()
