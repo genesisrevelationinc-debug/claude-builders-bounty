@@ -24,103 +24,159 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r claude-review/requirements.txt
+          pip install -e .
 
       - name: Get PR diff
-        id: get-diff
         run: |
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" \
-            | jq -r '.diff_url' | xargs curl -s > /tmp/pr.diff
-          echo "diff_path=/tmp/pr.diff" >> $GITHUB_OUTPUT
+          curl -s -L \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3.diff" \
+            "${{ github.event.pull_request.diff_url }}" > pr.diff
 
-      - name: Run Claude Review
+      - name: Run Claude PR Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          python -m claude-review.claude_review --diff "${{ steps.get-diff.outputs.diff_path }}" --pr-url "${{ github.event.pull_request.html_url }}" --post-comment
-        working-directory: .
-#!/usr/bin/env python3
-"""
-Claude Code PR Review Agent
+          claude-review --pr "$PR_URL" --diff pr.diff --post-comment
+--- /dev/null
+"""Claude Code PR Review Agent."""
 
-A CLI tool and GitHub Action that uses Claude to analyze PR diffs
-and generate structured Markdown review comments.
-"""
+__version__ = "0.1.0"
+
+from .reviewer import review_pr, main
+"""Claude Code PR Review Agent - Analyzes PR diffs and generates structured review comments."""
+
+from __future__ import annotations
 
 import argparse
 import json
 import os
 import re
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
-from typing import List, Optional
+from pathlib import Path
+from typing import Optional
+from urllib.parse import urlparse
 
-import requests
+
+try:
+    import requests
+except ImportError:
+    requests = None  # type: ignore
 
 
 @dataclass
 class ReviewResult:
-    """Structured review result from Claude."""
+    """Structured PR review result."""
+
     summary: str
-    risks: List[str]
-    suggestions: List[str]
-    confidence: str
+    risks: list[str]
+    suggestions: list[str]
+    confidence: str  # Low, Medium, High
 
 
-class ClaudeReviewer:
-    """Claude-based PR reviewer."""
+def get_pr_diff_from_url(pr_url: str) -> str:
+    """Fetch PR diff from GitHub API."""
+    # Parse PR URL to extract owner, repo, and PR number
+    match = re.match(r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
+    if not match:
+        raise ValueError(f"Invalid GitHub PR URL: {pr_url}")
 
-    API_URL = "https://api.anthropic.com/v1/messages"
+    owner, repo, pr_number = match.groups()
 
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.headers = {
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
-
-    def _call_claude(self, prompt: str, max_tokens: int = 4000) -> str:
-        """Call the Claude API with the given prompt."""
-        payload = {
-            "model": "claude-3-5-sonnet-20241022",
-            "max_tokens": max_tokens,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-        }
-
-        response = requests.post(
-            self.API_URL,
-            headers=self.headers,
-            json=payload,
-            timeout=120,
+    # Try to get diff using gh CLI first
+    try:
+        result = subprocess.run(
+            ["gh", "api", f"repos/{owner}/{repo}/pulls/{pr_number}"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
         )
-        response.raise_for_status()
-        return response.json()["content"][0]["text"]
+        pr_data = json.loads(result.stdout)
+        diff_url = pr_data.get("diff_url")
+        if diff_url:
+            diff_result = subprocess.run(
+                ["curl", "-s", "-L", "-H", "Accept: application/vnd.github.v3.diff", diff_url],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=30,
+            )
+            return diff_result.stdout
+    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError):
+        pass
 
-    def review_diff(self, diff_content: str, pr_url: str) -> ReviewResult:
-        """Analyze a PR diff and return a structured review."""
-        # Truncate very large diffs
-        max_diff_chars = 150000
-        if len(diff_content) > max_diff_chars:
-            diff_content = diff_content[:max_diff_chars] + "\n\n[Diff truncated due to size...]"
+    # Fallback to direct API call with requests
+    if requests is None:
+        raise ImportError("requests library required. Install with: pip install requests")
 
-        prompt = self._build_review_prompt(diff_content, pr_url)
-        response = self._call_claude(prompt)
+    headers = {
+        "Accept": "application/vnd.github.v3.diff",
+        "User-Agent": "claude-review/0.1.0",
+    }
 
-        return self._parse_response(response)
+    # Add auth token if available
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"token {token}"
 
-    def _build_review_prompt(self, diff_content: str, pr_url: str) -> str:
-        """Build the prompt for Claude to review a PR diff."""
-        return f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    response = requests.get(api_url, headers=headers, timeout=30)
+    response.raise_for_status()
 
-PR URL: {pr_url}
+    # The diff is returned directly in the response body for v3.diff accept header
+    return response.text
 
-## Diff Content
+
+def read_diff_file(diff_path: str) -> str:
+    """Read diff from a local file."""
+    with open(diff_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def call_claude_api(diff_content: str, pr_url: str) -> ReviewResult:
+    """Call Claude API to analyze the PR diff."""
+    try:
+        import anthropic
+    except ImportError:
+        raise ImportError(
+            "anthropic library required. Install with: pip install anthropic"
+        )
+
+    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+    system_prompt = """You are an expert code reviewer. Analyze the provided PR diff and generate a structured review.
+
+Your response must be in the following exact format:
+
+SUMMARY:
+<2-3 sentence summary of the changes>
+
+RISKS:
+- <risk 1>
+- <risk 2>
+- <risk 3> (if applicable)
+
+SUGGESTIONS:
+- <suggestion 1>
+- <suggestion 2>
+- <suggestion 3> (if applicable)
+
+CONFIDENCE: <Low|Medium|High>
+
+Guidelines:
+- Summary: Briefly describe what the PR does and its impact
+- Risks: Identify potential bugs, security issues, breaking changes, or maintainability concerns
+- Suggestions: Provide actionable improvements for code quality, performance, or best practices
+- Confidence: Assess how confident you are in your review based on diff clarity and complexity
+"""
+
+    user_message = f"""Please review this PR: {pr_url}
+
+Here is the diff:
 
