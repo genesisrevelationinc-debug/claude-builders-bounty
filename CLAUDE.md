@@ -1,23 +1,24 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this at the root of any greenfield Next.js 15 + SQLite project. No clarifying questions should be needed.
+> Opinionated project context for Claude Code. Paste this into your repo root.
+> Assumes: Next.js 15 App Router, TypeScript, Tailwind CSS, better-sqlite3 or Turso, and a single developer or small team shipping fast.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
+| Layer | Choice | Why |
+|-------|--------|-----|
 | Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` support |
-| Database | `better-sqlite3` | Synchronous, fast, zero connection pooling complexity for single-node deploys |
-| ORM/Query | Raw SQL via `better-sqlite3` + handwritten migrations | ORMs hide performance cliffs; explicit SQL is maintainable at SaaS scale |
-| Auth | `bcryptjs` + `jose` (JWT) | No third-party auth service dependency; works offline; portable |
-| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime, team consistency |
-| Forms | Server Actions + `zod` | No API routes needed; validation co-located with action |
-| Testing | Vitest + `@testing-library/react` | Fast, ESM-native, same test runner for unit + component |
+| Language | TypeScript 5.x | Strict mode. No `any` without a comment explaining why |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no CSS-in-JS runtime cost |
+| Database | better-sqlite3 (dev) / Turso (prod) | SQLite is enough until you have >10k concurrent writes. Zero config locally |
+| ORM/Query | Drizzle ORM | Type-safe SQL. Migrations are plain SQL files. No hidden queries |
+| Auth | Lucia + oslo | Session-based, works with SQLite out of the box. No JWT bloat |
+| Validation | Zod | Share schemas between server and client where possible |
+| Testing | Vitest + Playwright | Unit for logic, E2E for critical paths only |
 
-**Non-negotiable:** We do not use Prisma, Drizzle, or any query builder. Raw SQL with explicit types.
+**Node version:** `>=20.0.0` (LTS). Use `nvm` or `fnm` to pin.
 
 ---
 
