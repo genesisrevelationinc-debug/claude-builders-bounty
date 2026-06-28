@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root.
-> Assumes: Next.js 15 App Router, TypeScript, Tailwind CSS, better-sqlite3 (or Turso), tRPC or Server Actions.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at the root of your project. Claude Code reads it automatically.
 
 ---
 
@@ -10,15 +10,17 @@
 | Layer | Choice | Why |
 |-------|--------|-----|
 | Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Language | TypeScript 5.5+ | Strict mode. No `any` without comment justification |
-| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime, design system via tokens |
-| Database | better-sqlite3 (dev) / Turso (prod) | Single file, zero-config local dev; edge-ready with Turso |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | Lucia (or NextAuth v5) | Session-based, works edge + Node, no vendor lock-in |
-| Validation | Zod | Schema validation shared client/server |
-| Testing | Vitest + Playwright | Unit: Vitest. E2E: Playwright. No Jest. |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `AsyncLocalStorage` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead, works in Server Components |
+| ORM/Query | Raw SQL + `better-sqlite3` | No ORM bloat; SQL is the source of truth. Use `db.prepare()` for everything |
+| Migrations | Custom `.sql` files + Node script | Schema changes must be reviewable, reversible, and run in a transaction |
+| Auth | `iron-session` + bcrypt | Stateless sessions, no external auth service dependency |
+| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime, colocated with components |
+| Forms | Server Actions + `useFormState` | No API routes for mutations; progressive enhancement built-in |
+| Validation | `zod` | Share schemas between Server Actions and client |
+| Testing | Vitest (unit) + Playwright (E2E) | Fast unit tests, real browser for critical paths |
 
-**Node version:** `>=20.11.0` (LTS). Enforce via `engines` in `package.json`.
+**Lockfile rule:** `package-lock.json` is the source of truth. Delete `yarn.lock` / `pnpm-lock.yaml` on sight.
 
 ---
 
