@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code. If a rule seems arbitrary, the reason is in parentheses.
+> Opinionated project context for Claude Code. Paste this into your repo root.
+> Assumes: Next.js 15 App Router, TypeScript, Tailwind CSS, better-sqlite3 (or Turso), tRPC or Server Actions.
 
 ---
 
@@ -8,16 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
-| Runtime | Node.js 20+ | `next/after`, stable `fetch` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Raw SQL + `zod` | ORMs hide performance cliffs; Zod gives type safety without codegen bloat |
-| Auth | `lucia` permissive + `oslo` | Session-based, works with SQLite, no OAuth lock-in |
-| Styling | Tailwind CSS + `shadcn/ui` | Copy-paste components, no phantom dependency updates |
-| Validation | `zod` | Single source of truth for API + DB + forms |
-| Testing | Vitest + Playwright | Unit tests run in <1s; E2E catches routing regressions |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Language | TypeScript 5.5+ | Strict mode. No `any` without comment justification |
+| Styling | Tailwind CSS 3.4+ | Utility-first, zero runtime, design system via tokens |
+| Database | better-sqlite3 (dev) / Turso (prod) | Single file, zero-config local dev; edge-ready with Turso |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia (or NextAuth v5) | Session-based, works edge + Node, no vendor lock-in |
+| Validation | Zod | Schema validation shared client/server |
+| Testing | Vitest + Playwright | Unit: Vitest. E2E: Playwright. No Jest. |
 
-**Pinned in `package.json`:** All major versions use exact pins (`"next": "15.0.3"`, not `^15.0.3`). Renovate opens PRs; we merge after reading changelogs.
+**Node version:** `>=20.11.0` (LTS). Enforce via `engines` in `package.json`.
 
 ---
 
