@@ -50,20 +50,12 @@ You're in the right place.
 
 ---
 
-*Started by the Claude builder community · March 2026 · MIT License*
-
----
-
 ## Hooks
 
-### [Pre-Tool-Use Hook: Block Destructive Bash Commands](hooks/)
+### Block Destructive Bash Commands
 
-A Claude Code `pre-tool-use` hook that intercepts dangerous bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they are executed. Includes logging and clear feedback to Claude.
+A `pre-tool-use` hook that intercepts dangerous bash commands before they execute. Blocks `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without a `WHERE` clause.
 
-[View Hook →](hooks/)
+**Quick install:**
 
----
-
-## Rules
-
-- Tasks must be related to Claude Code or AI tooling
+*Started by the Claude builder community · March 2026 · MIT License*
