@@ -4,13 +4,13 @@ A Claude Code `pre-tool-use` hook that intercepts and blocks dangerous bash comm
 
 ## What It Blocks
 
-| Pattern | Why It's Blocked |
-|---------|----------------|
-| `rm -rf` | Irreversibly deletes files and directories |
-| `DROP TABLE` | Permanently removes database tables |
+| Pattern | Reason |
+|---------|--------|
+| `rm -rf` | Irreversible recursive deletion |
+| `DROP TABLE` | Destructive SQL — drops entire table |
 | `git push --force` | Overwrites remote git history |
-| `TRUNCATE` | Removes all table data without row-level logging |
-| `DELETE FROM` (no `WHERE`) | Deletes all rows in a table |
+| `TRUNCATE` | Destructive SQL — removes all rows |
+| `DELETE FROM` without `WHERE` | Deletes all rows in a table |
 
-## Installation
+## Installation (2 commands)
 
