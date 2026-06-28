@@ -1,122 +1,81 @@
 #!/usr/bin/env bash
-set -euo pipefail
-bash "$(dirname "$0")/changelog.sh" "$@"
-#!/usr/bin/env bash
+#
+# generate-changelog
+# A script to generate a structured CHANGELOG.md from git history.
+# Usage: ./generate-changelog
+#
+
 set -euo pipefail
 
-# generate-changelog.sh
-# Generates a structured CHANGELOG.md from git history since the last tag.
-
+# Get the directory where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTPUT_FILE="${1:-CHANGELOG.md}"
+cd "$SCRIPT_DIR"
 
-# Determine the last tag
-LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+# Check if we're in a git repo
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    echo "Error: Not a git repository." >&2
+    exit 1
+fi
 
-if [ -z "$LAST_TAG" ]; then
-    echo "No previous tag found. Using all commits."
+# Get the latest tag, or use empty if none
+LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+
+if [ -z "$LATEST_TAG" ]; then
+    echo "No tags found. Using all commits." >&2
     COMMIT_RANGE=""
 else
-    echo "Last tag: $LAST_TAG"
-    COMMIT_RANGE="${LAST_TAG}..HEAD"
+    echo "Generating changelog since tag: $LATEST_TAG" >&2
+    COMMIT_RANGE="${LATEST_TAG}..HEAD"
 fi
 
-# Get commits
+# Get commits since last tag (or all commits if no tag)
+# Format: hash|subject
 if [ -z "$COMMIT_RANGE" ]; then
-    COMMITS=$(git log --pretty=format:"%s" --no-merges)
+    COMMITS=$(git log --pretty=format:"%H|%s" --no-merges)
 else
-    COMMITS=$(git log --pretty=format:"%s" --no-merges "$COMMIT_RANGE")
+    COMMITS=$(git log "${COMMIT_RANGE}" --pretty=format:"%H|%s" --no-merges)
 fi
 
-if [ -z "$COMMITS" ]; then
-    echo "No new commits found since last tag."
-    exit 0
-fi
-
-# Categorization
+# Initialize changelog sections
 ADDED=""
 FIXED=""
 CHANGED=""
 REMOVED=""
 
+# Categorize commits
 while IFS= read -r line; do
     [ -z "$line" ] && continue
-
-    lower=$(echo "$line" | tr '[:upper:]' '[:lower:]')
-
-    if echo "$lower" | grep -qE '^(feat|add|new|introduce|implement|create|support)'; then
-        ADDED="${ADDED}- ${line}"$'\n'
-    elif echo "$lower" | grep -qE '^(fix|bugfix|hotfix|patch|resolve|correct)'; then
-        FIXED="${FIXED}- ${line}"$'\n'
-    elif echo "$lower" | grep -qE '^(remove|delete|drop|revert|deprecate)'; then
-        REMOVED="${REMOVED}- ${line}"$'\n'
-    elif echo "$lower" | grep -qE '^(update|change|modify|refactor|improve|enhance|upgrade|bump|style|docs|test|chore)'; then
-        CHANGED="${CHANGED}- ${line}"$'\n'
+    
+    HASH=$(echo "$line" | cut -d'|' -f1)
+    SUBJECT=$(echo "$line" | cut -d'|' -f2-)
+    SHORT_HASH=$(echo "$HASH" | cut -c1-7)
+    
+    # Categorize based on commit message prefixes or keywords
+    if echo "$SUBJECT" | grep -qiE '^(feat|add|create|introduce|implement)|\b(add|adds|added|adding)\b'; then
+        ADDED="${ADDED}- ${SUBJECT} (${SHORT_HASH})"$'\n'
+    elif echo "$SUBJECT" | grep -qiE '^(fix|bugfix|hotfix|patch)|\b(fix|fixes|fixed|fixing|bug|bugs|resolve|resolves|resolved)\b'; then
+        FIXED="${FIXED}- ${SUBJECT} (${SHORT_HASH})"$'\n'
+    elif echo "$SUBJECT" | grep -qiE '^(remove|delete|drop|revert)|\b(remove|removes|removed|removing|delete|deletes|deleted|deleting|drop|dropped)\b'; then
+        REMOVED="${REMOVED}- ${SUBJECT} (${SHORT_HASH})"$'\n'
     else
-        # Default to Changed if no clear prefix
-        CHANGED="${CHANGED}- ${line}"$'\n'
+        # Default to Changed
+        CHANGED="${CHANGED}- ${SUBJECT} (${SHORT_HASH})"$'\n'
     fi
 done <<< "$COMMITS"
 
-# Build changelog
-DATE=$(date +%Y-%m-%d)
-VERSION="Unreleased"
+# Generate CHANGELOG.md
+{
+    echo "# Changelog"
+    echo ""
+    echo "All notable changes to this project will be documented in this file."
+    echo ""
+    echo "## [Unreleased]$( [ -n "$LATEST_TAG" ] && echo " - since ${LATEST_TAG}" || echo "")"
+    echo ""
+    
+    [ -n "$ADDED" ] && echo "### Added" && echo "" && echo -n "$ADDED" && echo ""
+    [ -n "$CHANGED" ] && echo "### Changed" && echo "" && echo -n "$CHANGED" && echo ""
+    [ -n "$FIXED" ] && echo "### Fixed" && echo "" && echo -n "$FIXED" && echo ""
+    [ -n "$REMOVED" ] && echo "### Removed" && echo "" && echo -n "$REMOVED" && echo ""
+} > CHANGELOG.md
 
-if [ -n "$LAST_TAG" ]; then
-    VERSION="$LAST_TAG → HEAD"
-fi
-
-CHANGELOG="# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [${VERSION}] - ${DATE}
-"
-
-if [ -n "$ADDED" ]; then
-    CHANGELOG="${CHANGELOG}
-### Added
-${ADDED}"
-fi
-
-if [ -n "$CHANGED" ]; then
-    CHANGELOG="${CHANGELOG}
-### Changed
-${CHANGED}"
-fi
-
-if [ -n "$FIXED" ]; then
-    CHANGELOG="${CHANGELOG}
-### Fixed
-${FIXED}"
-fi
-
-if [ -n "$REMOVED" ]; then
-    CHANGELOG="${CHANGELOG
-### Removed
-${REMOVED}}"
-fi
-
-# Append existing changelog if present
-if [ -f "$OUTPUT_FILE" ]; then
-    # Extract header and existing entries (skip our generated header)
-    EXISTING=$(tail -n +8 "$OUTPUT_FILE" 2>/dev/null || true)
-    if [ -n "$EXISTING" ]; then
-        CHANGELOG="${CHANGELOG}
-${EXISTING}"
-    fi
-fi
-
-# Write output
-echo "$CHANGELOG" > "$OUTPUT_FILE"
-echo "CHANGELOG written to $OUTPUT_FILE"
-# Generate Changelog Skill
-
-## Description
-Automatically generate a structured `CHANGELOG.md` from git history.
-
-## Usage
-
+echo "CHANGELOG.md generated successfully!"
