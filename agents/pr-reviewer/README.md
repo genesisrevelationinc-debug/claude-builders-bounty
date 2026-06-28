@@ -1,22 +1,22 @@
-# Claude Code PR Reviewer 🤖
+# Claude PR Reviewer 🤖
 
-An autonomous agent that reviews GitHub PRs and posts structured Markdown comments.
+> A Claude Code sub-agent that reviews GitHub PRs and posts structured Markdown comments.
 
 ## Features
 
-- **CLI Tool**: Run locally with `claude-review --pr <url>`
-- **GitHub Action**: Integrate into your CI/CD pipeline
+- **CLI Tool**: Run `claude-review --pr <url>` from your terminal
+- **GitHub Action**: Automatically review PRs on pull request events
 - **Structured Output**: Summary, risks, suggestions, and confidence score
-- **Powered by Claude**: Uses Anthropic's Claude API for intelligent code review
+- **AI-Powered**: Uses Claude Code's built-in analysis capabilities
 
-## Setup
+## Installation
 
 ### Prerequisites
 
-- Python 3.9+
-- Anthropic API key ([get one here](https://console.anthropic.com/))
+- [Claude Code](https://claude.ai/code) installed and authenticated
+- Node.js 18+ (for the CLI wrapper)
+- GitHub token with `repo` scope (for posting comments)
 
-### Installation
+### Setup
 
-1. Clone the repository and navigate to the agent:
-   
+1. Clone this repository:
