@@ -8,7 +8,12 @@ You're in the right place.
 
 ---
 
-## How it works
+---
+
+## Quick Start
+
+Generate a changelog from your git history in 3 steps:
+
 
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
