@@ -1,24 +1,25 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root.
-> Assumes: Next.js 15 App Router, TypeScript, Tailwind CSS, better-sqlite3 or Turso, tRPC or Server Actions.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> **Purpose:** Eliminate decision fatigue. Every rule below exists because we made the mistake so you don't have to.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| Framework | Next.js 15 (App Router) | RSC, streaming, edge-ready. Pages Router is dead to us. |
-| Language | TypeScript 5.x | Strict mode. No `any` without a `@ts-expect-error` comment. |
-| Styling | Tailwind CSS 3.4+ | Utility-first. No CSS-in-JS (breaks RSC). |
-| Database | better-sqlite3 (dev) / Turso (prod) | SQLite is enough until 100k users. Zero-config local dev. |
-| ORM/Query | Drizzle ORM | Type-safe SQL. Prisma is too heavy for SQLite. |
-| Auth | Lucia + oslo | Lightweight, session-based. No JWT in cookies. |
-| Validation | Zod | Every API boundary, every form, every env var. |
-| Testing | Vitest + Playwright | Unit in Vitest, E2E in Playwright. No Jest. |
+| Layer | Choice | Rationale |
+|-------|--------|-----------|
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `node:` imports |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia + `better-sqlite3` adapter | Session-based, no JWT bloat, works offline |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `react-hook-form` | Progressive enhancement, type-safe from server to client |
+| Validation | Zod | Single source of truth for schemas |
+| Testing | Vitest + Playwright | Unit tests fast, E2E tests catch integration bugs |
 
-**Node.js requirement:** `>=20.0.0` (for `crypto` global, native fetch, `structuredClone`).
+**Lock it:** Pin exact versions in `package.json`. No `^`, no `~`. Reproducible builds > minor updates.
 
 ---
 
