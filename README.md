@@ -50,12 +50,15 @@ You're in the right place.
 
 ---
 
-## Hooks
+*Started by the Claude builder community · March 2026 · MIT License*
+
+*Started by the Claude builder community · March 2026 · MIT License*
+
+## Security Hooks
 
 ### Block Destructive Bash Commands
 
-A `pre-tool-use` hook that intercepts dangerous bash commands before they execute. Blocks `rm -rf`, `DROP TABLE`, `git push --force`, `TRUNCATE`, and `DELETE FROM` without a `WHERE` clause.
+A `pre-tool-use` hook that intercepts dangerous bash commands before they are executed by Claude Code.
 
 **Quick install:**
 
-*Started by the Claude builder community · March 2026 · MIT License*
