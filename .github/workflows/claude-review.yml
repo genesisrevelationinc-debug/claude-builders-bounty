@@ -12,7 +12,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -24,15 +24,103 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e .
+          pip install -r claude-review/requirements.txt
+
+      - name: Get PR diff
+        id: get-diff
+        run: |
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" \
+            | jq -r '.diff_url' | xargs curl -s > /tmp/pr.diff
+          echo "diff_path=/tmp/pr.diff" >> $GITHUB_OUTPUT
 
       - name: Run Claude Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          claude-review \
-            --pr "${{ github.event.pull_request.html_url }}" \
-            --output review.md
-          cat review.md >> $GITHUB_STEP_SUMMARY
-          echo "REVIEW_BODY=$(cat review.md)" >> $GITHUB_ENV
+          python -m claude-review.claude_review --diff "${{ steps.get-diff.outputs.diff_path }}" --pr-url "${{ github.event.pull_request.html_url }}" --post-comment
+        working-directory: .
+#!/usr/bin/env python3
+"""
+Claude Code PR Review Agent
+
+A CLI tool and GitHub Action that uses Claude to analyze PR diffs
+and generate structured Markdown review comments.
+"""
+
+import argparse
+import json
+import os
+import re
+import sys
+from dataclasses import dataclass
+from typing import List, Optional
+
+import requests
+
+
+@dataclass
+class ReviewResult:
+    """Structured review result from Claude."""
+    summary: str
+    risks: List[str]
+    suggestions: List[str]
+    confidence: str
+
+
+class ClaudeReviewer:
+    """Claude-based PR reviewer."""
+
+    API_URL = "https://api.anthropic.com/v1/messages"
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+
+    def _call_claude(self, prompt: str, max_tokens: int = 4000) -> str:
+        """Call the Claude API with the given prompt."""
+        payload = {
+            "model": "claude-3-5-sonnet-20241022",
+            "max_tokens": max_tokens,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+        }
+
+        response = requests.post(
+            self.API_URL,
+            headers=self.headers,
+            json=payload,
+            timeout=120,
+        )
+        response.raise_for_status()
+        return response.json()["content"][0]["text"]
+
+    def review_diff(self, diff_content: str, pr_url: str) -> ReviewResult:
+        """Analyze a PR diff and return a structured review."""
+        # Truncate very large diffs
+        max_diff_chars = 150000
+        if len(diff_content) > max_diff_chars:
+            diff_content = diff_content[:max_diff_chars] + "\n\n[Diff truncated due to size...]"
+
+        prompt = self._build_review_prompt(diff_content, pr_url)
+        response = self._call_claude(prompt)
+
+        return self._parse_response(response)
+
+    def _build_review_prompt(self, diff_content: str, pr_url: str) -> str:
+        """Build the prompt for Claude to review a PR diff."""
+        return f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
+
+PR URL: {pr_url}
+
+## Diff Content
+
