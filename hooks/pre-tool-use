@@ -2,8 +2,8 @@
 """
 Claude Code pre-tool-use hook to block destructive bash commands.
 
-This hook intercepts dangerous bash commands before they are executed
-by Claude Code, preventing accidental data loss.
+Place this file at: ~/.claude/hooks/pre-tool-use
+Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
 """
 
 import json
@@ -11,12 +11,12 @@ import os
 import re
 import sys
 from datetime import datetime
-from pathlib import Path
 
+BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 
-# Patterns that are always blocked (no exceptions)
+# Patterns that are always blocked (case-insensitive)
 ALWAYS_BLOCKED = [
-    r"rm\s+(-[a-zA-Z]*\s+)*-([a-zA-Z]*r[a-zA-Z]*f|f[a-zA-Z]*r)[a-zA-Z]*\s",  # rm -rf variants
+    r"rm\s+(-[a-zA-Z]*\s+)*-([a-zA-Z]*r[a-zA-Z]*f|f[a-zA-Z]*r)\S*",  # rm -rf, rm -fr, etc.
     r"git\s+push\s+.*--force",  # git push --force
     r"git\s+push\s+-f\b",  # git push -f
     r"\bDROP\s+TABLE\b",  # DROP TABLE
@@ -29,70 +29,63 @@ REQUIRES_WHERE = [
 ]
 
 
-def get_blocked_log_path() -> Path:
-    """Get the path to the blocked log file."""
-    hooks_dir = Path.home() / ".claude" / "hooks"
-    hooks_dir.mkdir(parents=True, exist_ok=True)
-    return hooks_dir / "blocked.log"
-
-
-def log_blocked_attempt(command: str, reason: str) -> None:
-    """Log a blocked command attempt with timestamp and project path."""
-    log_path = get_blocked_log_path()
+def log_blocked(command: str, reason: str):
+    """Log a blocked command attempt to the blocked log file."""
+    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
     timestamp = datetime.now().isoformat()
     project_path = os.getcwd()
     
-    log_entry = f"{timestamp} | REASON: {reason} | CMD: {command} | PROJECT: {project_path}\n"
+    log_entry = f"[{timestamp}] REASON: {reason} | COMMAND: {command} | PROJECT: {project_path}\n"
     
-    with open(log_path, "a") as f:
+    with open(BLOCKED_LOG, "a") as f:
         f.write(log_entry)
 
 
-def is_dangerous_command(command: str) -> tuple[bool, str]:
+def check_command(command: str) -> tuple[bool, str]:
     """
-    Check if a command is dangerous and should be blocked.
-    
-    Returns:
-        Tuple of (is_blocked, reason)
+    Check if a command should be blocked.
+    Returns (should_block, reason).
     """
-    command_upper = command.upper()
+    upper = command.upper()
     
     # Check always-blocked patterns
     for pattern in ALWAYS_BLOCKED:
         if re.search(pattern, command, re.IGNORECASE):
-            return True, f"Matched dangerous pattern: {pattern}"
+            return True, f"Matched blocked pattern: {pattern}"
     
     # Check DELETE FROM without WHERE
-    for pattern in REQUIRES_WHERE:
-        if re.search(pattern, command, re.IGNORECASE):
-            # Check if WHERE clause exists
-            if not re.search(r"\bWHERE\b", command_upper):
-                return True, "DELETE FROM without WHERE clause"
+    if re.search(REQUIRES_WHERE[0], command, re.IGNORECASE):
+        # Check if WHERE exists in the command (simple check)
+        if not re.search(r"\bWHERE\b", upper):
+            return True, "DELETE FROM without WHERE clause is not allowed"
     
     return False, ""
 
 
-def main() -> None:
-    """Main entry point for the hook."""
-    # Read the tool use request from stdin
+def main():
+    # Read the hook input from stdin (JSON)
     try:
         data = json.load(sys.stdin)
     except json.JSONDecodeError:
-        # Not a valid JSON, let it pass
+        # Not a valid JSON, pass through
         sys.exit(0)
     
-    # Extract the command from the tool use data
-    command = data.get("command", "") if isinstance(data, dict) else ""
+    # Only intercept bash tool usage
+    tool_name = data.get("tool_name", "")
+    if tool_name != "bash":
+        sys.exit(0)
     
+    command = data.get("tool_input", {}).get("command", "")
     if not command:
         sys.exit(0)
     
-    is_blocked, reason = is_dangerous_command(command)
-    
-    if is_blocked:
-        log_blocked_attempt(command, reason)
-        print(f"🛡️  BLOCKED: This command was prevented from running.\n   Reason: {reason}\n   Command: {command}", file=sys.stderr)
+    should_block, reason = check_command(command)
+    if should_block:
+        log_blocked(command, reason)
+        print(f"🚫 BLOCKED: This command was prevented from running for safety reasons.\n   Reason: {reason}\n   Command: {command}", file=sys.stderr)
         sys.exit(1)
+    
+    sys.exit(0)
 
 
 if __name__ == "__main__":
