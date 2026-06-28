@@ -2,52 +2,63 @@
 """
 Claude Code pre-tool-use hook to block destructive bash commands.
 
-Place at: ~/.claude/hooks/pre-tool-use
-Make executable: chmod +x ~/.claude/hooks/pre-tool-use
+Place this file at:
+    ~/.claude/hooks/block-destructive-bash/pre-tool-use
+
+And make it executable:
+    chmod +x ~/.claude/hooks/block-destructive-bash/pre-tool-use
 """
 
 import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
+from pathlib import Path
+
+
+HOOK_DIR = Path(__file__).parent
+LOG_FILE = HOOK_DIR / "blocked.log"
 
 # Patterns that are always blocked
-ALWAYS_BLOCKED = [
-    re.compile(r"rm\s+.*-rf", re.IGNORECASE),
-    re.compile(r"rm\s+-rf", re.IGNORECASE),
-    re.compile(r"rm\s+-[a-z]*f", re.IGNORECASE),
-    re.compile(r"git\s+push\s+.*--force", re.IGNORECASE),
-    re.compile(r"git\s+push\s+-f", re.IGNORECASE),
-    re.compile(r"DROP\s+TABLE", re.IGNORECASE),
-    re.compile(r"TRUNCATE\s+", re.IGNORECASE),
+DANGEROUS_PATTERNS = [
+    # rm -rf (any variant)
+    r"\brm\s+(?:-[a-zA-Z]*[rf]|[a-zA-Z]*\s+)-[a-zA-Z]*[rf]",
+    # DROP TABLE
+    r"\bDROP\s+TABLE\b",
+    # git push --force or -f
+    r"\bgit\s+push\s+(?:-[a-zA-Z]*f|--force)\b",
+    # TRUNCATE
+    r"\bTRUNCATE\b",
 ]
 
-# Patterns that require a WHERE clause
-REQUIRES_WHERE = [
-    re.compile(r"DELETE\s+ the FROM\s+", re.IGNORECASE),
+# Patterns that require additional validation
+CONDITIONAL_PATTERNS = [
+    # DELETE FROM without WHERE
+    r"\bDELETE\s+FROM\b",
 ]
 
 
-def log_blocked(command: str, project_path: str, reason: str):
-    """Log a blocked command attempt to the blocked log file."""
-    log_dir = os.path.expanduser("~/.claude/hooks")
-    log_file = os.path.join(log_dir, "blocked.log")
-    os.makedirs(log_dir, exist_ok=True)
+def log_blocked(command: str, project_path: str):
+    timestamp = datetime.now().isoformat()
+    with open(LOG_FILE, "a") as f:
+        f.write(f"{timestamp} | {project_path} | {command}\n")
 
-    timestamp = datetime.now(timezone.utc).isoformat()
-    log_entry = (
-        f"[{timestamp}] BLOCKED: {command.strip()}\n"
-        f"  Project: {project_path}\n"
-        f"  Reason: {reason}\n\n"
-    )
 
-    with open(log_file, "a") as f:
-        f.write(log_entry)
+def is_dangerous(command: str) -> tuple[bool, str]:
+    for pattern in DANGEROUS_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, f"Matched dangerous pattern: {pattern}"
+
+    for pattern in CONDITIONAL_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            if "WHERE" not in command.upper():
+                return True, f"Matched dangerous pattern: {pattern} (no WHERE clause)"
+
+    return False, ""
 
 
 def main():
-    # Read the hook payload from stdin
     try:
         payload = json.load(sys.stdin)
     except json.JSONDecodeError:
@@ -56,28 +67,17 @@ def main():
     tool_name = payload.get("tool_name", "")
     tool_input = payload.get("tool_input", {})
 
-    # Only intercept bash tool
     if tool_name != "bash":
         sys.exit(0)
 
     command = tool_input.get("command", "")
-    project_path = payload.get("project_path", "")
+    project_path = payload.get("project_path", os.getcwd())
 
-    # Check always-blocked patterns
-    for pattern in ALWAYS_BLOCKED:
-        if pattern.search(command):
-            reason = f"Matched blocked pattern: {pattern.pattern}"
-            log_blocked(command, project_path, reason)
-            print(f"🚫 BLOCKED: This command was prevented from running.\n\nReason: {reason}\n\nThe command '{command.strip()}' matches a known destructive pattern. If you need to run this, please use a safer alternative or confirm the operation manually.", file=sys.stderr)
-            sys.exit(1)
-
-    # Check DELETE FROM without WHERE
-    if re.search(r"DELETE\s+FROM\s+", command, re.IGNORECASE):
-        if not re.search(r"WHERE\s+", command, re.IGNORECASE):
-            reason = "DELETE FROM without WHERE clause"
-            log_blocked(command, project_path, reason)
-            print(f"🚫 BLOCKED: This command was prevented from running.\n\nReason: {reason}\n\nThe command '{command.strip()}' appears to be an unbounded DELETE statement. Add a WHERE clause to proceed.", file=sys.stderr)
-            sys.exit(1)
+    dangerous, reason = is_dangerous(command)
+    if dangerous:
+        log_blocked(command, project_path)
+        print(f"🚫 BLOCKED: This command was prevented from running.\nReason: {reason}\nCommand: {command}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
