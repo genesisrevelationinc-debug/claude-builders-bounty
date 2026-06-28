@@ -1,3 +1,4 @@
+
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
@@ -43,18 +44,24 @@ You're in the right place.
 
 ---
 
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
+---
 
 *Started by the Claude builder community · March 2026 · MIT License*
 
-## Skills
+---
 
-### Generate Changelog
+## Included Skills & Scripts
 
-Quickly generate a structured `CHANGELOG.md` from your git history:
+### `changelog.sh` — Structured CHANGELOG generator
 
+Generate a properly formatted `CHANGELOG.md` from your git history in seconds.
+
+**Setup (3 steps)**
+
+1. **Make it executable**
+   
+- 📧 Contact: claudebounty@gmail.com
+
+---
 
 *Started by the Claude builder community · March 2026 · MIT License*
