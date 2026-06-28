@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for building a production-ready SaaS with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project conventions for a production SaaS built with Next.js 15 App Router and SQLite.
+> Paste this into your project root. Claude Code reads it automatically.
 
 ---
 
@@ -9,18 +9,13 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
-| Runtime | Node.js 20+ | Native `fetch`, `crypto`, `structuredClone`; LTS stability |
-| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-node deploys. Use Turso only if you need multi-region |
-| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations, no codegen bloat |
-| Auth | Lucia (or custom session) | Session-based, works with SQLite out of the box, no vendor lock-in |
-| Styling | Tailwind CSS 4 | Utility-first, zero-runtime, design system via config |
-| Forms | React Hook Form + Zod | Client validation mirrors server validation, single source of truth |
-| Deployment | Docker + Fly.io / Railway | SQLite is a file; persist it via volume. Don't use Vercel for SQLite |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `crypto` global, native fetch, stable ESM |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
+| Auth | Lucia + `oslo` | Session-based, works with SQLite, no JWT in browser |
+| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `zod` | No API boilerplate, validation co-located with action |
+| Testing | Vitest + Playwright | Unit + E2E, no Jest config hell |
 
-**Non-negotiable:** We do not use Prisma. It bundles a query engine, has slow cold starts, and its migration system fights SQLite's simplicity.
-
----
-
-## Folder Structure
-
+**Pinned versions (lock these):**
