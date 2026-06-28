@@ -6,6 +6,13 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
+## Hooks
+
+- **[Pre-Tool-Use Hook](hooks/)** — Block destructive bash commands in Claude Code
+  - Prevents `rm -rf`, `DROP TABLE`, `git push --force.directoryforce`, `TRUNCATE`, and unqualified `DELETE FROM`
+  - Logs blocked attempts to `~/.claude/hooks/blocked.log`
+  - [Installation](hooks/README.md)
+
 ---
 
 ## How it works
@@ -22,13 +29,13 @@ You're in the right place.
 
 ---
 
-## Active Bounties
 
 | # | Task | Amount | Status |
 |---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
 
@@ -50,14 +57,4 @@ You're in the right place.
 
 ---
 
-## Hooks
-
-This repository includes community-contributed hooks for Claude Code:
-
-- **[pre-tool-use](hooks/pre-tool-use)** — Blocks destructive bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute. [Learn more →](hooks/README.md)
-
----
-
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+*Started by the Claude builder community · March 2026 · MIT License*
