@@ -4,39 +4,40 @@ Automated weekly narrative summary of GitHub repo activity, powered by n8n and C
 
 ## Setup (5 steps)
 
-1. **Import the workflow**: In n8n, click *Workflows → Import from File* and select `claude-weekly-summary.json`
+1. **Import the workflow**: In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in *Settings → Credentials*
+3. **Configure variables**: Open the workflow and edit the `Set Config` node — set `repoOwner`, `repoName`, `webhookUrl`, and `language` (`EN` or `FR`)
+4. **Activate the workflow**: Toggle the workflow to *Active* — it runs every Friday at 5 PM UTC
+5. **Test manually**: Click *Execute Workflow* to verify — check your Discord/Slack channel for the summary
 
-2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API Key in *Settings → Credentials*
+## Delivery
 
-3. **Configure variables**: Open the workflow and edit the `Configuration` node:
-   - `repo`: GitHub repo (format: `owner/repo`)
-   - `channel`: Email address or webhook URL
-   - `language`: `EN` or `FR`
-   - `deliveryMethod`: `email` or `webhook`
+The workflow posts summaries to a Discord or Slack webhook. Configure `webhookUrl` in the `Set Config` node.
 
-4. **Activate**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
+## Variables
 
-5. **Test**: Click *Execute Workflow* to run manually and verify output
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `repoOwner` | GitHub repository owner | `claude-builders-bounty` |
+| `repoName` | GitHub repository name | `claude-builders-bounty` |
+| `webhookUrl` | Discord/Slack incoming webhook URL | `https://discord.com/api/webhooks/...` |
+| `language` | Summary language | `EN` or `FR` |
 
----
+## Required n8n Nodes
 
-## Delivery Methods
+- **Cron**: Weekly trigger (Friday 5 PM)
+- **HTTP Request**: GitHub API (commits, issues, PRs)
+- **Set**: Configuration variables
+- **Code**: Data transformation
+- **Anthropic Chat Model**: Claude API (`claude-sonnet-4-20250514`)
+- **HTTP Request**: Webhook delivery
 
-| Method | Configuration |
-|--------|---------------|
-| Email | Set `deliveryMethod` to `email`, `channel` to your email address. Requires SMTP credentials in n8n. |
-| Webhook | Set `deliveryMethod` to `webhook`, `channel` to Discord/Slack webhook URL. No extra credentials needed. |
+## Screenshot
 
-## Required Scopes
+![Successful Execution](screenshot.png)
 
-- **GitHub Token**: `repo` (private repos) or `public_repo` (public repos)
-- **Anthropic Key**: Standard API access to `claude-sonnet-4-20250514`
+*Include a screenshot of a successful execution from your n8n instance here.*
 
-## Workflow Overview
+## License
 
-1. **Cron Trigger** — Every Friday at 17:00 UTC
-2. **GitHub Commits** — Fetch commits from the past 7 days
-3. **GitHub Issues** — Fetch closed issues from the past 7 days
-4. **GitHub PRs** — Fetch merged PRs from the past 7 days
-5. **Claude Summarize** — Generate narrative summary via `claude-sonnet-4-20250514`
-6. **Deliver** — Send via email or webhook based on configuration
+MIT
