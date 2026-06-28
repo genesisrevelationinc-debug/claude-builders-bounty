@@ -1,25 +1,24 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> **Purpose:** Eliminate decision fatigue. Every rule below exists because we made the mistake so you don't have to.
+> Opinionated conventions for building a production-ready SaaS with Next.js 15 App Router and SQLite.
+> Paste this file at the root of your project. Claude Code reads it automatically.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `node:` imports |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | Lucia + `better-sqlite3` adapter | Session-based, no JWT bloat, works offline |
-| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS-in-JS overhead |
-| Forms | Server Actions + `react-hook-form` | Progressive enhancement, type-safe from server to client |
-| Validation | Zod | Single source of truth for schemas |
-| Testing | Vitest + Playwright | Unit tests fast, E2E tests catch integration bugs |
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
+| Runtime | Node.js 20+ | Native `fetch`, `crypto`, `structuredClone`; LTS stability |
+| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-node deploys. Use Turso only if you need multi-region |
+| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations, no codegen bloat |
+| Auth | Lucia (or custom session) | Session-based, works with SQLite out of the box, no vendor lock-in |
+| Styling | Tailwind CSS 4 | Utility-first, zero-runtime, design system via config |
+| Forms | React Hook Form + Zod | Client validation mirrors server validation, single source of truth |
+| Deployment | Docker + Fly.io / Railway | SQLite is a file; persist it via volume. Don't use Vercel for SQLite |
 
-**Lock it:** Pin exact versions in `package.json`. No `^`, no `~`. Reproducible builds > minor updates.
+**Non-negotiable:** We do not use Prisma. It bundles a query engine, has slow cold starts, and its migration system fights SQLite's simplicity.
 
 ---
 
