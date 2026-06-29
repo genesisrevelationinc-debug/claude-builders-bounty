@@ -1,3 +1,5 @@
-"""Claude Code PR Reviewer - Structured Markdown output for PR analysis."""
+"""Claude Code PR Review Agent."""
 
-__version__ = "0.1.0"
+from .reviewer import review_pr, main
+
+__all__ = ["review_pr", "main"]
