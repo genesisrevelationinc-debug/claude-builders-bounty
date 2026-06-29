@@ -1,8 +1,8 @@
-name: Claude PR Review
+name: Claude PR Reviewing
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
 
 jobs:
   review:
@@ -10,8 +10,9 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -23,123 +24,26 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e .
+          pip install -r claude-review/requirements.txt
 
-      - name: Run Claude Review
+      - name: Run Claude PR Review
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: claude-review --pr ${{ github.event.pull_request.html_url }} --post-comment
-"""Claude Code PR Review Agent."""
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -m claude-review.review \
+            --pr-url "${{ github.event.pull_request.html_url }}" \
+            --output review.md
 
-from .reviewer import review_pr
-
-__all__ = ["review_pr"]
-"""Command-line interface for Claude PR Review."""
-
-import argparse
-import sys
-
-from .reviewer import review_pr
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Claude Code PR Review Agent",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  claude-review --pr https://github.com/owner/repo/pull/123
-  claude-review --pr https://github.com/owner/repo/pull/123 --post-comment
-        """,
-    )
-    parser.add_argument(
-        "--pr",
-        required=True,
-        help="URL of the GitHub PR to review (e.g., https://github.com/owner/repo/pull/123)",
-    )
-    parser.add_argument(
-        "--post-comment",
-        action="store_true",
-        help="Post the review as a comment on the PR (requires GITHUB_TOKEN env var)",
-    )
-    parser.add_argument(
-        "--output",
-        "-o",
-        help="Write review to a file instead of stdout",
-    )
-
-    args = parser.parse_args()
-
-    try:
-        review = review_pr(args.pr, post_comment=args.post_comment, output_file=args.output)
-        if not args.output:
-            print(review)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
-"""Core PR review logic using Claude API and GitHub."""
-
-import os
-import re
-import sys
-from typing import Optional
-
-import requests
-
-
-def extract_pr_info(pr_url: str) -> tuple[str, str, int]:
-    """Extract owner, repo, and PR number from a GitHub PR URL."""
-    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
-    match = re.search(pattern, pr_url)
-    if not match:
-        raise ValueError(f"Invalid GitHub PR URL: {pr_url}")
-    return match.group(1), match.group(2), int(match.group(3))
-
-
-def fetch_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
-    """Fetch the PR diff from GitHub API."""
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3.diff",
-    }
-    response = requests.get(url, headers=headers, timeout=30)
-    response.raise_for_status()
-    return response.text
-
-
-def fetch_pr_details(owner: str, repo: str, pr_number: int, token: str) -> dict:
-    """Fetch PR details (title, description) from GitHub API."""
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json",
-    }
-    response = requests.get(url, headers=headers, timeout=30)
-    response.raise_for_status()
-    return response.json()
-
-
-def call_claude_api(diff: str, title: str, description: str) -> str:
-    """Call Claude API to generate a structured PR review."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY environment variable is required")
-
-    # Truncate diff if too long (Claude has context limits)
-    max_diff_length = 100000
-    if len(diff) > max_diff_length:
-        diff = diff[:max_diff_length] + "\n\n[... diff truncated due to length ...]"
-
-    prompt = f"""You are an expert code reviewer. Analyze the following pull request and provide a structured review in Markdown format.
-
-PR Title: {title}
-PR Description: {description}
-
-Here is the diff:
-
+      - name: Post review comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const review = fs.readFileSync('review.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: review
+            });
