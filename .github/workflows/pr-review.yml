@@ -10,123 +10,34 @@ jobs:
     permissions:
       pull-requests: write
       contents: read
-
+    
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
+      
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
           pip install -e .
-
-      - name: Run PR Review
+      
+      - name: Get PR diff
+        run: |
+          curl -s -H "Authorization: token ${{ secrets.GPAT_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3.diff" \
+            "${{ github.event.pull_request.diff_url }}" > pr.diff
+      
+      - name: Run PR review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets |\n|            secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
+          REPO: ${{ github.repository }}
         run: |
-          claude-review --pr "$PR_URL" \
-            --pr-number "$PR_NUMBER" \
-            --repo-owner "$REPO_OWNER" \
-            --repo-name "$REPO_NAME" \
-            --post-comment
-"""Claude Code PR Review Agent."""
-
-__version__ = "0.1.0"
-
-from claude_review.review import review_pr, main
-#!/usr/bin/env python3
-"""Claude Code PR Review Agent.
-
-Analyzes a GitHub PR diff and produces a structured Markdown review comment.
-"""
-
-import argparse
-import json
-import os
-import re
-import sys
-from dataclasses import dataclass
-from typing import Optional
-
-import requests
-
-
-@dataclass
-class ReviewResult:
-    """Structured PR review result."""
-
-    summary: str
-    risks: list[str]
-    suggestions: list[str]
-    confidence: str  # Low, Medium, High
-
-
-def parse_pr_url(pr_url: str) -> tuple[str, str, int]:
-    """Parse a GitHub PR URL into (owner, repo, pr_number)."""
-    pattern = r"github\.com/([^/]+)/([^/]+)/pull/(\d+)"
-    match = re.search(pattern, pr_url)
-    if not match:
-        raise ValueError(f"Invalid GitHub PR URL: {pr_url}")
-    return match.group(1), match.group(2), int(match.group(3))
-
-
-def get_pr_diff(owner: str, repo: str, pr_number: int, token: str) -> str:
-    """Fetch the PR diff from GitHub API."""
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3.diff",
-    }
-    response = requests.get(url, headers=headers, timeout=30)
-    response.raise_for_status()
-    return response.text
-
-
-def get_pr_info(owner: str, repo: str, pr_number: int, token: str) -> dict:
-    """Fetch PR metadata from GitHub API."""
-    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json",
-    }
-    response = requests.get(url, headers=headers, timeout=30)
-    response.raise_for_status()
-    return response.json()
-
-
-def call_claude_api(diff: str, pr_info: dict) -> ReviewResult:
-    """Call Claude API to analyze the PR diff."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-
-    # Truncate diff if too long (Claude has context limits)
-    max_diff_chars = 100000
-    if len(diff) > max_diff_chars:
-        diff = diff[:max_diff_chars] + "\n\n[... diff truncated due to length ...]"
-
-    system_prompt = """You are an expert code reviewer. Analyze the provided PR diff and return a structured JSON review with the following fields:
-
-- summary: A concise 2-3 sentence summary of what the PR changes and its apparent purpose.
-- risks: A list of specific risks or concerns identified in the code (e.g., potential bugs, security issues, performance problems, missing edge cases). Return an empty list if none are found.
-- suggestions: A list of concrete improvement suggestions (e.g., better error handling, code style improvements, test coverage gaps). Return an empty list if none are found.
-- confidence: Your confidence in the review quality, one of: "Low", "Medium", "High". Use "Low" if the diff is very large, complex, or in an unfamiliar domain. Use "High" for clear, well-scoped changes.
-
-Respond ONLY with valid JSON. Do not include markdown formatting, code blocks, or any other text."""
-
-    user_prompt = f"""PR Title: {pr_info.get('title', 'N/A')}
-PR Description: {pr_info.get('body', 'N/A') or 'N/A'}
-
-Diff:
+          claude-review --diff pr.diff --pr-url "${{ github.event.pull_request.html_url }}" --post-comment
+        continue-on-error: true
