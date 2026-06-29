@@ -1,42 +1,31 @@
 # n8n Weekly Dev Summary Workflow
 
-Automated weekly narrative summary of a GitHub repo's activity, powered by n8n + Claude API.
+Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
 
 ## Setup (5 steps)
 
-1. **Import** `weekly-dev-summary.json` into your n8n instance (Settings → Workflows → Import)
-2. **Configure credentials**: Add your GitHub Personal Access Token, Claude API Key, and Email (or webhook) credentials in n8n
-3. **Set variables**: Open the workflow and edit the `Set Config` node — set `repoOwner`, `repoName`, `language` (EN/FR), and `destination` (email or webhook URL)
-4. **Activate** the workflow toggle to enable the weekly cron trigger
-5. **Test** manually by clicking "Execute Workflow" — check your destination for the summary
+1. **Import the workflow**: In n8n, click *Workflows* → *Import from File* → select `weekly-dev-summary.json`
 
-## Features
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in n8n *Settings* → *Credentials*
 
-- **Trigger**: Every Friday at 5:00 PM
-- **GitHub Data**: Fetches commits, closed issues, and merged PRs from the past 7 days
-- **AI Summary**: Claude `claude-sonnet-4-20250514` generates a narrative summary
-- **Delivery**: Email (SMTP) or webhook (Discord/Slack)
-- **Languages**: English or French
+3. **Configure variables**: Open the workflow and edit the *Set Variables* node with your repo, destination, and language
+
+4. **Activate the workflow**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
+
+5. **Test it**: Click *Execute Workflow* to run manually and verify the output
 
 ## Required Credentials
 
-| Service | Type | How to Obtain |
-|---------|------|---------------|
-| GitHub | Personal Access Token | [GitHub Settings → Developer settings](https://github.com/settings/tokens) |
-| Claude | API Key | [Anthropic Console](https://console.anthropic.com/) |
-| Email/SMTP | SMTP credentials | Your email provider settings |
+- **GitHub API**: Personal Access Token with `repo` scope
+- **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
 
-## Workflow Nodes
+## Configurable Variables
 
-1. **Cron Trigger** — Weekly Friday 5pm
-2. **Set Config** — Workflow variables (repo, language, destination)
-3. **GitHub Commits** — Fetch commits from past 7 days
-4. **GitHub Issues** — Fetch closed issues from past 7 days
-5. **GitHub PRs** — Fetch merged PRs from past 7 days
-6. **Merge Data** — Combine all activity data
-7. **Claude API** — Generate narrative summary
-8. **Deliver Summary** — Send via email or webhook
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `githubRepo` | Target repository (owner/repo) | `claude-builders-bounty/claude-builders-bounty` |
+| `destinationWebhook` | Email/Discord/Slack webhook URL | `https://hooks.slack.com/services/...` |
+| `language` | Output language: `EN` or `FR` | `EN` |
 
-## Screenshot
+## Output Example
 
-> Include a screenshot of successful execution here: `screenshot-success.png`
