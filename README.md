@@ -6,7 +6,16 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
-This repository also includes a [pre-tool-use hook](hooks/) to block destructive bash commands in Claude Code. See [hooks/README.md](hooks/README.md) for details.
+---
+
+## Hooks
+
+### [Pre-Tool-Use Hook: Block Destructive Commands](hooks/)
+
+A security hook that intercepts dangerous bash commands (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) before they execute in Claude Code.
+
+- **Installation:** `cp hooks/pre-tool-use ~/.claude/hooks/pre-tool-use && chmod +x ~/.claude/hooks/pre-tool-use`
+- **Blocks:** Destructive patterns with logging to `~/.claude/hooks/blocked.log`
 
 ---
 
@@ -45,12 +54,10 @@ This repository also includes a [pre-tool-use hook](hooks/) to block destructive
 
 ---
 
-## Community
-
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
-
 ---
+
+*Started by the Claude builder community · March 2026 · MIT License*
+- 📧 Contact: claudebounty@gmail.com
 
 ---
 
