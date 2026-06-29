@@ -2,7 +2,7 @@ name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
 
 jobs:
   review:
@@ -10,7 +10,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -27,19 +27,17 @@ jobs:
       - name: Get PR diff
         id: get-diff
         run: |
-          gh pr diff ${{ github.event.pull_request.number }} > pr_diff.txt
-          echo "diff_file=pr_diff.txt" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" \
+            | jq -r '.diff_url' | xargs curl -s > pr.diff
+          echo "diff_path=pr.diff" >> $GITHUB_OUTPUT
 
-      - name: Run Claude Review
-        run: |
-          claude-review --diff pr_diff.txt --output review_output.md
+      - name: Run Claude PR Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-
-      - name: Post review comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          path: review_output.md
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          claude-review --pr ${{ github.event.pull_request.html_url }} --diff ${{ steps.get-diff.outputs.diff_path }} --post-comment
+
+      - name: Cleanup
+        run: rm -f pr.diff
