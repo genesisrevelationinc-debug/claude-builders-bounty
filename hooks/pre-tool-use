@@ -10,76 +10,79 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 
-
-BLOCKED_PATTERNS = [
-    # rm -rf (any variant with -rf or -fr flags)
-    {
-        "pattern": r"rm\s+.*-(?:r[^-]*f|f[^-]*r)",
-        "description": "Recursive force remove (rm -rf) — can delete entire directories irreversibly",
-    },
-    # DROP TABLE
-    {
-        "pattern": r"(?i)\bDROP\s+TABLE\b",
-        "description": "DROP TABLE — permanently deletes a database table and all its data",
-    },
-    # git push --force or git push -f
-    {
-        "pattern": r"git\s+push\s+.*--force\b|\bgit\s+push\s+.*\s-f(?:\s|$)",
-        "description": "git push --force — overwrites remote history, can cause data loss for the team",
-    },
-    # TRUNCATE
-    {
-        "pattern": r"(?i)\bTRUNCATE\b",
-        "description": "TRUNCATE — removes all rows from a table without logging individual row deletions",
-    },
-    # DELETE FROM without WHERE
-    {
-        "pattern": r"(?i)\bDELETE\s+FROM\s+\S+(?!\s+WHERE\b)",
-        "description": "DELETE FROM without WHERE — deletes all rows from a table instead of specific records",
-    },
-]
-
+# Path to the log file
 LOG_FILE = os.path.expanduser("~/.claude/hooks/blocked.log")
 
+# Destructive patterns to block
+# Each pattern is a tuple of (regex, description)
+DESTRUCTIVE_PATTERNS = [
+    # rm -rf / rm -r / rm -f with recursive flags
+    (
+        r"\brm\s+-(?:[a-zA-Z]*[rf])",
+        "Recursive file deletion (rm -rf) is destructive and can delete important files",
+    ),
+    # DROP TABLE
+    (
+        r"\bDROP\s+TABLE\b",
+        "DROP TABLE permanently deletes database tables and their data",
+    ),
+    # git push --force / git push -f
+    (
+        r"\bgit\s+push\s+.*(--force|-f)\b",
+        "Force pushing can overwrite remote history and cause data loss for the team",
+    ),
+    # TRUNCATE
+    (
+        r"\bTRUNCATE\b",
+        "TRUNCATE immediately removes all data from a table without logging individual row deletions",
+    ),
+    # DELETE FROM without WHERE
+    (
+        r"\bDELETE\s+FROM\s+\w+\s*$",
+        "DELETE FROM without a WHERE clause removes all rows from a table",
+    ),
+]
 
-def log_blocked(command: str, project_path: str):
-    """Log a blocked command attempt with timestamp, command, and project path."""
+
+def log_blocked_attempt(command: str, project_path: str):
+    """Log a blocked command attempt to the log file."""
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-    timestamp = datetime.now(timezone.utc).isoformat()
-    log_entry = f"[{timestamp}] project={project_path} command={command!r}\n"
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
+    timestamp = datetime.now().isoformat()
+    log_entry = f"{timestamp} | {project_path} | {command}\n"
+    with open(LOG_FILE, "a") as f:
         f.write(log_entry)
 
 
-def check_command(command: str, project_path: str) -> tuple[bool, str]:
-    """Check if a command matches any blocked pattern. Returns (is_blocked, reason)."""
-    for rule in BLOCKED_PATTERNS:
-        if re.search(rule["pattern"], command):
-            return True, rule["description"]
+def check_command(command: str) -> tuple[bool, str]:
+    """Check if a command matches any destructive pattern."""
+    for pattern, description in DESTRUCTIVE_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, description
     return False, ""
 
 
 def main():
     # Read the hook input from stdin (Claude Code passes tool use info as JSON)
     try:
-        data = json.load(sys.stdin)
+        hook_input = json.loads(sys.stdin.read())
     except json.JSONDecodeError:
-        # Not a valid JSON payload, allow to proceed
+        # If we can't parse the input, let it through
         sys.exit(0)
 
-    # Only intercept bash tool usage
-    if data.get("tool_name") != "bash":
-        sys.exit(0)
+    # Extract the command being executed
+    command = hook_input.get("command", "")
+    project_path = hook_input.get("project_path", os.getcwd())
 
-    command = data.get("tool_input", {}).get("command", "")
-    project_path = data.get("project_path", "")
+    is_destructive, reason = check_command(command)
 
-    is_blocked, reason = check_command(command, project_path)
-    if is_blocked:
-        log_blocked(command, project_path)
-        print(f"🚫 BLOCKED: This command was prevented from running.\nReason: {reason}", file=sys.stderr)
+    if is_destructive:
+        log_blocked_attempt(command, project_path)
+        print(f"🚫 BLOCKED: This command was prevented from running.", file=sys.stderr)
+        print(f"   Reason: {reason}", file=sys.stderr)
+        print(f"   Command: {command}", file=sys.stderr)
+        print(f"   If you need to run this command, please do so manually outside of Claude Code.", file=sys.stderr)
         sys.exit(1)
 
     sys.exit(0)
