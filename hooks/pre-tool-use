@@ -6,85 +6,83 @@ Place this file at: ~/.claude/hooks/pre-tool-use
 Make it executable: chmod +x ~/.claude/hooks/pre-tool-use
 """
 
-import json
+import sys
 import os
 import re
-import sys
+import json
 from datetime import datetime
 
 # Path to the log file
-LOG_FILE = os.path.expanduser("~/.claude/hooks/blocked.log")
+BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 
 # Destructive patterns to block
-# Each pattern is a tuple of (regex, description)
+# Each pattern is a tuple: (regex, description, case_sensitive)
 DESTRUCTIVE_PATTERNS = [
-    # rm -rf / rm -r / rm -f with recursive flags
-    (
-        r"\brm\s+-(?:[a-zA-Z]*[rf])",
-        "Recursive file deletion (rm -rf) is destructive and can delete important files",
-    ),
+    # rm -rf / rm -rf *
+    (r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|\s+)-?[rR][fF]', "rm -rf: Recursive force delete"),
+    
     # DROP TABLE
-    (
-        r"\bDROP\s+TABLE\b",
-        "DROP TABLE permanently deletes database tables and their data",
-    ),
-    # git push --force / git push -f
-    (
-        r"\bgit\s+push\s+.*(--force|-f)\b",
-        "Force pushing can overwrite remote history and cause data loss for the team",
-    ),
-    # TRUNCATE
-    (
-        r"\bTRUNCATE\b",
-        "TRUNCATE immediately removes all data from a table without logging individual row deletions",
-    ),
+    (r'\bDROP\s+TABLE\b', "DROP TABLE: Deletes an entire database table", False),
+    
+    # git push --force or git push -f
+    (r'\bgit\s+push\s+.*(--force\b|-f\b)', "git push --force: Force push can overwrite remote history"),
+    
+    # TRUNCATE TABLE
+    (r'\bTRUNCATE\b', "TRUNCATE: Removes all rows from a table", False),
+    
     # DELETE FROM without WHERE
-    (
-        r"\bDELETE\s+FROM\s+\w+\s*$",
-        "DELETE FROM without a WHERE clause removes all rows from a table",
-    ),
+    (r'\bDELETE\s+FROM\s+\S+(?!\s+WHERE\b)', "DELETE FROM without WHERE: Deletes all rows from table", False),
 ]
 
 
-def log_blocked_attempt(command: str, project_path: str):
-    """Log a blocked command attempt to the log file."""
-    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+def log_blocked_attempt(command, reason):
+    """Log a blocked attempt to the log file."""
     timestamp = datetime.now().isoformat()
-    log_entry = f"{timestamp} | {project_path} | {command}\n"
-    with open(LOG_FILE, "a") as f:
-        f.write(log_entry)
+    project_path = os.getcwd()
+    
+    log_entry = {
+        "timestamp": timestamp,
+        "attempted_command": command,
+        "project_path": project_path,
+        "reason": reason
+    }
+    
+    # Ensure the log directory exists
+    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
+    
+    with open(BLOCKED_LOG, "a") as f:
+        f.write(json.dumps(log_entry) + "\n")
 
 
-def check_command(command: str) -> tuple[bool, str]:
+def check_command(command):
     """Check if a command matches any destructive pattern."""
-    for pattern, description in DESTRUCTIVE_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True, description
-    return False, ""
+    for pattern, description, *flags in DESTRUCTIVE_PATTERNS:
+        case_sensitive = flags[0] if flags else True
+        flags_re = 0 if case_sensitive else re.IGNORECASE
+        
+        if re.search(pattern, command, flags_re):
+            return description
+    return None
 
 
 def main():
-    # Read the hook input from stdin (Claude Code passes tool use info as JSON)
+    # Read the hook payload from stdin
     try:
-        hook_input = json.loads(sys.stdin.read())
+        payload = json.load(sys.stdin)
     except json.JSONDecodeError:
-        # If we can't parse the input, let it through
+        # If not valid JSON, allow the command to proceed
         sys.exit(0)
-
-    # Extract the command being executed
-    command = hook_input.get("command", "")
-    project_path = hook_input.get("project_path", os.getcwd())
-
-    is_destructive, reason = check_command(command)
-
-    if is_destructive:
-        log_blocked_attempt(command, project_path)
-        print(f"🚫 BLOCKED: This command was prevented from running.", file=sys.stderr)
-        print(f"   Reason: {reason}", file=sys.stderr)
-        print(f"   Command: {command}", file=sys.stderr)
-        print(f"   If you need to run this command, please do so manually outside of Claude Code.", file=sys.stderr)
-        sys.exit(1)
-
+    
+    # Extract the command from the payload
+    command = payload.get("command", "") or payload.get("tool_input", {}).get("command", "")
+    
+    if command:
+        reason = check_command(command)
+        if reason:
+            log_blocked_attempt(command, reason)
+            print(f"\n🚫 BLOCKED: This command was prevented from running.\n   Reason: {reason}\n   Command: {command}\n", file=sys.stderr)
+            sys.exit(1)
+    
     sys.exit(0)
 
 
