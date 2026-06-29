@@ -1,125 +1,93 @@
-#!/usr/bin/env python3
-"""Claude Code PR Review Agent.
+"""Core PR review logic using Claude API."""
 
-Takes a PR diff as input, analyzes it with Claude, and returns a structured
-Markdown review comment.
-"""
-
-from __future__ import annotations
-
-import argparse
-import json
 import os
 import re
-import subprocess
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
-Prompt = str
+import requests
 
 
 @dataclass
 class ReviewResult:
-    """Structured PR review result."""
-
+    """Structured review output."""
     summary: str
     risks: list[str]
     suggestions: list[str]
-    confidence: str  # Low, Medium, High
-
-    def to_markdown(self) -> str:
-        """Format review as structured Markdown."""
-        lines = [
-            "## 🤖 Claude Code PR Review",
-            "",
-            "### Summary",
-            "",
-            self.summary,
-            "",
-            "### Identified Risks",
-            "",
-        ]
-        if self.risks:
-            for risk in self.risks:
-                lines.append(f"- {risk}")
-        else:
-            lines.append("- No significant risks identified.")
-        lines.extend(["", "### Improvement Suggestions", ""])
-        if self.suggestions:
-            for suggestion in self.suggestions:
-                lines.append(f"- {suggestion}")
-        else:
-            lines.append("- No suggestions at this time.")
-        lines.extend([
-            "",
-            f"### Confidence Score: **{self.confidence}**",
-            "",
-            "---",
-            "*Reviewed by [Claude Code](https://claude.ai)*",
-        ])
-        return "\n".join(lines)
+    confidence: str
+    raw_response: str
 
 
-def _run_claude(prompt: str, api_key: Optional[str] = None) -> str:
-    """Run Claude via the Anthropic API using the CLI or direct API call."""
-    key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-    if not key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY not set. Please set your Anthropic API key."
-        )
-
-    # Try using the Anthropic Python SDK first
-    try:
-        import anthropic
-
-        client = anthropic.Anthropic(api_key=key)
-        response = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response.content[0].text  # type: ignore[index]
-    except ImportError:
-        pass
-
-    # Fallback to curl
-    result = subprocess.run(
-        [
-            "curl",
-            "-s",
-            "https://api.anthropic.com/v1/messages",
-            "-H",
-            "Content-Type: application/json",
-            "-H",
-            f"x-api-key: {key}",
-            "-H",
-            "anthropic-version: 2023-06-01",
-            "-d",
-            json.dumps(
+class ClaudeReviewer:
+    """Claude Code PR Review Agent."""
+    
+    API_URL = "https://api.anthropic.com/v1/messages"
+    
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not self.api_key:
+            raise ValueError("ANTHROPIC_API_KEY is required")
+    
+    def _call_claude(self, prompt: str, max_tokens: int = 4000) -> str:
+        """Call the Claude API with the given prompt."""
+        headers = {
+            "x-api-key": self.api_key,
+            "Content-Type": "application/json",
+            "anthropic-version": "2023-06-01",
+        }
+        
+        payload = {
+            "model": "claude-sonnet-4-20250514",
+            "max_tokens": max_tokens,
+            "messages": [
                 {
-                    "model": "claude-sonnet-4-20250514",
-                    "max_tokens": 4096,
-                    "messages": [{"role": "user", "content": prompt}],
+                    "role": "user",
+                    "content": prompt
                 }
-            ),
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"Claude API call failed: {result.stderr}")
+            ]
+        }
+        
+        response = requests.post(self.API_URL, headers=headers, json=payload, timeout=120)
+        response.raise_for_status()
+        
+        data = response.json()
+        return data["content"][0]["text"]
+    
+    def _build_prompt(self, diff: str, pr_url: Optional[str] = None) -> str:
+        """Build the review prompt for Claude."""
+        pr_context = f"\nPR URL: {pr_url}" if pr_url else ""
+        
+        prompt = f"""You are an expert code reviewer. Review the following pull request diff and provide a structured analysis.
 
-    data = json.loads(result.stdout)
-    return data["content"][0]["text"]
+## Instructions
 
+Analyze the diff carefully and provide:
 
-def _build_review_prompt(diff: str, pr_url: str) -> Prompt:
-    """Build the prompt for Claude to review a PR."""
-    return f"""You are an expert code reviewer. Review the following pull request diff and provide a structured analysis.
+1. **Summary**: A concise 2-3 sentence summary of what this PR changes and why.
+2. **Risks**: A list of potential risks, bugs, or issues introduced by this PR. Be specific and reference line numbers or files where possible.
+3. **Suggestions**: Actionable improvement suggestions for code quality, performance, security, or maintainability.
+4. **Confidence Score**: Rate your overall confidence in this PR as Low, Medium, or High based on code quality, test coverage, and potential issues.
 
-PR URL: {pr_url}
+## Output Format
 
-Here is the diff:
+Respond in EXACTLY this format (maintain the headers):
+
+### Summary
+<2-3 sentence summary>
+
+### Risks
+- <risk 1>
+- <risk 2>
+- ...
+
+### Suggestions
+- <suggestion 1>
+- <suggestion 2>
+- ...
+
+### Confidence
+<Low | Medium | High>
+
+## PR Diff{pr_context}
 
