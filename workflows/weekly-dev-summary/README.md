@@ -4,28 +4,25 @@ Automatically generates a weekly narrative summary of a GitHub repo's activity u
 
 ## Setup (5 steps)
 
-1. **Import the workflow**: In n8n, click *Workflows* → *Import from File* → select `weekly-dev-summary.json`
-
-2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in n8n *Settings* → *Credentials*
-
-3. **Configure variables**: Open the workflow and edit the *Set Variables* node with your repo, destination, and language
-
-4. **Activate the workflow**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
-
-5. **Test it**: Click *Execute Workflow* to run manually and verify the output
+1. **Import** `workflow.json` into your n8n instance (Settings → Import)
+2. **Set credentials** for GitHub, Claude API, and your delivery channel (email/Discord/Slack)
+3. **Configure** the `Configuration` node variables: repo, channel, language
+4. **Activate** the workflow — it runs Fridays at 5 PM
+5. **Test** manually with the "Execute Workflow" button
 
 ## Required Credentials
 
-- **GitHub API**: Personal Access Token with `repo` scope
-- **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
+- **GitHub API**: Personal access token with `repo` scope
+- **Claude API**: Anthropic API key (https://console.anthropic.com)
+- **Delivery**: SMTP for email, or webhook URL for Discord/Slack
 
-## Configurable Variables
+## Configuration Variables
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `githubRepo` | Target repository (owner/repo) | `claude-builders-bounty/claude-builders-bounty` |
-| `destinationWebhook` | Email/Discord/Slack webhook URL | `https://hooks.slack.com/services/...` |
-| `language` | Output language: `EN` or `FR` | `EN` |
+| `githubRepo` | Full repo path | `claude-builders-bounty/claude-builders-bounty` |
+| `destinationChannel` | Email or webhook URL | `https://discord.com/api/webhooks/...` |
+| `language` | Summary language | `EN` or `FR` |
 
-## Output Example
+## Workflow Overview
 
