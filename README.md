@@ -45,23 +45,17 @@ You're in the right place.
 
 ## Community
 
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
-
----
-
-*Started by the Claude builder community · March 2026 · MIT License*
-
 ---
 
 ## Hooks
 
-| Hook | Description | Bounty |
-|------|-------------|--------|
-| [pre-tool-use](hooks/) | Block destructive bash commands | [#3](../../issues/3) |
+| Hook | Description | Path |
+|------|-------------|------|
+| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands before execution | `~/.claude/hooks/pre-tool-use` |
 
 ---
 
-## Rules
+## Community
 
-- Tasks must be related to Claude Code or AI tooling
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+*Started by the Claude builder community · March 2026 · MIT License*
