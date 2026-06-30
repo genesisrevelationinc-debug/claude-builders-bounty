@@ -45,17 +45,9 @@ You're in the right place.
 
 ## Community
 
----
-
-## Hooks
-
-| Hook | Description | Path |
-|------|-------------|------|
-| [pre-tool-use](hooks/pre-tool-use) | Blocks destructive bash commands before execution | `~/.claude/hooks/pre-tool-use` |
-
----
-
-## Community
-
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
+- 📧 Contact: claudebounty@gmail.com
+
 *Started by the Claude builder community · March 2026 · MIT License*
