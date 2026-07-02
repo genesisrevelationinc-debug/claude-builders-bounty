@@ -1,8 +1,5 @@
-#!/usr/bin/env python3
-"""Claude PR Reviewer - Analyzes PR diffs and generates structured Markdown reviews."""
+"""Core review logic for the Claude PR Review Agent."""
 
-import argparse
-import json
 import os
 import re
 import sys
@@ -14,53 +11,54 @@ import requests
 
 @dataclass
 class ReviewResult:
-    """Structured review result."""
+    """Structured result from a PR review."""
+
     summary: str
     risks: list[str]
     suggestions: list[str]
-    confidence: str
+    confidence: str  # Low, Medium, High
     raw_response: str
 
 
-class ClaudePRReviewer:
-    """Reviews PRs using the Claude API."""
+class ClaudeReviewer:
+    """Reviews PR diffs using the Claude API."""
+
+    API_URL = "https://api.anthropic.com/v1/messages"
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not self.api_key:
-            raise ValueError("ANTHROPIC_API_KEY must be provided or set as environment variable")
-        self.api_url = "https://api.anthropic.com/v1/messages"
+            raise ValueError(
+                "Anthropic API key required. Set ANTHROPIC_API_KEY environment variable."
+            )
 
-    def _call_claude(self, prompt: str, max_tokens: int = 4000) -> str:
-        """Call the Claude API with the given prompt."""
-        headers = {
-            "x-api-key": self.api_key,
-            "Content-Type": "application/json",
-            "anthropic-version": "2023-06-01",
-        }
-
-        payload = {
-            "model": "claude-sonnet-4-20250514",
-            "max_tokens": max_tokens,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-        }
-
-        response = requests.post(self.api_url, headers=headers, json=payload, timeout=120)
-        response.raise_for_status()
-
-        data = response.json()
-        return data["content"][0]["text"]
-
-    def _build_prompt(self, diff_content: str, pr_url: str) -> str:
+    def _build_prompt(self, diff: str) -> str:
         """Build the review prompt for Claude."""
         return f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
 
-PR URL: {pr_url}
+Focus on:
+- Understanding the intent and impact of the changes
+- Identifying potential bugs, security issues, or performance problems
+- Suggesting improvements for code quality, maintainability, and best practices
+- Assessing the overall risk level of the changes
 
-Here is the diff:
+Respond in the following exact format:
+
+## Summary
+[2-3 sentence summary of the changes]
+
+## Risks
+- [Risk 1]
+- [Risk 2]
+- [Risk 3 or "None identified"]
+
+## Suggestions
+- [Suggestion 1]
+- [Suggestion 2]
+- [Suggestion 3 or "None"]
+
+## Confidence
+[Low / Medium / High]
+
+Here is the PR diff to review:
 
