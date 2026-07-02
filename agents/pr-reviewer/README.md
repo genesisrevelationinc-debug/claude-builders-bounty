@@ -4,19 +4,20 @@
 
 ## Features
 
-- **CLI Tool**: Run `claude-review --pr <url>` from your terminal
-- **GitHub Action**: Automatically review PRs on pull request events
+- **CLI Tool**: Run `claude-review` from your terminal
+- **GitHub Action**: Auto-review PRs on open/update
 - **Structured Output**: Summary, risks, suggestions, and confidence score
-- **AI-Powered**: Uses Claude Code's built-in analysis capabilities
+- **Real PR Analysis**: Tested on actual GitHub repositories
 
-## Installation
+---
+
+## Setup
 
 ### Prerequisites
 
-- [Claude Code](https://claude.ai/code) installed and authenticated
-- Node.js 18+ (for the CLI wrapper)
-- GitHub token with `repo` scope (for posting comments)
+- Python 3.10+
+- [Claude Code](https://claude.ai/code) installed
+- GitHub Personal Access Token with `repo` scope
 
-### Setup
+### Installation
 
-1. Clone this repository:
