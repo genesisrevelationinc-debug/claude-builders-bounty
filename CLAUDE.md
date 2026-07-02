@@ -1,23 +1,23 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso). Paste this into your repo root. Claude Code reads this automatically.
+> Opinionated project conventions. Read before writing code. Claude: use this as ground truth.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts. Pages Router is not used. |
-| Runtime | Node.js 20+ | Native `fetch`, stable `crypto`, `AsyncLocalStorage` for request context. |
-| Database | SQLite via `better-sqlite3` (local) or `@libsql/client` (Turso/edge) | Single file, zero config, runs anywhere. Turso for edge deployment. |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, no hidden queries, migration files are plain SQL. |
-| Auth | `next-auth` v5 (Auth.js) with JWT sessions | Edge-compatible, SQLite adapter available, no external auth service required. |
-| Styling | Tailwind CSS + `shadcn/ui` | Utility-first, no runtime CSS, components are copy-paste owned code. |
-| Forms | `react-hook-form` + `zod` | Server-side validation first, client-side for UX only. |
-| Testing | Vitest (unit), Playwright (E2E) | Fast unit tests, real browser for critical paths. |
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
+| Runtime | Node.js 20+ | `next dev` requires it; we use native `fetch` and `crypto` |
+| Database | better-sqlite3 | Synchronous, fast, zero network latency. Turso only if you need multi-region |
+| ORM | None (raw SQL) | SQLite schema is simple; ORM adds bundle size and abstraction leaks |
+| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS, works with Server Components |
+| Forms | Server Actions + `useFormState` | No API routes needed for mutations; progressive enhancement built-in |
+| Auth | Lucia (or custom session table) | Lightweight, works with SQLite, no OAuth vendor lock-in |
+| Validation | Zod | Same schemas on server and client; TypeScript inference |
 
-**Lock these versions.** Do not upgrade major versions without updating this file.
+**Hard rule:** Do not add dependencies without updating this table and justifying in PR.
 
 ---
 
