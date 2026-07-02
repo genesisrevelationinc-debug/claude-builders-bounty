@@ -9,17 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead, works in Docker |
-| ORM/Query | Raw SQL + `better-sqlite3` | No ORM bloat; SQL is the source of truth |
-| Migrations | `node-sqlite-migrate` or custom script | Versioned, reversible, checked in CI |
-| Auth | `lucia` + `oslo` or `next-auth` v5 beta | Session-based, no JWT in localStorage |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible, copy-paste components |
-| Validation | `zod` | Schema-first, infers TypeScript types |
-| Testing | Vitest + Playwright | Unit in Node, E2E in real browser |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
+| Runtime | Node.js 20+ | Required for `crypto` global, native `fetch`, and `AsyncLocalStorage` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need multi-region |
+| ORM / Query Builder | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations, no codegen bloat |
+| Auth | Lucia + `oslo` | Session-based, works with SQLite out of the box, no third-party lock-in |
+| Styling | Tailwind CSS 3.4 | Utility-first, minimal CSS bundle, works with Server Components |
+| Forms | `react-hook-form` + `zod` | Client validation + Server Action validation with one schema |
+| Payments | Stripe | Standard. Use `stripe` SDK in Server Actions only |
 
-**Non-negotiable:** We do not use Prisma, Drizzle, or any query builder. Raw SQL with typed wrappers only.
+**Lockfile rule:** Use `pnpm`. Commit `pnpm-lock.yaml`. No `package-lock.json`, no `yarn.lock`.
 
 ---
 
