@@ -44,10 +44,17 @@ You're in the right place.
 ---
 
 ## Community
+- 📧 Contact: claudebounty@gmail.com
 
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
-- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
-- 📧 Contact: claudebounty@gmail.com
+
+## Hooks
+
+This repository includes a `pre-tool-use` hook for Claude Code that blocks destructive bash commands.
+
+### Quick Install
+
+
+
+---
 
 *Started by the Claude builder community · March 2026 · MIT License*
