@@ -24,18 +24,18 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r claude-review/requirements.txt
+          pip install claude-review
 
-      - name: Run Claude PR Review
+      - name: Run Claude Review
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python -m claude-review.claude_review --pr "$PR_URL" --output review.md
+          claude-review --pr "${{ github.event.pull_request.html_url }}"
 
-      - name: Post review comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          path: review.md
-          header: claude-review
+      - name: Post Review Comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          claude-review --pr "${{ github.event.pull_request.html_url }}" --post-comment
+        if: github.event_name == 'pull_request'
