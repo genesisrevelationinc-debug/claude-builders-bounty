@@ -1,7 +1,15 @@
-"""Core PR review logic using Claude API."""
+#!/usr/bin/env python3
+"""Claude Code PR Review Agent.
 
+Takes a PR diff as input, analyzes it with Claude, and returns a structured
+Markdown review comment.
+"""
+
+import argparse
+import json
 import os
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from typing import Optional
@@ -11,83 +19,73 @@ import requests
 
 @dataclass
 class ReviewResult:
-    """Structured review output."""
+    """Structured review result."""
     summary: str
     risks: list[str]
     suggestions: list[str]
     confidence: str
-    raw_response: str
 
 
-class ClaudeReviewer:
+class PRReviewer:
     """Claude Code PR Review Agent."""
-    
-    API_URL = "https://api.anthropic.com/v1/messages"
-    
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not self.api_key:
+
+    def __init__(self, anthropic_api_key: Optional[str] = None):
+        self.anthropic_api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not self.anthropic_api_key:
             raise ValueError("ANTHROPIC_API_KEY is required")
-    
-    def _call_claude(self, prompt: str, max_tokens: int = 4000) -> str:
-        """Call the Claude API with the given prompt."""
+
+    def _extract_pr_info(self, pr_url: str) -> tuple[str, str, int]:
+        """Extract owner, repo, and PR number from URL."""
+        match = re.match(r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
+        if not match:
+            raise ValueError(f"Invalid PR URL: {pr_url}")
+        return match.group(1), match.group(2), int(match.group(3))
+
+    def _fetch_pr_diff(self, owner: str, repo: str, pr_number: int) -> str:
+        """Fetch PR diff from GitHub API."""
+        token = os.environ.get("GITHUB_TOKEN")
         headers = {
-            "x-api-key": self.api_key,
-            "Content-Type": "application/json",
-            "anthropic-version": "2023-06-01",
+            "Accept": "application/vnd.github.v3.diff",
+            "User-Agent": "claude-review/0.1.0",
         }
-        
-        payload = {
-            "model": "claude-sonnet-4-20250514",
-            "max_tokens": max_tokens,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        }
-        
-        response = requests.post(self.API_URL, headers=headers, json=payload, timeout=120)
+        if token:
+            headers["Authorization"] = f"token {token}"
+
+        url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
-        
-        data = response.json()
-        return data["content"][0]["text"]
-    
-    def _build_prompt(self, diff: str, pr_url: Optional[str] = None) -> str:
-        """Build the review prompt for Claude."""
-        pr_context = f"\nPR URL: {pr_url}" if pr_url else ""
-        
-        prompt = f"""You are an expert code reviewer. Review the following pull request diff and provide a structured analysis.
+        return response.text
 
-## Instructions
+    def _fetch_pr_files(self, owner: str, repo: str, pr_number: int) -> list[dict]:
+        """Fetch PR files from GitHub API."""
+        token = os.environ.get("GITHUB_TOKEN")
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "claude-review/0.1.0",
+        }
+        if token:
+            headers["Authorization"] = f"token {token}"
 
-Analyze the diff carefully and provide:
+        url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/files"
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
 
-1. **Summary**: A concise 2-3 sentence summary of what this PR changes and why.
-2. **Risks**: A list of potential risks, bugs, or issues introduced by this PR. Be specific and reference line numbers or files where possible.
-3. **Suggestions**: Actionable improvement suggestions for code quality, performance, security, or maintainability.
-4. **Confidence Score**: Rate your overall confidence in this PR as Low, Medium, or High based on code quality, test coverage, and potential issues.
+    def _analyze_with_claude(self, diff: str, files: list[dict]) -> ReviewResult:
+        """Send diff to Claude API for analysis."""
+        files_summary = "\n".join([
+            f"- {f['filename']} (+{f['additions']}/-{f['deletions']})"
+            for f in files[:20]  # Limit to first 20 files
+        ])
 
-## Output Format
+        # Truncate diff if too large
+        max_diff_length = 15000
+        if len(diff) > max_diff_length:
+            diff = diff[:max_diff_length] + "\n\n... (diff truncated for length)"
 
-Respond in EXACTLY this format (maintain the headers):
+        prompt = f"""You are an expert code reviewer. Analyze the following PR diff and provide a structured review.
 
-### Summary
-<2-3 sentence summary>
+## Files Changed
+{files_summary}
 
-### Risks
-- <risk 1>
-- <risk 2>
-- ...
-
-### Suggestions
-- <suggestion 1>
-- <suggestion 2>
-- ...
-
-### Confidence
-<Low | Medium | High>
-
-## PR Diff{pr_context}
-
+## Diff
