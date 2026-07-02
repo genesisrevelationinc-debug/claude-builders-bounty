@@ -1,19 +1,24 @@
-# CLAUDE.md equivalents
+# CLAUDE.md — Next.js 15 + SQLite SaaS
+
+> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at your project root. Claude Code reads it automatically.
+
+---
 
 ## Stack & Versions
 
-- **Next.js**: 15.x with App Router (no Pages Router)
-- **React**: 19.x
-- **TypeScript**: 5.7+
-- **SQLite**: `better-sqlite3` for local/dev, `libsql` (Turso) for production
-- **ORM**: None. Use raw SQL via `better-sqlite3` or `@libsql/client`. ORMs hide query plans and make migrations opaque.
-- **Styling**: Tailwind CSS 4.x + shadcn/ui for components
-- **Auth**: `next-auth` (Auth.js) v5 with credentials provider backed by SQLite, or `lucia` + `oslo` if you need session control
-- **Validation**: `zod` for runtime validation, `drizzle-zod` only if you must
+| Layer | Choice | Why |
+|-------|--------|-----|
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable `sqlite` module |
+| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-tenant deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, excellent migrations |
+| Auth | Lucia + `oslo` | Session-based, works with SQLite, no external deps |
+| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | `react-hook-form` + `zod` | Type-safe validation, works in Server Actions |
+| Deployment | Docker + Fly.io / Railway | SQLite requires persistent volume; avoid serverless |
 
-### Why this stack
-
-SQLite is sufficient for 95% of SaaS workloads until you hit >10k concurrent writes. The single-file model simplifies backups and testing. Next.js 15 App Router with Server Components eliminates an entire class of data-fetching bugs.
+**Non-negotiable:** We do NOT use `turso` or any libsql fork. `better-sqlite3` requires a local file. If you need edge replication, use Postgres. SQLite on a network filesystem (EFS, NFS) corrupts. Deploy to a single VM with a persistent volume.
 
 ---
 
