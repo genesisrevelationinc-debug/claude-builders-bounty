@@ -1,24 +1,23 @@
-# n8n + Claude — Weekly Dev Summary Workflow
+# n8n + Claude Weekly Dev Summary Workflow
 
-Automatically generate and deliver a weekly narrative summary of your GitHub repo's activity using n8n and the Claude API.
+Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
 
 ## Setup (5 steps)
 
-1. **Import the workflow**: In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`.
-2. **Set credentials**: Add your GitHub Personal Access Token, Claude API key, and (optional) Slack/Discord webhook URL in *Settings → Credentials*.
-3. **Configure variables**: Open the workflow and edit the *Set Variables* node — set `repoOwner`, `repoName`, `language` (`EN` or `FR`), and `deliveryMethod` (`slack`, `discord`, or `email`).
-4. **Activate the workflow**: Toggle the workflow to *Active* — it runs every Friday at 5 PM UTC.
-5. **Test manually**: Click *Execute Workflow* to verify, then check your chosen channel for the summary.
+1. **Import workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API Key in *Settings* → *Credentials*
+3. **Configure variables**: Edit the *Set Config* node — set `repoOwner`, `repoName`, `webhookUrl`, and `language` (EN/FR)
+4. **Activate**: Toggle the workflow to *Active* in the top-right corner
+5. **Test**: Click *Execute Workflow* to run manually, or wait for the weekly cron trigger (Fridays at 5pm)
+
+## Delivery Options
+
+The workflow sends summaries via **Discord webhook** by default. To use Slack instead, change the `webhookUrl` to your Slack incoming webhook URL. For email delivery, replace the *HTTP Request* node with an *Email* node (SMTP credentials required).
 
 ## Required Credentials
 
-| Service | Credential Type | How to Obtain |
-|---------|----------------|---------------|
-| GitHub | Personal Access Token | [GitHub Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens) |
-| Claude | API Key | [Anthropic Console](https://console.anthropic.com/settings/keys) |
-| Slack (optional) | Webhook URL | [Slack Apps → Incoming Webhooks](https://api.slack.com/messaging/webhooks) |
-| Discord (optional) | Webhook URL | [Server Settings → Integrations → Webhooks](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks) |
-| SMTP (optional) | SMTP credentials | Your email provider's SMTP settings |
+- **GitHub API**: Personal Access Token with `repo` scope
+- **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
 
 ## Workflow Overview
 
