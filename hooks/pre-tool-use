@@ -14,113 +14,94 @@ from datetime import datetime
 from pathlib import Path
 
 
-# Patterns that are always blocked (no exceptions)
-ALWAYS_BLOCKED = [
-    r"rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|\s*-)[a-zA-Z0-9/]*",  # rm -rf or rm -f
-    r"git\s+push\s+.*--force",  # git push --force
-    r"git\s+push\s+.*-f",  # git push -f
-    r"DROP\s+TABLE",  # SQL DROP TABLE
-    r"TRUNCATE\s+",  # SQL TRUNCATE
+# Patterns that are considered destructive
+DESTRUCTIVE_PATTERNS = [
+    # rm -rf (recursive force delete)
+    (r'\brm\s+(?:-[a-zA-Z]*[rf]\S*\s+|\s+)*', "rm -rf: Recursive force deletion is blocked"),
+    
+    # DROP TABLE (SQL)
+    (r'\bDROP\s+TABLE\b', "DROP TABLE: Dropping database tables is blocked"),
+    
+    # git push --force
+    (r'\bgit\s+push\s+.*--force\b', "git push --force: Force pushing is blocked"),
+    (r'\bgit\s+push\s+.*-f\b', "git push --force: Force pushing is blocked"),
+    
+    # TRUNCATE (SQL)
+    (r'\bTRUNCATE\b', "TRUNCATE: Truncating tables is blocked"),
+    
+    # DELETE FROM without WHERE
+    (r'\bDELETE\s+FROM\s+\S+(?!.*\bWHERE\b)', "DELETE FROM without WHERE: Unqualified deletes are blocked"),
 ]
 
-# Patterns that require a WHERE clause to be safe
-DANGEROUS_WITHOUT_WHERE = [
-    r"DELETE\s+FROM\s+(\w+)",  # DELETE FROM without WHERE
-]
 
-
-def get_log_file():
+def get_log_path() -> Path:
     """Get the path to the blocked log file."""
-    hooks_dir = Path.home() / ".claude" / "hooks"
-    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hooks_dir = Path(__file__).parent
     return hooks_dir / "blocked.log"
 
 
-def log_blocked_attempt(command, reason):
+def log_blocked_attempt(command: str, reason: str) -> None:
     """Log a blocked command attempt to the log file."""
-    log_file = get_log_file()
+    log_path = get_log_path()
     timestamp = datetime.now().isoformat()
     project_path = os.getcwd()
     
-    log_entry = f"{timestamp} | BLOCKED: {reason} | Command: {command} | Project: {project_path}\n"
+    log_entry = f"[{timestamp}] BLOCKED: {reason} | Command: {command} | Project: {project_path}\n"
     
-    with open(log_file, "a") as f:
-        f.write(log_entry)
-
-
-def is_blocked(command):
-    """
-    Check if a command should be blocked.
-    
-    Returns (is_blocked, reason) tuple.
-    """
-    command_upper = command.upper()
-    command_stripped = command.strip()
-    
-    # Check always blocked patterns
-    for pattern in ALWAYS_BLOCKED:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True, f"Destructive command pattern detected: {pattern}"
-    
-    # Check DELETE FROM without WHERE
-    if re.search(r"DELETE\s+FROM", command, re.IGNORECASE):
-        if not re.search(r"WHERE\s+", command, re.IGNORECASE):
-            return True, "DELETE FROM without WHERE clause"
-    
-    return False, None
-
-
-def main():
-    """
-    Main entry point for the hook.
-    
-    Reads the tool use request from stdin and either allows it or blocks it.
-    """
     try:
-        # Read the tool use request from stdin
-        input_data = sys.stdin.read()
-        
-        # Parse the input as JSON
-        try:
-            tool_request = json.loads(input_data)
-        except json.JSONDecodeError:
-            # If not JSON, check the raw string
-            tool_request = {"command": input_data}
-        
-        # Extract the command - handle different possible structures
-        command = tool_request.get("command", "")
-        if not command and "input" in tool_request:
-            command = tool_request["input"].get("command", "")
-        
-        # Check if the command is blocked
-        blocked, reason = is_blocked(command)
-        
-        if blocked:
-            log_blocked_attempt(command, reason)
-            print(f"🚫 BLOCKED: This command has been prevented from executing.\n\nReason: {reason}\n\nCommand: {command}\n\nThis is a destructive operation that could cause data loss. If you need to perform this action, please do so manually and with caution.", file=sys.stderr)
-            sys.exit(1)
-        
-    except Exception as e:
-        # If anything goes wrong, allow the command to proceed
-        # (fail open for safety, but log the error)
-        print(f"Warning: Hook error ({e}), allowing command to proceed", file=sys.stderr)
-        sys.exit(0)
+        with open(log_path, "a") as f:
+            f.write(log_entry)
+    except Exception:
+        pass  # Best effort logging
+
+
+def check_command(command: str) -> tuple[bool, str]:
+    """Check if a command matches any destructive pattern."""
+    command_upper = command.upper()
+    
+    for pattern, reason in DESTRUCTIVE_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, reason
+    
+    return False, ""
+
+
+def main() -> None:
+    """Main entry point for the hook."""
+    # Read the tool use data from stdin (Claude Code hook protocol)
+    try:
+        data = json.loads(sys.stdin.read())
+    except json.JSONDecodeError:
+        sys.exit(0)  # Allow if we can't parse
+    
+    command = data.get("command", "") or data.get("input", "") or ""
+    
+    is_blocked, reason = check_command(command)
+    if is_blocked:
+        log_blocked_attempt(command, reason)
+        print(f"🛡️  BLOCKED: {reason}", file=sys.stderr)
+        print(f"   Attempted command: {command}", file=sys.stderr)
+        print(f"   This command has been blocked to prevent destructive operations.", file=sys.stderr)
+        sys.exit(1)  # Block the command
+    
+    sys.exit(0)  # Allow the command
 
 
 if __name__ == "__main__":
     main()
---- /dev/null
 # Claude Code Pre-Tool-Use Hook: Block Destructive Commands
 
-A security hook for Claude Code that intercepts and blocks dangerous bash commands before they can execute.
+A security hook for [Claude Code](https://docs.anthropic.com/claude-code) that intercepts and blocks dangerous bash commands before they can execute.
 
 ## What It Blocks
 
-- `rm -rf` / `rm -f` — Recursive/force file deletion
-- `git push --force` / `git push -f` — Force git push
-- `DROP TABLE` — SQL table deletion
-- `TRUNCATE` — SQL table truncation
-- `DELETE FROM` without a `WHERE` clause — Unqualified SQL deletion
+| Pattern | Example | Why |
+|---------|---------|-----|
+| `rm -rf` | `rm -rf /important` | Irreversible recursive deletion |
+| `DROP TABLE` | `DROP TABLE users;` | Destroys database tables |
+| `git push --force` | `git push --force origin main` | Overwrites remote history |
+| `TRUNCATE` | `TRUNCATE TABLE orders;` | Bulk deletes all table data |
+| `DELETE FROM` (no WHERE) | `DELETE FROM users;` | Deletes all rows accidentally |
 
 ## Installation
 
