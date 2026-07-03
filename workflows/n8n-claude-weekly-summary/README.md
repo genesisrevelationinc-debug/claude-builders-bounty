@@ -4,40 +4,31 @@ Automatically generates a weekly narrative summary of a GitHub repo's activity u
 
 ## Setup (5 steps)
 
-1. **Import the workflow**: In n8n, go to *Workflows* → *Import from File* → select `weekly-dev-summary.json`
-
-2. **Set credentials**: Add your GitHub Personal Access Token, Claude API Key, and Email/SMTP or Webhook credentials in n8n *Settings* → *Credentials*
-
-3. **Configure variables**: Open the *Set Config* node and edit:
-   - `repo`: `owner/repo` format
-   - `channel`: email address or webhook URL
-   - `language`: `EN` or `FR`
-
-4. **Activate the workflow**: Toggle the workflow to *Active* — it runs every Friday at 5 PM UTC
-
-5. **Test manually**: Click *Execute Workflow* to verify, then check your destination for the summary
-
----
-
-## What It Does
-
-- **Trigger**: Weekly cron (Fridays at 5 PM)
-- **Fetches**: Commits, closed issues, and merged PRs from the past 7 days
-- **Summarizes**: Claude `claude-sonnet-4-20250514` generates a narrative summary
-- **Delivers**: Via email (SMTP) or Discord/Slack webhook
+1. **Import the workflow**: In n8n, go to *Workflows* → *Import* → *From File* and select `workflow.json`
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API Key in n8n *Settings* → *Credentials*
+3. **Configure variables**: Open the workflow and edit the *Set Config* node with your repo, channel, and language
+4. **Activate**: Toggle the workflow to *Active* in the top-right corner
+5. **Test**: Click *Execute Workflow* to run manually, or wait for the Friday 5pm cron trigger
 
 ## Required Credentials
 
-| Service | Type | How to Get |
-|---------|------|-----------|
-| GitHub | Personal Access Token | [Settings → Developer settings → PAT](https://github.com/settings/tokens) |
-| Claude | API Key | [Anthropic Console](https://console.anthropic.com) |
-| Email/SMTP or Webhook | SMTP or HTTP Request | Your email provider or Discord/Slack app |
+- **GitHub API**: Personal Access Token with `repo` scope
+optionally `public_repo` for public repos
+- **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
 
-## Customization
+## Configurable Variables
 
-Edit the `Set Config` node to change:
-- `repo`: Target GitHub repository
-- `channel`: Where summaries are sent
-- `language`: `EN` or `FR`
-- `deliveryMethod`: `email` or `webhook`
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `githubRepo` | Full repo path | `claude-builders-bounty/claude-builders-bounty` |
+| `destinationWebhook` | Email/Discord/Slack webhook URL | `https://hooks.slack.com/services/...` |
+| `language` | Summary language | `EN` or `FR` |
+
+## Delivery Options
+
+The workflow uses a **Discord/Slack webhook** by default. To switch to **email**:
+1. Replace the *Send to Discord* node with an *Email (SMTP)* node
+2. Configure SMTP credentials in n8n *Settings* → *Credentials*
+
+## Workflow Overview
+
