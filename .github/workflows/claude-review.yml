@@ -12,7 +12,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -26,23 +26,18 @@ jobs:
         run: |
           pip install -e .
 
-      - name: Get PR diff
-        id: get-diff
-        run: |
-          gh pr diff ${{ github.event.pull_request.number }} > /tmp/pr.diff
+      - name: Run Claude PR Review
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run Claude Review
-        run: |
-          claude-review --diff /tmp/pr.diff --output /tmp/review.md
-        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude-review \
+            --pr "${{ github.event.pull_request.html_url }}" \
+            --output review.md
 
       - name: Post review comment
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          path: /tmp/review.md
+          path: review.md
           header: claude-review
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          recreate: true
