@@ -1,5 +1,5 @@
-"""Claude Code PR Review Agent - Structured Markdown Review Comments."""
+"""Claude Code PR Review Agent."""
 
 __version__ = "0.1.0"
 
-from .reviewer import PRReviewer
+from .reviewer import ClaudePRReviewer
