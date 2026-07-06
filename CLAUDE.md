@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your conventions without asking questions.
 
 ---
 
@@ -9,16 +8,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
-| Runtime | Node.js 20+ | Required for `crypto` global, native fetch stability |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Raw SQL + `better-sqlite3` | No abstraction tax; full control over queries and migrations |
-| Auth | `bcryptjs` + `jose` (JWT) | No external auth provider dependency; works offline |
-| Styling | Tailwind CSS 4 | Utility-first, zero runtime, works with RSC |
-| Forms | Server Actions + `zod` | No client-side form libraries; validate on the server |
-| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical flows |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, stable since 15 |
+| Runtime | Node.js 20+ | `next dev` requires 18+, 20 is current LTS |
+| Database | better-sqlite3 | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia + oslo | Session-based, works with SQLite, no OAuth lock-in |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, easy to eject |
+| Validation | Zod | Same schemas for API, forms, and DB |
+| Testing | Vitest + Playwright | Unit + E2E, fast, native Vite integration |
 
-**Non-negotiable:** We do not use Prisma, Drizzle, or any query builder. Raw SQL keeps the mental model flat and avoids migration lock-in.
+**Non-negotiable:** We do not use Prisma (heavy, slow on SQLite), tRPC (unnecessary with Server Actions), or NextAuth.js (bloated for our needs).
 
 ---
 
