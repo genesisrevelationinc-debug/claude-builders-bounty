@@ -1,23 +1,25 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read before writing code. Claude: use this as ground truth.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> 
+> **Purpose:** This file is loaded automatically by Claude Code as project context. Every rule below exists to reduce decision fatigue and prevent common foot-guns in full-stack Next.js applications.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Why |
-|-------|--------|-----|
+| Layer | Choice | Rationale |
+|-------|--------|-----------|
 | Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data fetching |
-| Runtime | Node.js 20+ | `next dev` requires it; we use native `fetch` and `crypto` |
-| Database | better-sqlite3 | Synchronous, fast, zero network latency. Turso only if you need multi-region |
-| ORM | None (raw SQL) | SQLite schema is simple; ORM adds bundle size and abstraction leaks |
-| Styling | Tailwind CSS 3.4+ | Utility-first, no runtime CSS, works with Server Components |
-| Forms | Server Actions + `useFormState` | No API routes needed for mutations; progressive enhancement built-in |
-| Auth | Lucia (or custom session table) | Lightweight, works with SQLite, no OAuth vendor lock-in |
-| Validation | Zod | Same schemas on server and client; TypeScript inference |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable ESM |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead. Use Turso only if you need edge replication |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly. No Prisma (heavy binary, slow in Docker) |
+| Auth | Lucia (or custom session) | Session cookies over JWT. JWT belongs in headers; we use httpOnly cookies |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, no CSS-in-JS runtime cost. shadcn for rapid UI assembly |
+| Validation | Zod | Same schemas for API, forms, and DB inserts |
+| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
 
-**Hard rule:** Do not add dependencies without updating this table and justifying in PR.
+**Lock these versions.** Do not upgrade major versions without updating this file.
 
 ---
 
