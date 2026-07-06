@@ -1,6 +1,8 @@
-# /generate-changelog
+# Generate Changelog Skill
 
-Generate a structured `CHANGELOG.md` from the project's git history.
+A Claude Code skill to automatically generate a structured `CHANGELOG.md` from git history.
 
 ## Usage
+
+Run the following command in Claude Code:
 
