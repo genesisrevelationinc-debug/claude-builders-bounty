@@ -3,7 +3,7 @@
 Claude Code pre-tool-use hook to block destructive bash commands.
 
 This hook intercepts dangerous bash commands before they are executed
-by Claude Code, preventing accidental data loss.
+by Claude Code, preventing accidental data loss or destructive operations.
 """
 
 import json
@@ -11,83 +11,94 @@ import os
 import re
 import sys
 from datetime import datetime
+from pathlib import Path
 
+# Path to the log file for blocked commands
+BLOCKED_LOG = Path.home() / ".claude" / "hooks" / "blocked.log"
 
-# Patterns that should be blocked
+# Destructive patterns to block
 DANGEROUS_PATTERNS = [
-    # rm -rf (recursive force delete)
-    (r'\brm\s+(?:-[a-zA-Z]*\s+)*-?[a-zA-Z]*rf', 'rm -rf: Recursive force deletion'),
-    # DROP TABLE
-    (r'\bDROP\s+TABLE\b', 'DROP TABLE: Database table deletion'),
-    # git push --force
-    (r'\bgit\s+push\s+(?:-[a-zA-Z]+\s+)*--force\b', 'git push --force: Force push can overwrite remote history'),
-    # TRUNCATE
-    (r'\bTRUNCATE\b', 'TRUNCATE: Complete table data removal'),
+    # rm -rf pattern (removes directories recursively and forcefully)
+    {
+        "pattern": r"rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?(-[a-zA-Z]*r[a-zA-Z]*\s+)?-?[a-zA-Z]*\s*-?[a-zA-Z]*\s*\S+",
+        "simple_pattern": r"rm\s+.*-[a-zA-Z]*[rf][a-zA-Z]*",
+        "name": "rm -rf",
+        "description": "Forcefully and recursively removes files/directories"
+    },
+    # DROP TABLE pattern
+    {
+        "pattern": r"(?i)\bDROP\s+TABLE\b",
+        "name": "DROP TABLE",
+        "description": "Deletes an entire database table and all its data"
+    },
+    # git push --force pattern
+    {
+        "pattern": r"(?i)git\s+push\s+.*--force",
+        "name": "git push --force",
+        "description": "Forcefully overwrites remote git history, potentially destroying others' work"
+    },
+    # TRUNCATE pattern
+    {
+        "pattern": r"(?i)\bTRUNCATE\b",
+        "name": "TRUNCATE",
+        "description": "Quickly removes all rows from a table (cannot be rolled back in some DBs)"
+    },
+    # DELETE FROM without WHERE clause
+    {
+        "pattern": r"(?i)\bDELETE\s+FROM\s+\S+(?!.*\bWHERE\b)",
+        "name": "DELETE FROM without WHERE",
+        "description": "Deletes all rows from a table without filtering (missing WHERE clause)"
+    },
 ]
 
-# DELETE FROM without WHERE clause
-DELETE_FROM_PATTERN = r'\bDELETE\s+FROM\s+\S+\s*;?$'
 
-
-def log_blocked_attempt(command, reason):
-    """Log a blocked command attempt to the log file."""
-    log_dir = os.path.expanduser('~/.claude/hooks')
-    log_file = os.path.join(log_dir, 'blocked.log')
+def log_blocked_command(command: str, reason: str):
+    """Log a blocked command to the blocked.log file."""
+    BLOCKED_LOG.parent.mkdir(parents=True, exist_ok=True)
     
-    # Ensure log directory exists
-    os.makedirs(log_dir, exist_ok=True)
-    
-    # Get project path (current working directory)
+    timestamp = datetime.now().isoformat()
     project_path = os.getcwd()
     
-    # Format: timestamp | attempted command | project path | reason
-    timestamp = datetime.now().isoformat()
-    log_entry = f"{timestamp} | {command} | {project_path} | {reason}\n"
+    log_entry = f"[{timestamp}] BLOCKED: {reason}\n  Command: {command}\n  Project: {project_path}\n\n"
     
-    # Append to log file
-    with open(log_file, 'a') as f:
+    with open(BLOCKED_LOG, "a") as f:
         f.write(log_entry)
 
 
-def check_command(command):
-    """Check if a command is dangerous and should be blocked."""
-    command_upper = command.upper()
-    
-    # Check dangerous patterns
-    for pattern, reason in DANGEROUS_PATTERNS:
-        if re.search(pattern, command, re.IGNORECASE):
-            return True, reason
-    
-    # Check DELETE FROM without WHERE
-    if re.search(r'\bDELETE\s+FROM\b', command, re.IGNORECASE):
-        if not re.search(r'\bWHERE\b', command, re.IGNORECASE):
-            return True, 'DELETE FROM without WHERE: Unconditional row deletion'
-    
-    return False, None
+def check_command(command: str) -> tuple[bool, str]:
+    """Check if a command matches any dangerous pattern. Returns (is_blocked, reason)."""
+    for pattern_info in DANGEROUS_PATTERNS:
+        pattern = pattern_info.get("simple_pattern", pattern_info["pattern"])
+        if re.search(pattern_info["pattern"], command) or re.search(pattern, command):
+            return True, f"{pattern_info['name']}: {pattern_info['description']}"
+    return False, ""
 
 
 def main():
-    # Read the tool use request from stdin (Claude Code hook protocol)
+    # Read the hook input from stdin (Claude Code passes tool use info as JSON)
     try:
-        data = json.load(sys.stdin)
+        hook_input = json.loads(sys.stdin.read())
     except json.JSONDecodeError:
-        # Not a valid JSON, let it pass
+        # If not valid JSON, allow the command to proceed
         sys.exit(0)
     
-    # Extract the command from the tool use data
-    command = data.get('command', '') if isinstance(data, dict) else str(data)
+    # Extract the command from the hook input
+    command = hook_input.get("command", "") or hook_input.get("input", "")
     
-    is_dangerous, reason = check_command(command)
+    if not command:
+        sys.exit(0)
     
-    if is_dangerous:
-        log_blocked_attempt(command, reason)
-        print(f"🚫 BLOCKED: {reason}", file=sys.stderr)
-        print(f"   Command: {command}", file=sys.stderr)
-        print("   This destructive command has been prevented for safety.", file=sys.stderr)
-        sys.exit(1)  # Non-zero exit blocks the tool use
+    is_blocked, reason = check_command(command)
     
-    sys.exit(0)  # Zero exit allows the tool use to proceed
+    if is_blocked:
+        log_blocked_command(command, reason)
+        print(f"\n🚫 BLOCKED: This command has been prevented from running.\n", file=sys.stderr)
+        print(f"   Reason: {reason}\n", file=sys.stderr)
+        print(f"   Command: {command}\n", file=sys.stderr)
+        sys.exit(1)
+    
+    sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
