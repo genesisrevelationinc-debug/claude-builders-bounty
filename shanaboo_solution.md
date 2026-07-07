@@ -1,126 +1,135 @@
  ```diff
 --- /dev/null
 +++ b/claude-review
-@@ -0,0 +1,3 @@
+@@ -0,0 +1,5 @@
 +#!/usr/bin/env bash
 +set -euo pipefail
-+exec python3 "$(dirname "$0")/claude_review/cli.py" "$@"
++
++SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
++exec python3 "$SCRIPT_DIR/claude_review/cli.py" "$@"
 --- /dev/null
 +++ b/claude_review/__init__.py
-@@ -0,0 +1,5 @@
+@@ -0,0 +1,3 @@
 +"""Claude Code PR Review Agent."""
 +
 +__version__ = "0.1.0"
-+__all__ = ["review_pr", "format_review"]
-+
 --- /dev/null
 +++ b/claude_review/cli.py
 @@ -0,0 +1,120 @@
 +#!/usr/bin/env python3
-+"""CLI entry point for the Claude Code PR reviewer agent."""
-+
-+from __future__ import annotations
++"""CLI entry point for the Claude Code PR review agent."""
 +
 +import argparse
 +import os
 +import re
-+import subprocess
 +import sys
-+import urllib.request
-+from pathlib import Path
++from urllib.parse import urlparse
 +
 +from .reviewer import review_pr
 +
 +
-+def _fetch_diff(pr_url: str) -> str:
-+    """Fetch raw diff from a GitHub PR URL."""
-+    # Normalize PR URL to raw diff URL
-+    # Supported formats:
-+    #   https://github.com/owner/repo/pull/123
-+    #   https://github.com/owner/repo/pull/123/files
-+    match = re.match(r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
-+    if not match:
-+        raise ValueError(f"Invalid GitHub PR URL: {pr_url}")
-+
-+    owner, repo, pr_number = match.groups()
-+    diff_url = f"https://github.com/{owner}/{repo}/pull/{pr_number}.diff"
-+
-+    req = urllib.request.Request(
-+        diff_url,
-+        headers={
-+            "User-Agent": "claude-review/0.1.0",
-+            "Accept": "application/vnd.github.v3.diff",
-+        },
-+    )
-+
-+    token = os.environ.get("GITHUB_TOKEN")
-+    if token:
-+        req.add_header("Authorization", f"token {token}")
-+
-+    with urllib.request.urlopen(req, timeout=30) as response:
-+        return response.read().decode("utf-8")
++def validate_pr_url(url: str) -> bool:
++    """Validate that the URL is a GitHub PR URL."""
++    pattern = r"^https://github\.com/[^/]+/[^/]+/pull/\d+/?$"
++    return bool(re.match(pattern, url))
 +
 +
-+def _read_diff_from_file(path: str) -> str:
-+    """Read diff from a local file."""
-+    return Path(path).read_text(encoding="utf-8")
-+
-+
-+def _read_diff_from_stdin() -> str:
-+    """Read diff from stdin."""
-+    return sys.stdin.read()
-+
-+
-+def _get_git_diff() -> str:
-+    """Get diff from git if in a repo."""
-+    result = subprocess.run(
-+        ["git", "diff", "HEAD~1", "HEAD"],
-+        capture_output=True,
-+        text=True,
-+        check=False,
-+    )
-+    if result.returncode != 0:
-+        raise RuntimeError("Failed to get git diff. Are you in a git repository?")
-+    return result.stdout
++def parse_pr_url(url: str) -> tuple[str, str, int]:
++    """Parse a GitHub PR URL into (owner, repo, pr_number)."""
++    parsed = urlparse(url)
++    path_parts = parsed.path.strip("/").split("/")
++    # path: owner/repo/pull/123
++    if len(path_parts) < 4 or path_parts[2] != "pull":
++        raise ValueError(f"Invalid PR URL: {url}")
++    owner = path_parts[0]
++    repo = path_parts[1]
++    pr_number = int(path_parts[3])
++    return owner, repo, pr_number
 +
 +
 +def main() -> None:
 +    parser = argparse.ArgumentParser(
-+        description="Claude Code PR Review Agent",
++        description="Claude Code PR Review Agent - Generate structured Markdown reviews for GitHub PRs",
 +        formatter_class=argparse.RawDescriptionHelpFormatter,
 +        epilog="""
 +Examples:
 +  claude-review --pr https://github.com/owner/repo/pull/123
-+  claude-review --file changes.diff
-+  git diff | claude-review --stdin
-+  claude-review --git
++  claude-review --pr https://github.com/owner/repo/pull/123 --output review.md
++  claude-review --pr https://github.com/owner/repo/pull/123 --github-token ghp_xxx
 +        """,
 +    )
-+    group = parser.add_mutually_exclusive_group(required=True)
-+    group.add_argument("--pr", help="GitHub PR URL to review")
-+    group.add_argument("--file", help="Path to a local diff file")
-+    group.add_argument("--stdin", action="store_true", help="Read diff from stdin")
-+    group.add_argument("--git", action="store_true", help="Review last git commit")
-+
-+    parser.add_argument("--api-key", help="Anthropic API key (or set ANTHROPIC_API_KEY)")
-+    parser.add_argument("--model", default="claude-sonnet-4-20250514", help="Claude model to use")
-+    parser.add_argument("--output", "-o", help="Write review to file instead of stdout")
++    parser.add_argument(
++        "--pr",
++        required=True,
++        help="GitHub PR URL to review",
++    )
++    parser.add_argument(
++        "--output",
++        "-o",
++        help="Output file for the review (default: print to stdout)",
++    )
++    parser.add_argument(
++        "--github-token",
++        help="GitHub personal access token (or set GITHUB_TOKEN env var)",
++    )
++    parser.add_argument(
++        "--anthropic-api-key",
++        help="Anthropic API key (or set ANTHROPIC_API_KEY env var)",
++    )
++    parser.add_argument(
++        "--model",
++        default="claude-sonnet-4-20250514",
++        help="Claude model to use (default: claude-sonnet-4-20250514)",
++    )
++    parser.add_argument(
++        "--post-comment",
++        action="store_true",
++        help="Post the review as a comment on the PR (requires --github-token)",
++    )
 +
 +    args = parser.parse_args()
 +
-+    if args.pr:
-+        diff_text = _fetch_diff(args.pr)
-+    elif args.file:
-+        diff_text = _read_diff_from_file(args.file)
-+    elif args.stdin:
-+        diff_text = _read_diff_from_stdin()
-+    else:
-+        diff_text = _get_git_diff()
++    # Validate PR URL
++    if not validate_pr_url(args.pr):
++        print(f"Error: Invalid GitHub PR URL: {args.pr}", file=sys.stderr)
++        print("Expected format: https://github.com/owner/repo/pull/123", file=sys.stderr)
++        sys.exit(1)
 +
-+    review = review_pr(diff_text, api_key=args.api_key, model=args.model, pr_url=args.pr)
++    # Parse PR URL
++    try:
++        owner, repo, pr_number = parse_pr_url(args.pr)
++    except ValueError as e:
++        print(f"Error: {e}", file=sys.stderr)
++        sys.exit(1)
++
++    # Get API keys
++    github_token = args.github_token or os.environ.get("GITHUB_TOKEN")
++    anthropic_api_key = args.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
++
++    if not github_token:
++        print("Error: GitHub token required. Use --github-token or set GITHUB_TOKEN env var.", file=sys.stderr)
++        sys.exit(1)
++
++    if not anthropic_api_key:
++        print("Error: Anthropic API key required. Use --anthropic-api-key or set ANTHROPIC_API_KEY env var.", file=sys.stderr)
++        sys.exit(1)
++
++    # Run the review
++    review = review_pr(
++        owner=owner,
++        repo=repo,
++        pr_number=pr_number,
++        github_token=github_token,
++        anthropic_api_key=anthropic_api_key,
++        model=args.model,
++        pr_url=args.pr,
++        post_comment=args.post_comment,
++    )
 +
 +    if args.output:
-+        Path(args.output).write_text(review, encoding="utf-8")
++        with open(args.output, "w") as f:
++            f.write(review)
++        print(f"Review saved to {args.output}")
 +    else:
 +        print(review)
 +
@@ -129,47 +138,39 @@
 +    main()
 --- /dev/null
 +++ b/claude_review/reviewer.py
-@@ -0,0 +1,189 @@
-+"""Core PR review logic using Claude API."""
-+
-+from __future__ import annotations
+@@ -0,0 +1,280 @@
++"""Core PR review logic using Claude Code."""
 +
 +import json
-+import os
 +import re
-+from dataclasses import dataclass
-+from typing import Any
++from typing import Optional
++
++import requests
 +
 +
-+@dataclass
-+class ReviewResult:
-+    summary: str
-+    risks: list[str]
-+    suggestions: list[str]
-+    confidence: str
++def fetch_pr_diff(owner: str, repo: str, pr_number: int, github_token: str) -> str:
++    """Fetch the raw diff of a GitHub PR."""
++    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
++    headers = {
++        "Authorization": f"token {github_token}",
++        "Accept": "application/vnd.github.v3.diff",
++    }
++    response = requests.get(url, headers=headers)
++    response.raise_for_status()
++    return response.text
 +
 +
-+def _call_claude_api(diff_text: str, api_key: str | None, model: str, pr_url: str | None = None) -> str:
-+    """Call the Claude API to analyze a PR diff."""
-+    import urllib.request
++def fetch_pr_info(owner: str, repo: str, pr_number: int, github_token: str) -> dict:
++    """Fetch PR metadata from GitHub API."""
++    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
++    headers = {
++        "Authorization": f"token {github_token}",
++        "Accept": "application/vnd.github.v3+json",
++    }
++    response = requests.get(url, headers=headers)
++    response.raise_for_status()
++    return response.json()
 +
-+    key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-+    if not key:
-+        raise RuntimeError(
-+            "Anthropic API key required. Set ANTHROPIC_API_KEY or pass --api-key."
-+        )
 +
-+    # Truncate very large diffs
-+    max_diff_chars = 100_000
-+    if len(diff_text) > max_diff_chars:
-+        diff_text = diff_text[:max_diff_chars] + "\n\n[... diff truncated ...]"
-+
-+    pr_context = f"PR: {pr_url}\n" if pr_url else ""
-+
-+    system_prompt = (
-+        "You are an expert code reviewer. Analyze the provided PR diff and produce "
-+        "a structured review in JSON format with these fields:\n"
-+        "- summary: A concise 2-3 sentence summary of the changes\n"
-+        "- risks: A list of identified risks or concerns (can be empty)\n"
-+        "- suggestions: A list of improvement suggestions (can be empty)\n"
-+        "- confidence: One of 'Low', 'Medium', or 'High' indicating your confidence
++def post_pr_comment(
++    owner: str, repo
