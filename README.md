@@ -8,6 +8,15 @@ You're in the right place.
 
 ---
 
+## Hooks
+
+This repository includes a **pre-tool-use security hook** for Claude Code that blocks destructive bash commands.
+
+### Quick Install
+
+
+---
+
 ## How it works
 
 **To post a bounty**
