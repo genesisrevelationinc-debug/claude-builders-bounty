@@ -1,207 +1,175 @@
  ```diff
 --- /dev/null
-+++ b/.github/workflows/claude-review.yml
-@@ -0,0 +1,42 @@
-+name: Claude PR Review
-+
-+on:
-+  pull_request:
-+    types: [opened, synchronize]
-+
-+jobs:
-+  review:
-+    runs-on: ubuntu-latest
-+    permissions:
-+      pull-requests: write
-+      contents: read
-+    steps:
-+      - name: Checkout code
-+        uses: actions/checkout@v4
-+        with:
-+          fetch-depth: 0
-+
-+      - name: Set up Python
-+        uses: actions/setup-python@v5
-+        with:
-+          python-version: '3.11'
-+
-+      - name: Install dependencies
-+        run: |
-+          pip install -e .
-+
-+      - name: Get PR diff
-+        id: get-diff
-+        run: |
-+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-+            "${{ github.event.pull_request.diff_url }}" > pr.diff
-+          echo "diff_file=pr.diff" >> $GITHUB_OUTPUT
-+
-+      - name: Run Claude Review
-+        env:
-+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-+        run: |
-+          claude-review --diff pr.diff \
-+            --pr-url "${{ github.event.pull_request.html_url }}" \
-+            --post-comment \
-+            --github-token "$GITHUB_TOKEN"
-+--- /dev/null
++++ b/claude-review
+@@ -0,0 +1,3 @@
++#!/usr/bin/env bash
++set -euo pipefail
++exec python3 "$(dirname "$0")/claude_review/cli.py" "$@"
+--- /dev/null
 +++ b/claude_review/__init__.py
 @@ -0,0 +1,5 @@
 +"""Claude Code PR Review Agent."""
 +
-+from .reviewer import ClaudeReviewer
++__version__ = "0.1.0"
++__all__ = ["review_pr", "format_review"]
 +
-+__all__ = ["ClaudeReviewer"]
-+--- /dev/null
-+++ b/claude_review/__main__.py
-@@ -0,0 +1,6 @@
-+"""Entry point for python -m claude_review."""
-+
-+from .cli import main
-+
-+if __name__ == "__main__":
-+    main()
-+--- /dev/null
+--- /dev/null
 +++ b/claude_review/cli.py
-@@ -0,0 +1,93 @@
-+"""CLI for the Claude PR Review agent."""
+@@ -0,0 +1,120 @@
++#!/usr/bin/env python3
++"""CLI entry point for the Claude Code PR reviewer agent."""
++
++from __future__ import annotations
 +
 +import argparse
 +import os
++import re
++import subprocess
 +import sys
++import urllib.request
++from pathlib import Path
 +
-+from .reviewer import ClaudeReviewer
++from .reviewer import review_pr
 +
 +
-+def create_parser() -> argparse.ArgumentParser:
-+    parser = argparse.ArgumentParser(
-+        prog="claude-review",
-+        description="Claude Code PR Review Agent — analyze a PR diff and produce structured Markdown output.",
++def _fetch_diff(pr_url: str) -> str:
++    """Fetch raw diff from a GitHub PR URL."""
++    # Normalize PR URL to raw diff URL
++    # Supported formats:
++    #   https://github.com/owner/repo/pull/123
++    #   https://github.com/owner/repo/pull/123/files
++    match = re.match(r"https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)", pr_url)
++    if not match:
++        raise ValueError(f"Invalid GitHub PR URL: {pr_url}")
++
++    owner, repo, pr_number = match.groups()
++    diff_url = f"https://github.com/{owner}/{repo}/pull/{pr_number}.diff"
++
++    req = urllib.request.Request(
++        diff_url,
++        headers={
++            "User-Agent": "claude-review/0.1.0",
++            "Accept": "application/vnd.github.v3.diff",
++        },
 +    )
-+    parser.add_argument(
-+        "--pr",
-+        dest="pr_url",
-+        help="GitHub PR URL (e.g. https://github.com/owner/repo/pull/123)",
++
++    token = os.environ.get("GITHUB_TOKEN")
++    if token:
++        req.add_header("Authorization", f"token {token}")
++
++    with urllib.request.urlopen(req, timeout=30) as response:
++        return response.read().decode("utf-8")
++
++
++def _read_diff_from_file(path: str) -> str:
++    """Read diff from a local file."""
++    return Path(path).read_text(encoding="utf-8")
++
++
++def _read_diff_from_stdin() -> str:
++    """Read diff from stdin."""
++    return sys.stdin.read()
++
++
++def _get_git_diff() -> str:
++    """Get diff from git if in a repo."""
++    result = subprocess.run(
++        ["git", "diff", "HEAD~1", "HEAD"],
++        capture_output=True,
++        text=True,
++        check=False,
 +    )
-+    parser.add_argument(
-+        "--diff",
-+        dest="diff_file",
-+        help="Path to a .diff / .patch file to review",
-+    )
-+    parser.add_argument(
-+        "--output",
-+        "-o",
-+        dest="output_file",
-+        help="Write review to this file instead of stdout",
-+    )
-+    parser.add_argument(
-+        "--post-comment",
-+        action="store_true",
-+        help="Post the review as a comment on the PR (requires --pr and GITHUB_TOKEN)",
-+    )
-+    parser.add_argument(
-+        "--github-token",
-+        dest="github_token",
-+        default=os.environ.get("GITHUB_TOKEN"),
-+        help="GitHub personal access token (or set GITHUB_TOKEN env var)",
-+    )
-+    parser.add_argument(
-+        "--model",
-+        default=os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-20250514"),
-+        help="Claude model identifier (default: claude-sonnet-4-20250514)",
-+    )
-+    return parser
++    if result.returncode != 0:
++        raise RuntimeError("Failed to get git diff. Are you in a git repository?")
++    return result.stdout
 +
 +
 +def main() -> None:
-+    parser = create_parser()
++    parser = argparse.ArgumentParser(
++        description="Claude Code PR Review Agent",
++        formatter_class=argparse.RawDescriptionHelpFormatter,
++        epilog="""
++Examples:
++  claude-review --pr https://github.com/owner/repo/pull/123
++  claude-review --file changes.diff
++  git diff | claude-review --stdin
++  claude-review --git
++        """,
++    )
++    group = parser.add_mutually_exclusive_group(required=True)
++    group.add_argument("--pr", help="GitHub PR URL to review")
++    group.add_argument("--file", help="Path to a local diff file")
++    group.add_argument("--stdin", action="store_true", help="Read diff from stdin")
++    group.add_argument("--git", action="store_true", help="Review last git commit")
++
++    parser.add_argument("--api-key", help="Anthropic API key (or set ANTHROPIC_API_KEY)")
++    parser.add_argument("--model", default="claude-sonnet-4-20250514", help="Claude model to use")
++    parser.add_argument("--output", "-o", help="Write review to file instead of stdout")
++
 +    args = parser.parse_args()
 +
-+    if not args.pr_url and not args.diff_file:
-+        print("Error: Must provide either --pr or --diff", file=sys.stderr)
-+        sys.exit(1)
-+
-+    api_key = os.environ.get("ANTHROPIC_API_KEY")
-+    if not api_key:
-+        print("Error: ANTHROPIC_API_KEY environment variable required", file=sys.stderr)
-+        sys.exit(1)
-+
-+    reviewer = ClaudeReviewer(api_key=api_key, model=args.model)
-+
-+    if args.pr_url:
-+        print(f"Fetching diff from {args.pr_url} ...")
-+        diff_text = reviewer.fetch_pr_diff(args.pr_url, token=args.github_token)
++    if args.pr:
++        diff_text = _fetch_diff(args.pr)
++    elif args.file:
++        diff_text = _read_diff_from_file(args.file)
++    elif args.stdin:
++        diff_text = _read_diff_from_stdin()
 +    else:
-+        with open(args.diff_file, "r", encoding="utf-8") as f:
-+            diff_text = f.read()
++        diff_text = _get_git_diff()
 +
-+    if not diff_text or not diff_text.strip():
-+        print("Error: Empty diff", file=sys.stderr)
-+        sys.exit(1)
++    review = review_pr(diff_text, api_key=args.api_key, model=args.model, pr_url=args.pr)
 +
-+    print("Analyzing with Claude ...")
-+    review = reviewer.review(diff_text, pr_url=args.pr_url)
-+
-+    if args.output_file:
-+        with open(args.output_file, "w", encoding="utf-8") as f:
-+            f.write(review)
-+        print(f"Review written to {args.output_file}")
++    if args.output:
++        Path(args.output).write_text(review, encoding="utf-8")
 +    else:
-+        print("\n" + "=" * 60)
 +        print(review)
-+        print("=" * 60)
 +
-+    if args.post_comment and args.pr_url:
-+        reviewer.post_comment(args.pr_url, review, token=args.github_token)
-+        print("Comment posted to PR.")
-+--- /dev/null
++
++if __name__ == "__main__":
++    main()
+--- /dev/null
 +++ b/claude_review/reviewer.py
-@@ -0,0 +1,186 @@
-+"""Core review logic for the Claude PR Review agent."""
+@@ -0,0 +1,189 @@
++"""Core PR review logic using Claude API."""
++
++from __future__ import annotations
 +
 +import json
 +import os
 +import re
-+import textwrap
-+from typing import Optional
-+
-+import requests
++from dataclasses import dataclass
++from typing import Any
 +
 +
-+SYSTEM_PROMPT = """\
-+You are an expert software engineer and code reviewer. Analyze the provided PR diff and produce a structured review in Markdown.
-+
-+Your response must follow this exact format:
-+
-+## Summary
-+
-+2–3 sentences summarizing the changes.
-+
-+## Risks
-+
-+- Risk 1
-+- Risk 2
-+- Risk 3
-+
-+## Suggestions
-+
-+- Suggestion 1
-+- Suggestion 2
-+
-+## Confidence
-+
-+Low / Medium / High
-+
-+Rules:
-+- Be concise but thorough.
-+- Flag security issues, logic errors, missing tests, and breaking changes.
-+- Suggest concrete improvements, not vague advice.
-+- Confidence reflects how certain you are about the risks identified.
-+"""
++@dataclass
++class ReviewResult:
++    summary: str
++    risks: list[str]
++    suggestions: list[str]
++    confidence: str
 +
 +
-+class ClaudeReviewer:
-+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514"):
-+        self.api_key = api_key
-+       
++def _call_claude_api(diff_text: str, api_key: str | None, model: str, pr_url: str | None = None) -> str:
++    """Call the Claude API to analyze a PR diff."""
++    import urllib.request
++
++    key = api_key or os.environ.get("ANTHROPIC_API_KEY")
++    if not key:
++        raise RuntimeError(
++            "Anthropic API key required. Set ANTHROPIC_API_KEY or pass --api-key."
++        )
++
++    # Truncate very large diffs
++    max_diff_chars = 100_000
++    if len(diff_text) > max_diff_chars:
++        diff_text = diff_text[:max_diff_chars] + "\n\n[... diff truncated ...]"
++
++    pr_context = f"PR: {pr_url}\n" if pr_url else ""
++
++    system_prompt = (
++        "You are an expert code reviewer. Analyze the provided PR diff and produce "
++        "a structured review in JSON format with these fields:\n"
++        "- summary: A concise 2-3 sentence summary of the changes\n"
++        "- risks: A list of identified risks or concerns (can be empty)\n"
++        "- suggestions: A list of improvement suggestions (can be empty)\n"
++        "- confidence: One of 'Low', 'Medium', or 'High' indicating your confidence
