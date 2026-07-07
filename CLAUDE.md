@@ -9,16 +9,16 @@
 | Layer | Choice | Why |
 |-------|--------|-----|
 | Framework | Next.js 15 (App Router) | Server Components by default = less client JS |
-| Runtime | Node.js 20+ | `crypto.randomUUID` native, stable fetch |
-| Database | `better-sqlite3` | Synchronous, fast, no connection pool complexity for single-node deploys |
-| Migrations | Custom SQL scripts | No ORM migration lock-in; SQL is the source of truth |
-| Auth | Lucia (or custom session) | Lightweight, no OAuth bloat unless needed |
-| Styling | Tailwind CSS + CSS variables | No runtime CSS, consistent design tokens |
-| Forms | Server Actions + `useFormState` | No API routes for mutations; progressive enhancement |
-| Validation | Zod | Type-safe, works with Server Actions |
-| Testing | Vitest + Playwright | Unit + E2E, no Jest config hell |
+| Runtime | Node.js 22+ | `fetch` cache changes, native `crypto` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-tenant |
+| ORM/Query | Drizzle ORM | Type-safe SQL, migrations in TS, no codegen step |
+| Auth | `better-auth` | Works with SQLite, no external auth service |
+| Styling | Tailwind CSS 4 + CSS variables | No runtime CSS-in-JS, purge by default |
+| Forms | Server Actions + `react-hook-form` | Progressive enhancement, no API routes for CRUD |
+| Validation | Zod | Same schemas for client, server, and DB |
+| Testing | Vitest + Playwright | Unit for logic, E2E for critical flows |
 
-**Non-negotiable:** SQLite in WAL mode. Always. It enables concurrent reads during writes.
+**Lockfile rule:** `package-lock.json` only. Delete `yarn.lock` / `pnpm-lock.yaml` on sight.
 
 ---
 
