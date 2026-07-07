@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Read this first. Follow it exactly. Ask before overriding.
+> Opinionated conventions for building a production SaaS with Next.js 15 App Router and SQLite.
+> Paste this into your project root. Claude Code reads it automatically.
 
 ---
 
@@ -9,17 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `fetch` cache control, native `crypto`, stable `sqlite` |
-| Database | `better-sqlite3` | Synchronous, fast, zero-config for single-tenant deploys |
-| ORM/Query | Raw SQL + `better-sqlite3` | No abstraction tax; schema is the source of truth |
-| Migrations | Custom Node.js scripts | One `.sql` file per migration; runs in dependency order |
-| Auth | `iron-session` + bcrypt | Stateless sessions, no external auth service dependency |
-| Styling | Tailwind CSS + `cn()` utility | No CSS-in-JS runtime; deterministic class merging |
-| Forms | Server Actions + `useFormState` | No client-side form libraries; validate on server |
-| Testing | Vitest + Playwright | Unit tests for utilities; E2E for critical flows |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
+| Runtime | Node.js 20+ | Required for `crypto` global, `fetch` stability, and native `sqlite` module support |
+| Database | `better-sqlite3` | Synchronous, fast augmented queries, no connection pool complexity for single-node deploys |
+| ORM/Query | Raw SQL + `better-sqlite3` | SQLite is simple; ORMs add indirection without benefit. Use typed wrappers instead |
+| Auth | `oslo` + `bcryptjs` | Stateless sessions in httpOnly cookies, no external auth provider dependency |
+| Styling | Tailwind CSS 4 | Utility-first, zero runtime, works with Server Components |
+| Forms | Server Actions + `zod` | No API routes needed; validation co-located with action |
+| Testing | Vitest + `@testing-library/react` | Fast, ESM-native, matches Next.js toolchain |
 
-**Non-negotiable:** Do not add Prisma, Drizzle, or TypeORM. The schema lives in `.sql` files. ORMs hide performance footguns and make migrations opaque.
+**Non-negotiable:** We do not use `turso` or any remote SQLite. SQLite is local-first or we use Postgres. Remote SQLite is a category error.
 
 ---
 
