@@ -4,13 +4,16 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  pull-requests: write
+  contents: read
+
 jobs:
   review:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
+    name: Claude Code PR Review
     steps:
-      - name: Checkout code
+      - name: Checkout PR
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -24,30 +27,145 @@ jobs:
         run: |
           pip install -r claude-review/requirements.txt
 
-      - name: Run Claude PR Review
+      - name: Run Claude Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
+          REPO: ${{ github.repository }}
         run: |
-          python -m claude-review.cli --pr "$PR_URL" --output review_output.md
-          echo "REVIEW_BODY<<EOF" >> $GITHUB_ENV
-          cat review_output.md >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          python -m claude-review.claude_review \
+            --pr "$PR_URL" \
+            --pr-number "$PR_NUMBER" \
+            --repo "$REPO" \
+            --github-token "$GITHUB_TOKEN"
 
-      - name: Post review comment
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const body = process.env.REVIEW_BODY;
-            if (body && body.trim().length > 0) {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: body
-              });
-            }
+#!/usr/bin/env python3
+"""
+Claude Code PR Review Agent
+
+Analyzes a GitHub PR diff and posts a structured Markdown review comment.
+"""
+
+import argparse
+import os
+import re
+import sys
+from dataclasses import dataclass
+from typing import List, Optional
+
+import requests
+
+
+@dataclass
+class ReviewComment:
+    """Structured review comment data."""
+    summary: str
+    risks: List[str]
+    suggestions: List[str]
+    confidence: str  # Low, Medium, High
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Claude Code PR Review Agent",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  claude-review --pr https://github.com/owner/repo/pull/123
+  claude-review --pr https://github.com/owner/repo/pull/123 --output markdown
+        """
+    )
+    parser.add_argument(
+        "--pr",
+        required=True,
+        help="GitHub PR URL to review"
+    )
+    parser.add_argument(
+        "--pr-number",
+        help="PR number (for GitHub Actions use)"
+    )
+    parser.add_argument(
+        "--repo",
+        help="Repository in format owner/repo (for GitHub Actions use)"
+    )
+    parser.add_argument(
+        "--github-token",
+        help="GitHub personal access token (or set GITHUB_TOKEN env var)"
+    )
+    parser.add_argument(
+        "--output",
+        choices=["markdown", "json", "post"],
+        default="markdown",
+        help="Output format: markdown (default), json, or post to GitHub"
+    )
+    parser.add_argument(
+        "--model",
+        default="claude-sonnet-4-20250514",
+        help="Claude model to use (default: claude-sonnet-4-20250514)"
+    )
+    return parser.parse_args()
+
+
+def extract_pr_info(pr_url: str) -> tuple:
+    """Extract owner, repo, and PR number from GitHub PR URL."""
+    patterns = [
+        r"github\.com/([^/]+)/([^/]+)/pull/(\d+)",
+        r"github\.com/([^/]+)/([^/]+)/pulls/(\d+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, pr_url)
+        if match:
+            return match.group(1), match.group(2), match.group(3)
+    raise ValueError(f"Could not parse PR URL: {pr_url}")
+
+
+def fetch_pr_diff(owner: str, repo: str, pr_number: str, token: Optional[str] = None) -> str:
+    """Fetch the raw diff of a PR from GitHub API."""
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    headers = {
+        "Accept": "application/vnd.github.v3.diff",
+        "User-Agent": "claude-review/1.0"
+    }
+    if token:
+        headers["Authorization"] = f"token {token}"
+
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.text
+
+
+def fetch_pr_info(owner: str, repo: str, pr_number: str, token: Optional[str] = None) -> dict:
+    """Fetch PR metadata from GitHub API."""
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "claude-review/1.0"
+    }
+    if token:
+        headers["Authorization"] = f"token {token}"
+
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
+
+
+def call_claude_api(diff: str, pr_info: dict, model: str) -> ReviewComment:
+    """Call Claude API to analyze the PR diff."""
+    try:
+        import anthropic
+    except ImportError:
+        # Fallback: simulate review without API (for testing)
+        return simulate_review(diff, pr_info)
+
+    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+    prompt = f"""You are an expert code reviewer. Analyze the following pull request and provide a structured review.
+
+PR Title: {pr_info.get('title', 'N/A')}
+PR Description: {pr_info.get('body', 'N/A')}
+
+Here is the diff:
+
