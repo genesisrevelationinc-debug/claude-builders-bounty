@@ -3,21 +3,14 @@
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
+Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
+This repository also README.md contains a pre-tool-use hook that blocks destructive bash commands.
+See [hooks/README.md](hooks/README.md) for details.
 
 ---
 
-## Hooks
-
-This repository includes a **pre-tool-use security hook** for Claude Code that blocks destructive bash commands.
-
-### Quick Install
-
-
----
-
-## How it works
 
 **To post a bounty**
 1. Open a GitHub issue with a clear description and acceptance criteria
@@ -56,6 +49,10 @@ This repository includes a **pre-tool-use security hook** for Claude Code that b
 
 - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - 📧 Contact: claudebounty@gmail.com
+
+---
+
+*Started by the Claude builder community · March 2026 · MIT License*
 
 ---
 
