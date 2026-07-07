@@ -8,6 +8,15 @@ You're in the right place.
 
 ---
 
+## Hooks
+
+This repository includes a `pre-tool-use` hook that blocks destructive bash commands in Claude Code.
+
+### Quick Install
+
+
+---
+
 ## How it works
 
 **To post a bounty**
@@ -51,17 +60,3 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
-
----
-
-## Hooks
-
-### Pre-Tool-Use: Block Destructive Bash Commands
-
-A security hook that intercepts dangerous bash commands before execution. See [`hooks/`](./hooks/) for details.
-
----
-
-## Rules
-
-- Tasks must be related to Claude Code or AI tooling
