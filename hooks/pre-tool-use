@@ -10,81 +10,77 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 
-BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
 
-# Patterns that are always blocked (case-insensitive)
-ALWAYS_BLOCKED = [
-    re.compile(r"rm\s+(-[a-zA-Z]*\s+)*-rf", re.IGNORECASE),
-    re.compile(r"git\s+push\s+.*--force", re.IGNORECASE),
-    re.compile(r"git\s+push\s+.*-f\b", re.IGNORECASE),
-    re.compile(r"\bDROP\s+TABLE\b", re.IGNORECASE),
-    re.compile(r"\bTRUNCATE\b", re.IGNORECASE),
+BLOCKED_PATTERNS = [
+    # rm -rf / rm -fr variants
+    (r'\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?-[a-zA-Z]*r[a-zA-Z]*\s+', "rm -rf"),
+    (r'\brm\s+-[a-zA-Z]*r[a-zA-Z]*\s+.*-[a-zA-Z]*f', "rm -rf"),
+    # DROP TABLE
+    (r'\bDROP\s+TABLE\b', "DROP TABLE"),
+    # git push --force variants
+    (r'\bgit\s+push\s+.*--force\b', "git push --force"),
+    (r'\bgit\s+push\s+.*-f\b', "git push --force"),
+    # TRUNCATE
+    (r'\bTRUNCATE\s+(TABLE\s+)?', "TRUNCATE"),
+    # DELETE FROM without WHERE
+    (r'\bDELETE\s+FROM\s+[^;]+\s*;?\s*$', "DELETE FROM without WHERE"),
+    (r'\bDELETE\s+FROM\s+[^;]+\s*(?!.*\bWHERE\b).*', "DELETE FROM without WHERE"),
 ]
 
-# Patterns that require a WHERE clause to be safe
-DANGEROUS_WITHOUT_WHERE = [
-    re.compile(r"\bDELETE\s+FROM\b", re.IGNORECASE),
-]
+LOG_FILE = os.path.expanduser("~/.claude/hooks/blocked.log")
 
 
-def log_blocked(command: str, reason: str):
+def log_blocked(command: str, tool_name: str):
     """Log a blocked command attempt with timestamp and project path."""
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now().isoformat()
     project_path = os.getcwd()
-    log_entry = f"[{timestamp}] BLOCKED: {reason} | Command: {command} | Project: {project_path}\n"
-    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
-    with open(BLOCKED_LOG, "a") as f:
+    
+    log_entry = f"[{timestamp}] tool={tool_name} command={command!r} path={project_path}\n"
+    
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+    with open(LOG_FILE, "a") as f:
         f.write(log_entry)
 
 
-def is_blocked(command: str) -> tuple[bool, str]:
-    """Check if a command should be blocked. Returns (is_blocked, reason)."""
-    # Check always-blocked patterns
-    for pattern in ALWAYS_BLOCKED:
-        if pattern.search(command):
-            return True, f"Matched dangerous pattern: {pattern.pattern}"
-
-    # Check DELETE FROM without WHERE
-    for pattern in DANGEROUS_WITHOUT_WHERE:
-        if pattern.search(command):
-            # Check if there's a WHERE clause after the DELETE FROM
-            # Simple heuristic: look for WHERE after the match
-            match = pattern.search(command)
-            if match:
-                after_match = command[match.end():]
-                if not re.search(r"\bWHERE\b", after_match, re.IGNORECASE):
-                    return True, "DELETE FROM without WHERE clause"
-
+def check_command(command: str) -> tuple[bool, str]:
+    """Check if a command matches any blocked pattern. Returns (is_blocked, reason)."""
+    command_upper = command.upper()
+    
+    for pattern, reason in BLOCKED_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            # Special case: DELETE FROM without WHERE
+            if "DELETE FROM" in reason:
+                if "WHERE" not in command_upper:
+                    return True, reason
+                continue
+            return True, reason
+    
     return False, ""
 
 
 def main():
-    # Read the tool use request from stdin (JSON)
+    # Read the tool use request from stdin
     try:
         data = json.load(sys.stdin)
     except json.JSONDecodeError:
-        # Not a valid JSON, let it pass
-        sys.exit(0)
-
-    # Only intercept bash tool
-    if data.get("tool_name") != "bash":
-        sys.exit(0)
-
-    command = data.get("command", "")
-
-    blocked, reason = is_blocked(command)
-    if blocked:
-        log_blocked(command, reason)
-        print(
-            f"🛡️  SECURITY HOOK BLOCKED: This command was prevented from running.\n"
-            f"   Reason: {reason}\n"
-            f"   Command: {command}\n\n"
-            f"   If you believe this is safe, please review the command manually or adjust your approach.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        sys.exit(0)  # Allow if we can't parse
+    
+    tool_name = data.get("tool_name", "")
+    command = data.get("tool_input", {}).get("command", "")
+    
+    if tool_name == "Bash" and command:
+        is_blocked, reason = check_command(command)
+        if is_blocked:
+            log_blocked(command, tool_name)
+            print(f"\n⛔ BLOCKED: This command was prevented from running.\n"
+                  f"   Reason: Detected destructive pattern '{reason}'.\n"
+                  f"   Command: {command}\n"
+                  f"   If you need to run this, please review it manually.\n", file=sys.stderr)
+            sys.exit(1)
+    
+    sys.exit(0)
 
 
 if __name__ == "__main__":
