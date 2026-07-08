@@ -1,23 +1,24 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production SaaS built with Next.js 15 App Router and SQLite (better-sqlite3 or Turso). Follow these rules without exception. If a pattern isn't listed here, default to Next.js docs and these principles: type safety first, server-first rendering, explicit over implicit.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at the root of your project. Claude Code reads it automatically.
 
 ---
 
 ## Stack & Versions
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
+| Layer | Choice | Why |
+|-------|--------|-----|
 | Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native fetch, stable ESM |
-| Database | better-sqlite3 (local/dev) / Turso (prod) | Synchronous SQLite for writes, libSQL for edge replication |
-| ORM/Query | Drizzle ORM | Type-safe SQL, zero runtime bloat, migration tooling built-in |
-| Auth | Lucia (or NextAuth v5) | Session-based, works with Edge, no vendor lock-in |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste ownership |
-| Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit tests for logic, E2E for critical flows |
+| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable ESM |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| Query Builder | `dZK` (or raw SQL) | No ORM. ORMs hide migrations, bloat bundles, and fail at complex queries |
+| Auth | `oslo` + `bcryptjs` | Stateless sessions in SQLite, no external auth service dependency |
+| Styling | Tailwind CSS 3.4 | Utility-first, zero runtime, design system via config |
+| Forms | Server Actions + `zod` | No client-side form libraries. Validate on the server, revalidate paths |
+| Deployment | Docker + Fly.io / Railway | SQLite is a file; use LiteFS or single-node with volume for MVP |
 
-**Lock these versions.** Do not upgrade major versions without updating this file.
+**Non-negotiable:** We do not use Prisma, Drizzle, or any ORM. They generate migration files that are harder to review than raw SQL and couple schema to TypeScript types in ways that break during refactors.
 
 ---
 
