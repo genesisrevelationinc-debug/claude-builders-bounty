@@ -1,7 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated conventions for building a production-ready SaaS with Next.js 15 App Router and SQLite.
-> Paste this into your repo root. Claude Code reads it automatically.
+> Opinionated project conventions. Read this before writing code.  
+> Last updated: 2026-03-01
 
 ---
 
@@ -9,16 +9,18 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `next/after`, stable `fetch`, native `crypto` |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead, works on any host |
-| ORM/Query | Drizzle ORM | Type-safe SQL, migrations in TypeScript, tiny bundle |
-| Auth | NextAuth.js v5 (beta) or Lucia + `better-sqlite3` adapter | Session cookies, no JWT in localStorage |
-| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste components |
-| Validation | Zod | Same schemas for API, forms, and DB |
-| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical flows |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, built on React 19 |
+| Runtime | Node.js 20+ | `fetch` is stable, native `crypto`, no polyfills needed |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
+| ORM / Query | Raw SQL via `better-sqlite3` | SQLite is simple; ORMs add complexity without benefit here |
+| Migrations | Custom Node.js scripts | One `.sql` file per migration, run in deterministic order |
+| Auth | `bcryptjs` + `jose` (JWT) | No external auth provider dependency, works offline |
+| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `useFormState` | No client-side form libraries; let the server own validation |
+| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical user flows |
 
-**Lockfile rule:** Use `pnpm`. Commit `pnpm-lock.yaml`. No `package-lock.json` or `yarn.lock`.
+**Non-negotiable:** We do not use Prisma, Drizzle, or any query builder.  
+**Reason:** SQLite schemas are small and stable. Raw SQL is explicit, debuggable, and avoids dependency bloat. Migrations are plain `.sql` files that any DBA can read.
 
 ---
 
