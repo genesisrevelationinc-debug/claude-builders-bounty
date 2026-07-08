@@ -1,7 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
-> Paste this file at the root of your project. Claude Code reads it automatically.
+> Opinionated project conventions. Read before generating code. Every rule has a reason.
 
 ---
 
@@ -9,16 +8,17 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `crypto` global, native `fetch`, stable ESM |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS |
+| Runtime | Node.js 20+ | `crypto` global, native fetch, stable |
 | Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| Query Builder | `dZK` (or raw SQL) | No ORM. ORMs hide migrations, bloat bundles, and fail at complex queries |
-| Auth | `oslo` + `bcryptjs` | Stateless sessions in SQLite, no external auth service dependency |
-| Styling | Tailwind CSS 3.4 | Utility-first, zero runtime, design system via config |
-| Forms | Server Actions + `zod` | No client-side form libraries. Validate on the server, revalidate paths |
-| Deployment | Docker + Fly.io / Railway | SQLite is a file; use LiteFS or single-node with volume for MVP |
+| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
+| Auth | Lucia (or custom session) | No vendor lock-in, works with SQLite natively |
+| Styling | Tailwind CSS + CSS variables | No runtime CSS, easy theming |
+| Forms | Server Actions + `useFormState` | No API routes for mutations, progressive enhancement |
+| Validation | Zod | Same schemas on server and client |
+| Testing | Vitest + Playwright | Unit + E2E, fast |
 
-**Non-negotiable:** We do not use Prisma, Drizzle, or any ORM. They generate migration files that are harder to review than raw SQL and couple schema to TypeScript types in ways that break during refactors.
+**Non-negotiable:** We do not use `turso` or libsql unless explicitly migrating. `better-sqlite3` is the default because it avoids network latency, works in serverless (with proper pooling), and has zero vendor dependency.
 
 ---
 
