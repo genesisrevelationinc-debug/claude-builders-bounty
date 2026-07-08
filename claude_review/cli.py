@@ -1,90 +1,69 @@
 #!/usr/bin/env python3
 """CLI entry point for claude-review."""
 
+import argparse
 import os
 import sys
 
-import click
-
-from .reviewer import PRReviewer
+from .reviewer import ClaudeReviewer
 
 
-@click.command()
-@click.option(
-    "--pr",
-    "pr_url",
-    required=True,
-    help="GitHub PR URL to review (e.g., https://github.com/owner/repo/pull/123)",
-)
-@click.option(
-    "--output",
-    "-o",
-    "output_path",
-    default=None,
-    help="Output file path (default: print to stdout)",
-)
-@click.option(
-    "--model",
-    default="claude-3-5-sonnet-20241022",
-    help="Claude model to use for review",
-)
-@click.option(
-    "--max-tokens",
-    default=4096,
-    help="Maximum tokens for Claude response",
-)
-def main(pr_url: str, output_path: str | None, model: str, max_tokens: int) -> None:
-    """
-    Review a GitHub PR using Claude and output structured Markdown.
-    
-    \b
-    Example:
-        claude-review --pr https://github.com/owner/repo/pull/123
-        claude-review --pr https://github.com/owner/repo/pull/123 -o review.md
-    """
-    # Validate API key
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        click.echo(
-            "Error: ANTHROPIC_API_KEY environment variable is required.",
-            err=True,
-        )
-        sys.exit(1)
-
-    # Validate PR URL format
-    if not _is_valid_pr_url(pr_url):
-        click.echo(
-            f"Error: Invalid PR URL format: {pr_url}\n"
-            "Expected: https://github.com/owner/repo/pull/123",
-            err=True,
-        )
-        sys.exit(1)
-
-    # Initialize reviewer
-    reviewer = PRReviewer(
-        api_key=api_key,
-        model=model,
-        max_tokens=max_tokens,
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Claude Code PR Review Agent - Analyze PRs and generate structured review comments."
+    )
+    parser.add_argument(
+        "--pr",
+        required=True,
+        help="GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        help="Path to write the review Markdown (default: print to stdout)",
+    )
+    parser.add_argument(
+        "--post-comment",
+        action="store_true",
+        help="Post the review as a comment on the PR (requires GITHUB_TOKEN)",
+    )
+    parser.add_argument(
+        "--model",
+        default="claude-sonnet-4-20250514",
+        help="Anthropic model to use (default: claude-sonnet-4-20250514)",
     )
 
-    # Run review
-    try:
-        review = reviewer.review_pr(pr_url)
-    except Exception as e:
-        click.echo(f"Error reviewing PR: {e}", err=True)
+    args = parser.parse_args()
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        print("Error: ANTHROPIC_API_KEY environment variable is required.", file=sys.stderr)
         sys.exit(1)
 
-    # Output
-    if output_path:
-        with open(output_path, "w", encoding="utf-8") as f:
+    token = os.environ.get("GITHUB_TOKEN")
+    if args.post_comment and not token:
+        print("Error: GITHUB_TOKEN environment variable is required for --post-comment.", file=sys.stderr)
+        sys.exit(1)
+
+    reviewer = ClaudeReviewer(api_key=api_key, model=args.model, github_token=token)
+
+    try:
+        review = reviewer.review_pr(args.pr)
+    except Exception as e:
+        print(f"Error reviewing PR: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.output:
+        with open(args.output, "w") as f:
             f.write(review)
-        click.echo(f"Review written to {output_path}")
+        print(f"Review written to {args.output}")
     else:
-        click.echo(review)
+        print(review)
+
+    if args.post_comment:
+        reviewer.post_comment(args.pr, review)
+        print("Review posted as PR comment.")
 
 
-def _is_valid_pr_url(url: str) -> bool:
-    """Check if URL matches GitHub PR format."""
-    import re
-    pattern = r"^https://github\.com/[^/]+/[^/]+/pull/\d+$"
-    return bool(re.match(pattern, url))
+if __name__ == "__main__":
+    main()
