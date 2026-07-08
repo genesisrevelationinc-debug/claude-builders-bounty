@@ -1,6 +1,6 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read before generating code. Every rule has a reason.
+> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your stack, conventions, and boundaries without asking.
 
 ---
 
@@ -8,17 +8,17 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = less client JS |
-| Runtime | Node.js 20+ | `crypto` global, native fetch, stable |
-| Database | `better-sqlite3` | Synchronous, fast, zero network overhead for single-node deploys |
-| ORM/Query | Drizzle ORM | Type-safe SQL, lightweight, migration-friendly |
-| Auth | Lucia (or custom session) | No vendor lock-in, works with SQLite natively |
-| Styling | Tailwind CSS + CSS variables | No runtime CSS, easy theming |
-| Forms | Server Actions + `useFormState` | No API routes for mutations, progressive enhancement |
-| Validation | Zod | Same schemas on server and client |
-| Testing | Vitest + Playwright | Unit + E2E, fast |
+| Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
+| Runtime | Node.js 20+ | `fetch` cache controls, native `crypto`, stable |
+| Database | `better-sqlite3` | Synchronous, fast, zero network latency, works in Server Components |
+| ORM/Query | Raw SQL + `better-sqlite3` | No abstraction leak; SQLite is simple enough |
+| Auth | `bcryptjs` + `jose` (JWT) | No `node:crypto` dependency issues, edge-compatible JWT |
+| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
+| Forms | Server Actions + `useFormState` | Progressive enhancement, no API routes needed |
+| Validation | `zod` | Type-safe, works on server and client |
+| Testing | Vitest + `@testing-library/react` | Fast, ESM-native, no Jest config hell |
 
-**Non-negotiable:** We do not use `turso` or libsql unless explicitly migrating. `better-sqlite3` is the default because it avoids network latency, works in serverless (with proper pooling), and has zero vendor dependency.
+**Non-negotiable:** We do not use `turso` or any remote SQLite. The whole point of SQLite in this stack is zero network calls, zero connection pooling, and trivial local development. If we need multi-region later, we migrate to Postgres with `drizzle-orm`.
 
 ---
 
