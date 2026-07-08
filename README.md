@@ -1,5 +1,10 @@
 # Claude Builders Bounty 🤖
 
+## Quick Start
+
+### Generate a Changelog
+
+
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
@@ -51,15 +56,3 @@ You're in the right place.
 ---
 
 *Started by the Claude builder community · March 2026 · MIT License*
-
-*Started by the Claude builder community · March 2026 · MIT License*
-
----
-
-## Skills
-
-### Generate Changelog
-
-Quickly generate a structured `CHANGELOG.md` from your git history:
-
-
