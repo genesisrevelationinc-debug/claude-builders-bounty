@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project conventions. Read this before writing code.
+> Opinionated project conventions for a production-ready SaaS built with Next.js 15 App Router and SQLite.
+> Paste this file at your repo root. Claude Code reads it automatically.
 
 ---
 
@@ -8,19 +9,16 @@
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| Framework | Next.js 15 (App Router) | Server Components by default = simpler data flow |
-| Runtime | Node.js 20+ | `crypto.randomUUID`, native `fetch`, stable `sqlite` |
-| Database | `better-sqlite3` | Synchronous, fast, zero connection pooling complexity |
-| ORM/Query | Raw SQL + `zod` | ORMs hide N+1s; Zod gives us type safety from the DB up |
-| Auth | `lucia` + `oslo` | Lightweight, session-based, works without OAuth complexity |
-| Styling | Tailwind CSS | Utility-first, no runtime CSS-in-JS overhead |
-| Forms | Server Actions + `zod` | No API routes needed, validation co-located with mutation |
-| Testing | Vitest + Playwright | Unit for logic, E2E for critical paths |
+| Framework | Next.js 15 (App Router) | Server Components by default = less client JS, simpler data flow |
+| Runtime | Node.js 20+ | `crypto.randomUUID`, native `fetch`, stable `node:` APIs |
+| Database | `better-sqlite3` | Synchronous, fast, zero network latency. Use Turso only if you need multi-region |
+| ORM/Query Builder | Drizzle ORM | Type-safe SQL, lightweight, no codegen step, migration files are plain SQL |
+| Auth | NextAuth.js v5 (Auth.js) | App Router native, edge-compatible, session in SQLite |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, no runtime CSS, accessible primitives |
+| Validation | Zod | Same schemas for API, forms, and DB inserts |
+| Testing | Vitest + Playwright | Unit tests in Vitest, E2E in Playwright (real browser) |
 
-**Pinned versions** (do not upgrade without team discussion):
-- `next`: `^15.0.0`
-- `better-sqlite3`: `^11.0.0`
-- `zod`: `^3.23.0`
+**Lockfile rule:** Use `pnpm`. Commit `pnpm-lock.yaml`. No `package-lock.json` or `yarn.lock`.
 
 ---
 
