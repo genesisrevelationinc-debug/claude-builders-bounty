@@ -1,176 +1,168 @@
- ```diff
+Based on the issue, I need to create a Claude Code agent that reviews PRs and posts structured Markdown comments. Since the repo only shows README.md and LICENSE, I'll create the necessary files for the agent.
+
+```diff
 --- /dev/null
 +++ b/claude-review
-@@ -0,0 +1,5 @@
+@@ -0,0 +1,186 @@
 +#!/usr/bin/env bash
++# Claude Code PR Review Agent
++# Usage: claude-review --pr https://github.com/owner/repo/pull/123
++#        claude-review --diff <file.diff>
++
 +set -euo pipefail
 +
-+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-+exec python3 "$SCRIPT_DIR/claude_review/cli.py" "$@"
---- /dev/null
-+++ b/claude_review/__init__.py
-@@ -0,0 +1,3 @@
-+"""Claude Code PR Review Agent."""
++# Colors for output
++RED='\033[0;31m'
++GREEN='\033[0;32m'
++YELLOW='\033[1;33m'
++BLUE='\033[0;34m'
++NC='\033[0m' # No Color
 +
-+__version__ = "0.1.0"
---- /dev/null
-+++ b/claude_review/cli.py
-@@ -0,0 +1,120 @@
-+#!/usr/bin/env python3
-+"""CLI entry point for the Claude Code PR review agent."""
++print_usage() {
++    cat << EOF
++Usage: claude-review [OPTIONS]
 +
-+import argparse
-+import os
-+import re
-+import sys
-+from urllib.parse import urlparse
++Options:
++  --pr <URL>         GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
++  --diff <FILE>      Path to a local diff file
++  --output <FILE>    Write review to file (default: stdout)
++  --post-comment     Post review as PR comment (requires GITHUB_TOKEN)
++  --help             Show this help message
 +
-+from .reviewer import review_pr
-+
-+
-+def validate_pr_url(url: str) -> bool:
-+    """Validate that the URL is a GitHub PR URL."""
-+    pattern = r"^https://github\.com/[^/]+/[^/]+/pull/\d+/?$"
-+    return bool(re.match(pattern, url))
-+
-+
-+def parse_pr_url(url: str) -> tuple[str, str, int]:
-+    """Parse a GitHub PR URL into (owner, repo, pr_number)."""
-+    parsed = urlparse(url)
-+    path_parts = parsed.path.strip("/").split("/")
-+    # path: owner/repo/pull/123
-+    if len(path_parts) < 4 or path_parts[2] != "pull":
-+        raise ValueError(f"Invalid PR URL: {url}")
-+    owner = path_parts[0]
-+    repo = path_parts[1]
-+    pr_number = int(path_parts[3])
-+    return owner, repo, pr_number
-+
-+
-+def main() -> None:
-+    parser = argparse.ArgumentParser(
-+        description="Claude Code PR Review Agent - Generate structured Markdown reviews for GitHub PRs",
-+        formatter_class=argparse.RawDescriptionHelpFormatter,
-+        epilog="""
 +Examples:
 +  claude-review --pr https://github.com/owner/repo/pull/123
-+  claude-review --pr https://github.com/owner/repo/pull/123 --output review.md
-+  claude-review --pr https://github.com/owner/repo/pull/123 --github-token ghp_xxx
-+        """,
-+    )
-+    parser.add_argument(
-+        "--pr",
-+        required=True,
-+        help="GitHub PR URL to review",
-+    )
-+    parser.add_argument(
-+        "--output",
-+        "-o",
-+        help="Output file for the review (default: print to stdout)",
-+    )
-+    parser.add_argument(
-+        "--github-token",
-+        help="GitHub personal access token (or set GITHUB_TOKEN env var)",
-+    )
-+    parser.add_argument(
-+        "--anthropic-api-key",
-+        help="Anthropic API key (or set ANTHROPIC_API_KEY env var)",
-+    )
-+    parser.add_argument(
-+        "--model",
-+        default="claude-sonnet-4-20250514",
-+        help="Claude model to use (default: claude-sonnet-4-20250514)",
-+    )
-+    parser.add_argument(
-+        "--post-comment",
-+        action="store_true",
-+        help="Post the review as a comment on the PR (requires --github-token)",
-+    )
++  claude-review --diff changes.diff --output review.md
++  claude-review --pr https://github.com/owner/repo/pull/123 --post-comment
++EOF
++}
 +
-+    args = parser.parse_args()
++# Parse arguments
++PR_URL=""
++DIFF_FILE=""
++OUTPUT_FILE=""
++POST_COMMENT=false
 +
-+    # Validate PR URL
-+    if not validate_pr_url(args.pr):
-+        print(f"Error: Invalid GitHub PR URL: {args.pr}", file=sys.stderr)
-+        print("Expected format: https://github.com/owner/repo/pull/123", file=sys.stderr)
-+        sys.exit(1)
++while [[ $# -gt 0 ]]; do
++    case "$1" in
++        --pr)
++            PR_URL="$2"
++            shift 2
++            ;;
++        --diff)
++            DIFF_FILE="$2"
++            shift 2
++            ;;
++        --output)
++            OUTPUT_FILE="$2"
++            shift 2
++            ;;
++        --post-comment)
++            POST_COMMENT=true
++            shift
++            ;;
++        --help)
++            print_usage
++            exit 0
++            ;;
++        *)
++            echo -e "${RED}Unknown option: $1${NC}"
++            print_usage
++            exit 1
++            ;;
++    esac
++done
 +
-+    # Parse PR URL
-+    try:
-+        owner, repo, pr_number = parse_pr_url(args.pr)
-+    except ValueError as e:
-+        print(f"Error: {e}", file=sys.stderr)
-+        sys.exit(1)
++# Validate input
++if [[ -z "$PR_URL" && -z "$DIFF_FILE" ]]; then
++    echo -e "${RED}Error: Must provide either --pr or --diff${NC}"
++    print_usage
++    exit 1
++fi
 +
-+    # Get API keys
-+    github_token = args.github_token or os.environ.get("GITHUB_TOKEN")
-+    anthropic_api_key = args.anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
++# Fetch diff from PR URL
++if [[ -n "$PR_URL" ]]; then
++    echo -e "${BLUE}Fetching diff from $PR_URL...${NC}" >&2
++    
++    # Extract owner/repo/pull/number from URL
++    if [[ "$PR_URL" =~ github\.com/([^/]+)/([^/]+)/pull/([0-9]+) ]]; then
++        OWNER="${BASH_REMATCH[1]}"
++        REPO="${BASH_REMATCH[2]}"
++        PR_NUMBER="${BASH_REMATCH[3]}"
++    else
++        echo -e "${RED}Error: Invalid GitHub PR URL format${NC}"
++        exit 1
++    fi
++    
++    DIFF_CONTENT=$(curl -sL "https://github.com/${OWNER}/${REPO}/pull/${PR_NUMBER}.diff" || true)
++    
++    if [[ -z "$DIFF_CONTENT" ]]; then
++        echo -e "${RED}Error: Failed to fetch diff from GitHub${NC}"
++        exit 1
++    fi
++    
++    # Save to temp file for Claude
++    TEMP_DIFF=$(mktemp)
++    echo "$DIFF_CONTENT" > "$TEMP_DIFF"
++    DIFF_FILE="$TEMP_DIFF"
++    trap "rm -f $TEMP_DIFF" EXIT
++fi
 +
-+    if not github_token:
-+        print("Error: GitHub token required. Use --github-token or set GITHUB_TOKEN env var.", file=sys.stderr)
-+        sys.exit(1)
++# Verify diff file exists
++if [[ ! -f "$DIFF_FILE" ]]; then
++    echo -e "${RED}Error: Diff file not found: $DIFF_FILE${NC}"
++    exit 1
++fi
 +
-+    if not anthropic_api_key:
-+        print("Error: Anthropic API key required. Use --anthropic-api-key or set ANTHROPIC_API_KEY env var.", file=sys.stderr)
-+        sys.exit(1)
++DIFF_CONTENT=$(cat "$DIFF_FILE")
 +
-+    # Run the review
-+    review = review_pr(
-+        owner=owner,
-+        repo=repo,
-+        pr_number=pr_number,
-+        github_token=github_token,
-+        anthropic_api_key=anthropic_api_key,
-+        model=args.model,
-+        pr_url=args.pr,
-+        post_comment=args.post_comment,
-+    )
++echo -e "${GREEN}Analyzing diff with Claude Code...${NC}" >&2
 +
-+    if args.output:
-+        with open(args.output, "w") as f:
-+            f.write(review)
-+        print(f"Review saved to {args.output}")
-+    else:
-+        print(review)
++# Build the prompt for Claude
++PROMPT=$(cat << 'CLAUDE_PROMPT'
++You are an expert code reviewer. Analyze the following git diff and produce a structured Markdown review.
 +
++Your review MUST follow this exact format:
 +
-+if __name__ == "__main__":
-+    main()
---- /dev/null
-+++ b/claude_review/reviewer.py
-@@ -0,0 +1,280 @@
-+"""Core PR review logic using Claude Code."""
++## 📋 PR Review
 +
-+import json
-+import re
-+from typing import Optional
++### Summary
++[2-3 sentences summarizing what this PR changes, the scope, and the overall approach]
 +
-+import requests
++### Identified Risks
++- [Risk 1: specific concern with file/line reference if possible]
++- [Risk 2: ...]
++- [Risk 3: ...]
++[List at least 2-3 risks. If no risks found, state "No significant risks identified."]
 +
++### Improvement Suggestions
++- [Suggestion 1: actionable improvement]
++- [Suggestion 2: ...]
++- [Suggestion 3: ...]
++[List at least 2-3 suggestions. Be constructive and specific.]
 +
-+def fetch_pr_diff(owner: str, repo: str, pr_number: int, github_token: str) -> str:
-+    """Fetch the raw diff of a GitHub PR."""
-+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-+    headers = {
-+        "Authorization": f"token {github_token}",
-+        "Accept": "application/vnd.github.v3.diff",
-+    }
-+    response = requests.get(url, headers=headers)
-+    response.raise_for_status()
-+    return response.text
++### Confidence Score
++**Confidence: [Low / Medium / High]**
++[One sentence explaining the confidence level]
 +
++Rules:
++- Be concise but thorough
++- Reference specific files and line numbers when possible
++- Focus on logic, security, performance, and maintainability
++- Do NOT comment on formatting/style unless it's a real problem
++- If the diff is empty or trivial, state that clearly
 +
-+def fetch_pr_info(owner: str, repo: str, pr_number: int, github_token: str) -> dict:
-+    """Fetch PR metadata from GitHub API."""
-+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
-+    headers = {
-+        "Authorization": f"token {github_token}",
-+        "Accept": "application/vnd.github.v3+json",
-+    }
-+    response = requests.get(url, headers=headers)
-+    response.raise_for_status()
-+    return response.json()
++Here is the diff to review:
 +
++CLAUDE_PROMPT
++)
 +
-+def post_pr_comment(
-+    owner: str, repo
++# Combine prompt with diff
++FULL_PROMPT="${PROMPT}\n\n\`\`\`diff\n${DIFF_CONTENT}\n\`\`\`"
++
++# Check if Claude CLI is available
++if command -v claude &> /dev/null; then
++    REVIEW=$(echo -e "$FULL_PROMPT" | claude --print 2>/dev/null || true)
++elif command -v claude-code &> /dev/null; then
++    REVIEW=$(echo -e "$FULL_PROMPT" | claude-code --print 2>/dev/null || true)
++else
++    echo -e "${Y
