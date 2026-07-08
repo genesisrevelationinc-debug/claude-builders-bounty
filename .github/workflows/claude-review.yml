@@ -30,148 +30,87 @@ jobs:
         id: get-diff
         run: |
           curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ github.eventur }}/pulls/${{ github.event.number }}.diff" \
-            > /tmp/pr.diff
-          echo "diff_path=/tmp/pr.diff" >> $GITHUB_OUTPUT
+            -H "Accept: application/vnd.github.v3.diff" \
+            "${{ github.event.pull_request.diff_url }}" > pr.diff
 
       - name: Run Claude Review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          claude-review \
-            --pr "${{ github.event.pull_request.html_url }}" \
-            --diff "${{ steps.get-diff.outputs.diff_path }}" \
-            --post-comment \
-            --github-token "$GITHUB_TOKEN"
+          claude-review --pr "$PR_URL" --diff pr.diff --post-comment
+--- /dev/null
 """Claude Code PR Review Agent."""
 
 __version__ = "0.1.0"
 
 from .reviewer import ClaudeReviewer
-"""Entry point for python -m claude_review."""
+"""Claude Code PR Review Agent - Core Review Logic."""
 
-from .cli import main
-
-if __name__ == "__main__":
-    main()
-"""CLI entry point for the Claude PR Review agent."""
-
-import argparse
 import os
-import sys
-
-from .reviewer import ClaudeReviewer
-
-
-def create_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="claude-review",
-        description="Claude Code PR Review Agent — analyze a PR and produce structured Markdown output.",
-    )
-    parser.add_argument(
-        "--pr",
-        required=True,
-        help="URL of the GitHub pull request to review (e.g. https://github.com/owner/repo/pull/123)",
-    )
-    parser.add_argument(
-        "--diff",
-        default=None,
-        help="Path to a local .diff file (optional; fetched from GitHub if omitted)",
-    )
-    parser.add_argument(
-        "--api-key",
-        default=os.environ.get("ANTHROPIC_API_KEY"),
-        help="Anthropic API key (defaults to ANTHROPIC_API_KEY env var)",
-    )
-    parser.add_argument(
-        "--model",
-        default="claude-3-5-sonnet-20241022",
-        help="Claude model to use (default: claude-3-5-sonnet-20241022)",
-    )
-    parser.add_argument(
-        "--output",
-        "-o",
-        default=None,
-        help="Write review to this file instead of stdout",
-    )
-    parser.add_argument(
-        "--post-comment",
-        action="store_true",
-        help="Post the review as a GitHub PR comment (requires --github-token)",
-    )
-    parser.add_argument(
-        "--github-token",
-        default=os.environ.get("GITHUB_TOKEN"),
-        help="GitHub token for posting comments (defaults to GITHUB_TOKEN env var)",
-    )
-    return parser
-
-
-def main() -> None:
-    parser = create_parser()
-    args = parser.parse_args()
-
-    if not args.api_key:
-        parser.error("Anthropic API key required. Set ANTHROPIC_API_KEY or pass --api-key.")
-
-    reviewer = ClaudeReviewer(api_key=args.api_key, model=args.model)
-
-    try:
-        review = reviewer.review(pr_url=args.pr, diff_path=args.diff)
-    except Exception as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        sys.exit(1)
-
-    if args.output:
-        with open(args.output, "w", encoding="utf-8") as fh:
-            fh.write(review.markdown)
-        print(f"Review written to {args.output}")
-    else:
-        print(review.markdown)
-
-    if args.post_comment:
-        if not args.github_token:
-            parser.error("--post-comment requires --github-token")
-        review.post_comment(pr_url=args.pr, token=args.github_token)
-        print("Review posted as PR comment.")
-"""Core review logic for the Claude PR Review agent."""
-
-from __future__ import annotations
-
-import json
 import re
-import textwrap
-import urllib.request
+import sys
+import json
+import argparse
+import subprocess
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
-from anthropic import Anthropic
+try:
+    import requests
+except ImportError:
+    requests = None
 
 
-SYSTEM_PROMPT = """\
-You are an expert software engineer and code reviewer. Your task is to analyze a pull request diff and produce a structured review.
+@dataclass
+class ReviewResult:
+    """Structured PR review result."""
+    summary: str
+    risks: list[str]
+    suggestions: list[str]
+    confidence: str  # Low, Medium, High
+    raw_response: str
 
-Respond ONLY with a JSON object in this exact shape (no markdown code fences, no extra text):
 
-{
-  "summary": "2-3 sentence summary of the changes",
-  "risks": ["risk 1", "risk 2", ...],
-  "suggestions": ["suggestion 1", "suggestion 2", ...],
-  "confidence": "Low" | "Medium" | "High"
-}
+class ClaudeReviewer:
+    """Claude Code PR Review Agent."""
 
-Guidelines:
-- Summary: concise, accurate, mentions the main intent and scope.
-- Risks: concrete issues (bugs, security, performance, maintainability). Empty list if none.
-- Suggestions: actionable improvements. Empty list if none.
-- Confidence: High = very sure of assessment, Medium = some uncertainty, Low = limited context or complex unknowns.
-"""
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not self.api_key:
+            raise ValueError("ANTHROPIC_API_KEY is required")
+        self.api_url = "https://api.anthropic.com/v1/messages"
 
-USER_PROMPT_TEMPLATE = """\
-Please review the following pull request.
+    def _call_claude(self, prompt: str, max_tokens: int = 4000) -> str:
+        """Call Claude API with the given prompt."""
+        headers = {
+            "x-api-key": self.api_key,
+            "Content-Type": "application/json",
+            "anthropic-version": "2023-06-01",
+        }
+
+        payload = {
+            "model": "claude-3-5-sonnet-20241022",
+            "max_tokens": max_tokens,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+        }
+
+        response = requests.post(self.api_url, headers=headers, json=payload, timeout=120)
+        response.raise_for_status()
+        data = response.json()
+        return data["content"][0]["text"]
+
+    def _build_review_prompt(self, diff: str, pr_url: str) -> str:
+        """Build the prompt for Claude to review a PR."""
+        return f"""You are an expert code reviewer. Review the following pull request diff and provide a structured analysis.
 
 PR URL: {pr_url}
 
-Diff:
+## Diff
+
