@@ -6,6 +6,7 @@ Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
 
+
 ---
 
 ## How it works
@@ -52,16 +53,6 @@ You're in the right place.
 
 *Started by the Claude builder community · March 2026 · MIT License*
 
----
+*Started by the Claude builder community · March 2026 · MIT License*
 
-## Hooks
 
-| Hook | Description | Bounty |
-|------|-------------|--------|
-| [pre-tool-use](hooks/) | Block destructive bash commands | $100 |
-
----
-
-## Rules
-
-- Tasks must be related to Claude Code or AI tooling
