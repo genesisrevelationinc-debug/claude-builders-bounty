@@ -1,6 +1,7 @@
 # CLAUDE.md — Next.js 15 + SQLite SaaS
 
-> Opinionated project context for Claude Code. Paste this into your repo root and Claude will understand your stack, conventions, and boundaries without asking.
+> Opinionated conventions for building a production-ready SaaS with Next.js 15 App Router and SQLite.
+> Paste this into your repo root. Claude Code reads it automatically.
 
 ---
 
@@ -9,16 +10,15 @@
 | Layer | Choice | Why |
 |-------|--------|-----|
 | Framework | Next.js 15 (App Router) | Server Components by default, streaming, nested layouts |
-| Runtime | Node.js 20+ | `fetch` cache controls, native `crypto`, stable |
-| Database | `better-sqlite3` | Synchronous, fast, zero network latency, works in Server Components |
-| ORM/Query | Raw SQL + `better-sqlite3` | No abstraction leak; SQLite is simple enough |
-| Auth | `bcryptjs` + `jose` (JWT) | No `node:crypto` dependency issues, edge-compatible JWT |
-| Styling | Tailwind CSS 3.4 | Utility-first, no runtime CSS-in-JS overhead |
-| Forms | Server Actions + `useFormState` | Progressive enhancement, no API routes needed |
-| Validation | `zod` | Type-safe, works on server and client |
-| Testing | Vitest + `@testing-library/react` | Fast, ESM-native, no Jest config hell |
+| Runtime | Node.js 20+ | `next/after`, stable `fetch`, native `crypto` |
+| Database | `better-sqlite3` | Synchronous, fast, zero network overhead, works on any host |
+| ORM/Query | Drizzle ORM | Type-safe SQL, migrations in TypeScript, tiny bundle |
+| Auth | NextAuth.js v5 (beta) or Lucia + `better-sqlite3` adapter | Session cookies, no JWT in localStorage |
+| Styling | Tailwind CSS + shadcn/ui | Utility-first, accessible primitives, copy-paste components |
+| Validation | Zod | Same schemas for API, forms, and DB |
+| Testing | Vitest + Playwright | Unit tests for utilities, E2E for critical flows |
 
-**Non-negotiable:** We do not use `turso` or any remote SQLite. The whole point of SQLite in this stack is zero network calls, zero connection pooling, and trivial local development. If we need multi-region later, we migrate to Postgres with `drizzle-orm`.
+**Lockfile rule:** Use `pnpm`. Commit `pnpm-lock.yaml`. No `package-lock.json` or `yarn.lock`.
 
 ---
 
