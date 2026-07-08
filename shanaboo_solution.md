@@ -1,51 +1,57 @@
  ```diff
 --- /dev/null
-+++ b/workflows/n8n-weekly-dev-summary/README.md
-@@ -0,0 +1,42 @@
-+# n8n Weekly Dev Summary Workflow
++++ b/workflows/n8n-claude-weekly-summary/README.md
+@@ -0,0 +1,45 @@
++# n8n + Claude — Weekly Dev Summary Workflow
 +
-+Automated weekly narrative summary of a GitHub repo's activity, powered by n8n and Claude API.
++Automatically generate and deliver a weekly narrative summary of your GitHub repo's activity using n8n and the Claude API.
 +
 +## Setup (5 steps)
 +
-+1. **Import the workflow**: In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`
-+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in *Settings → Credentials*
-+3. **Configure variables**: Open the workflow and edit the `Configuration` node — set your repo, destination, and language
-+4. **Activate**: Toggle the workflow to *Active* in the top-right corner
-+5. **Test**: Click *Execute Workflow* to run manually, or wait for the weekly cron trigger
++1. **Import the workflow**: In n8n, go to *Workflows → Import from File* and select `weekly-dev-summary.json`.
 +
-+## What it does
++2. **Set credentials**: Add your **Claude API** and **GitHub API** credentials in n8n (*Settings → Credentials*).
 +
-+- Runs every Friday at 5 PM
-+- Fetches commits, closed issues, and merged PRs from the past 7 days
-+- Sends data to Claude API (`claude-sonnet-4-20250514`) for narrative generation
-+- Delivers the summary via Discord webhook (configurable)
++3. **Configure variables**: Open the workflow and edit the `Set Config` node with your repo, destination, and language.
 +
-+## Required Credentials
++4. **Set up delivery**: Configure the **Email** or **Webhook** node with your SMTP/Discord/Slack details.
 +
-+| Service | Type | How to get |
-+|---------|------|-----------|
-+| GitHub | Personal Access Token | [GitHub Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens) |
-+| Anthropic | API Key | [Anthropic Console](https://console.anthropic.com/) |
++5. **Activate**: Toggle the workflow to *Active* — it runs every Friday at 5 PM.
++
++---
 +
 +## Configurable Variables
 +
-+| Variable | Description | Default |
++| Variable | Description | Example |
 +|----------|-------------|---------|
-+| `githubRepo` | Target repository (format: `owner/repo`) | `claude-builders-bounty/claude-builders-bounty` |
-+| `discordWebhookUrl` | Discord webhook URL for delivery | — |
-+| `language` | Output language (`EN` or `FR`) | `EN` |
++| `githubRepo` | Target repository | `owner/repo-name` |
++| `destinationChannel` | Email or webhook URL | `https://discord.com/api/webhooks/...` |
++| `language` | Summary language | `EN` or `FR` |
 +
-+## Output Example
++---
 +
-+> 📊 **Weekly Dev Summary** — `claude-builders-bounty/claude-builders-bounty`
-+> 
-+> This week, the team merged 3 pull requests, closed 5 issues, and pushed 12 commits. Key highlights include...
++## What It Does
++
++- **Trigger**: Weekly cron (Fridays at 5:00 PM)
++- **Fetches**: Commits, closed issues, and merged PRs from the past 7 days
++- **Generates**: A narrative summary via Claude API (`claude-sonnet-4-20250514`)
++- **Delivers**: Via email or Discord/Slack webhook
++
++---
 +
 +## Screenshot
 +
-+*(Include screenshot of successful execution here)*
++![Successful Execution](screenshot-success.png)
++
++---
++
++## Requirements
++
++- n8n instance (cloud or self-hosted)
++- Claude API key
++- GitHub personal access token
+\ No newline at end of file
 --- /dev/null
-+++ b/workflows/n8n-weekly-dev-summary/weekly-dev-summary.json
++++ b/workflows/n8n-claude-weekly-summary/weekly-dev-summary.json
 @@ -0,0 +1,1 @@
-+{"name":"Weekly Dev Summary - GitHub + Claude","nodes":[{"parameters":{"rule":{"interval":[{"field":"weeks","triggerAtDay":[5],"triggerAtHour":17,"triggerAtMinute":0}]},"options":{}},"id":"trigger-weekly","name":"Weekly Cron (Friday 5PM)","type":"n8n-nodes-base.scheduleTrigger","typeVersion":1,"position":[250,300],"webhookId":"trigger-weekly"},{"parameters":{"jsCode":"// Configuration variables\nconst config = {\n  githubRepo: $env.GITHUB_REPO || 'claude-builders-bounty/claude-builders-bounty',\n  discordWebhookUrl: $env.DISCORD_WEBHOOK_URL || '',\n  language: ($env.LANGUAGE || 'EN').toUpperCase(),\n  anthropicModel: 'claude-sonnet-4-20250514'\n};\n\n// Validate\nif (!['EN','FR'].includes(config.language)) {\n  throw new Error('Language must be EN or FR');\n}\n\nreturn [{ json: config }];"},"id":"config-node","name":"Configuration","type":"n8n-nodes-base.code","typeVersion":2,"position":[450,300]},{"parameters":{"jsCode":"// Calculate date range for past 7 days\nconst now = new Date();\nconst sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\nconst since = sevenDaysAgo.toISOString();\n\nreturn [{\n  json: {\n    since,\n    until: now.toISOString(),\n    owner: $input.first().json.githubRepo.split('/')[0],\n    repo: $input.first().json.githubRepo.split('/')[1]\n  }\n}];"},"id":"date-range","name":"Calculate Date Range","type":"n8n-nodes-base.code","typeVersion":2,"position":[650,300]},{"parameters":{"url":"=https://api.github.com/repos/{{ $json.owner }}/{{ $json.repo }}/commits","sendQuery":true,"queryParameters":{"parameters":[{"name":"since","value":"={{ $json.since }}"},{"name":"per_page","value":"100"}]},"options":{}},"id":"github-commits","name":"GitHub: Commits","type":"n8n-nodes-base.httpRequest","typeVersion":4.1,"position":[850,200],"credentials":{"githubApi":"github-api"}},{"parameters":{"url":"=https://api.github.com/repos/{{ $json.owner }}/{{ $json.repo }}/issues","sendQuery":true,"queryParameters":{"parameters":[{"name":"state","value":"closed"},{"name":"since","value":"={{ $json.since }}"},{"name":"per_page","value":"100"}]},"options":{}},"id":"github-issues","name":"GitHub: Closed Issues","type":"n8n-nodes-base.httpRequest","typeVersion":4.1,"position":[850,300],"credentials":{"githubApi":"github-api"}},{"parameters":{"url":"=https://api.github.com/repos/{{ $json.owner }}/{{ $json.repo }}/pulls","sendQuery":true,"queryParameters":{"parameters":[{"name":"state","value":"closed"},{"name":"per_page","value":"100"}]},"options":{}},"id":"github-prs","name":"GitHub: Merged PRs","type":"n8n-nodes-base.httpRequest","typeVersion":4.1,"position":[850,400],"credentials":{"githubApi":"github-api"}},{"parameters":{"jsCode":"const commits = $input.all()[0].json;\nconst issues = $input.all()[1].json;\nconst prs = $input.all()[2].json;\nconst config = $input.all()[0].json.__config || { language: 'EN' };\n\n// Filter PRs merged in last 7 days\nconst mergedPRs = (Array.isArray(prs) ? prs : []).filter(pr => {\n  if (!pr.merged_at) return false;\n  const mergedDate = new Date(pr.merged_at);\n  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);\n  return mergedDate >= weekAgo;\n});\n\n// Filter issues closed in last 7 days (not PRs)\nconst closedIssues = (Array.isArray(issues) ? issues : []).filter(issue => {\n  if
++{"name":"Weekly Dev Summary - Claude + n8n","nodes":[{"parameters":{},"id":"trigger-cron","name":"Weekly Cron Trigger","type":"n8n-nodes-base.scheduleTrigger","typeVersion":1,"position":[250,300],"webhookId":"weekly-cron"},{"parameters":{"rule":{"interval":[{"field":"weeks","triggerAtHour":17,"triggerAtMinute":0,"triggerOnSpecificWeek":1,"triggerAtDayOfWeek":5}]}},"id":"trigger-cron-config","name":"Weekly Cron Trigger","type":"n8n-nodes-base.scheduleTrigger","typeVersion":1,"position":[250,300]},{"parameters":{"jsCode":"// Calculate date range for past 7 days\nconst now = new Date();\nconst sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\nconst since = sevenDaysAgo.toISOString().split('T')[0] + 'T00:00:00Z';\nconst until = now.toISOString().split('T')[0] + 'T23:59:59Z';\n\nreturn [{\n  json: {\n    since,\n    until,\n    days: 7\n  }\n}];"},"id":"calc-date-range","name":"Calculate Date Range","type":"n8n-nodes-base.code","typeVersion":1,"position":[450,300]},{"parameters":{"jsCode":"// Set configurable variables\nconst config = {\n  githubRepo: $env.GITHUB_REPO || 'owner/repo-name',\n  destinationChannel: $env.DESTINATION_CHANNEL || 'email',\n  language: $env.LANGUAGE || 'EN',\n  claudeModel: 'claude-sonnet-4-20250514'\n};\n\nreturn [{ json: config }];"},"id":"set-config","name":"Set Config","type":"n8n-nodes-base.code","typeVersion":1,"position":[650,300]},{"parameters":{"resource":"repository","operation":"listCommits","owner":"={{ $json.githubRepo.split('/')[0] }}","repository":"={{ $json.githubRepo.split('/')[1] }}","since":"={{ $('Calculate Date Range').item.json.since }}","returnAll":true},"id":"github-commits","name":"GitHub Commits","type":"n8n-nodes-base.github","typeVersion":1,"position":[850,200],"credentials":{"githubApi":"github-credentials"}},{"parameters":{"resource":"issue","operation":"getAll","owner":"={{ $('Set Config').item.json.githubRepo.split('/')[0] }}","repository":"={{ $('Set Config').item.json.githubRepo.split('/')[1] }}","state":"closed","returnAll":true},"id":"github-issues","name":"GitHub Closed Issues","type":"n8n-nodes-base.github","typeVersion":1,"position":[850,400],"credentials":{"githubApi":"github-credentials"}},{"parameters":{"resource":"pullRequest","operation":"getAll","owner":"={{ $('Set Config').item.json.githubRepo.split('/')[0] }}","repository":"={{ $('Set Config').item.json.githubRepo.split('/')[1] }}","state":"closed","returnAll":true},"id":"github-prs","name":"GitHub Merged PRs","type":"n8n-nodes-base.github","typeVersion":1,"position":[850,600],"credentials":{"githubApi":"github-credentials"}},{"parameters":{"jsCode":"// Filter PRs to only merged ones in the last 7 days\nconst since = new Date($('Calculate Date Range').item.json.since);\nconst prs = $input.all()[0].json;\n\nconst mergedPRs = prs.filter(pr => {\n  if (!pr.merged_at) return false;\n  const mergedDate = new Date(pr.merged_at);\n  return mergedDate >= since;\n});\n\nreturn [{ json: { mergedPRs } }];"},"id":"filter-merged-prs","name":"Filter Merged PRs","type":"n8n-nodes-base.code","typeVersion":1,"position":[1050,600]},{"parameters":{"jsCode":"// Aggregate all data for Claude prompt\nconst commits = $input.all()[0].json;\nconst issues = $input.all()[1].json;\nconst prs = $input.all()[2].json.mergedPRs;\nconst config = $('Set Config').item.json;\n\nconst data = {\n  commits: commits.map(c => ({\n    message: c.commit.message.split('\\n')[0],\n    author: c.commit.author.name,\n    date: c.commit.author.date\n  })),\n  issues: issues.map(i => ({\n    title: i.title,\n    number
