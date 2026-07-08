@@ -1,35 +1,46 @@
 # n8n + Claude Weekly Dev Summary Workflow
 
-Automatically generates a weekly narrative summary of a GitHub repo's activity using Claude API.
+Automated weekly narrative summary of GitHub repo activity, powered by n8n and Claude API.
 
 ## Setup (5 steps)
 
-1. **Import workflow**: In n8n, go to Workflows → Import from File → select `claude-weekly-summary.json`
-2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API Key in n8n Credentials
-3. **Configure variables**: Edit the "Set Config" node — set `repoOwner`, `repoName`, `discordWebhookUrl`, and `language` (EN/FR)
-4. **Activate**: Toggle the workflow to "Active" — it runs Fridays at 5 PM
-5. **Test manually**: Click "Execute Workflow" to verify — check your Discord channel for the summary
+1. **Import the workflow**: In n8n, click *Workflows → Import from File* and select `weekly-dev-summary.json`
+2. **Set credentials**: Add your GitHub Personal Access Token and Anthropic API key in *Settings → Credentials*
+3. **Configure variables**: Open the `Configuration` node and set your repo, destination, and language
+4. **Activate**: Toggle the workflow to *Active* — it runs every Friday at 5 PM
+5. **Test**: Click *Execute Workflow* to run manually and verify output
 
 ## Required Credentials
 
-- **GitHub API**: Personal Access Token with `repo` scope
-- **Anthropic API**: API key from [console.anthropic.com](https://console.anthropic.com)
+- `githubApi` — GitHub Personal Access Token (classic or fine-grained with `repo` scope)
+- `anthropicApi` — Anthropic API key from [console.anthropic.com](https://console.anthropic.com)
 
 ## Configurable Variables
 
-| Variable | Description | Example |
+| Variable | Description | Default |
 |----------|-------------|---------|
-| `repoOwner` | GitHub repository owner | `claude-builders-bounty` |
-| `repoName` | GitHub repository name | `claude-builders-bounty` |
-| `discordWebhookUrl` | Discord webhook URL for delivery | `https://discord.com/api/webhooks/...` |
-| `language` | Summary language | `EN` or `FR` |
-
-## What It Does
-
-1. Triggers weekly (Friday 5 PM via cron)
-2. Fetches commits, closed issues, and merged PRs from the past 7 days
-3. Sends data to Claude API (`claude-sonnet-4-20250514`) for narrative generation
-4. Posts the formatted summary to Discord via webhook
+| `githubRepo` | Target repository (`owner/repo`) | `claude-builders-bounty/claude-builders-bounty` |
+| `destinationWebhook` | Discord/Slack webhook URL | *(required)* |
+| `language` | Output language (`EN` or `FR`) | `EN` |
 
 ## Output Example
 
+> **Weekly Dev Summary — `claude-builders-bounty`**
+>
+> 📝 **Commits**: 12 commits this week, including refactored auth middleware and added Stripe integration.
+>
+> ✅ **Closed Issues**: 3 issues resolved — fixed memory leak (#42), updated docs (#43), clarified bounty rules (#44).
+>
+> 🔀 **Merged PRs**: 5 pull requests merged, notably the new dashboard UI and CI pipeline improvements.
+
+## Delivery
+
+The workflow posts to a Discord or Slack webhook. To use email instead, replace the `HTTP Request` node with an `Email` node and configure SMTP credentials.
+
+## Screenshot
+
+![Successful execution](screenshot.png)
+
+## License
+
+MIT — same as parent repo.
