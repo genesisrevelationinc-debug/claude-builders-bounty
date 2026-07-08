@@ -1,15 +1,17 @@
 # Claude Builders Bounty 🤖
 
-## Quick Start
-
-### Generate a Changelog
-
-
 > A community bounty board for Claude Code builders.
 
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
 You're in the right place.
+
+---
+
+## 🚀 Quick Start
+
+Generate a changelog from your git history in 3 steps:
+
 
 ---
 
