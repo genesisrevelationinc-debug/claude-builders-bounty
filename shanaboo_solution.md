@@ -1,9 +1,37 @@
 ```diff
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,6 @@
+ # Claude Builders Bounty 🤖
+ 
+-> A community bounty board for Claude Code builders.
++> A community bounty board for Claude Code builders — with automated weekly dev summaries.
+ 
+ Building with Claude Code? Have tasks to delegate?
+ Want to get paid for contributing to AI projects?
+@@ -39,6 +39,16 @@
+ 
+ ---
+ 
++## Weekly Dev Summary Workflow
++
++This repo includes an n8n workflow that automatically generates a weekly narrative summary of repo activity using the Claude API.
++
++**Quick setup (5 steps):**
++1. Import `workflows/weekly-dev-summary.json` into your n8n instance
++2. Set the `GitHub Repo`, `Destination Webhook URL`, and `Language` variables in the workflow
++3. Configure your GitHub and Anthropic API credentials in n8n
++4. Activate the workflow — it runs every Friday at 5pm UTC
++5. Receive a beautifully formatted narrative summary via Discord/Slack webhook
++
+ ## Community
+ 
+ - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 --- /dev/null
 +++ b/workflows/weekly-dev-summary.json
-@@ -0,0 +1,450 @@
+@@ -0,0 +1,345 @@
 +{
-+  "name": "Weekly Dev Summary – Claude API",
++  "name": "Weekly Dev Summary — Claude API",
 +  "nodes": [
 +    {
 +      "parameters": {
@@ -18,143 +46,79 @@
 +      },
 +      "id": "cron-trigger",
 +      "name": "Friday 5pm Cron",
-+      "type": "n8n-nodes-base.cron",
-+      "typeVersion": 1,
++      "type": "n8n-nodes-base.scheduleTrigger",
++      "typeVersion": 1.1,
 +      "position": [250, 300]
 +    },
 +    {
 +      "parameters": {
-+        "method": "GET",
-+        "url": "=https://api.github.com/repos/{{ $json.repo }}/commits",
-+        "authentication": "genericCredentialType",
-+        "genericAuthType": "httpHeaderAuth",
-+        "sendHeaders": true,
-+        "headerParameters": {
-+          "parameters": [
-+            {
-+              "name": "Accept",
-+              "value": "application/vnd.github+json"
-+            },
-+            {
-+              "name": "Authorization",
-+              "value": "=Bearer {{ $json.githubToken }}"
-+            }
-+          ]
-+        },
-+        "queryParameters": {
-+          "parameters": [
-+            {
-+              "name": "since",
-+              "value": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}"
-+            },
-+            {
-+              "name": "per_page",
-+              "value": "100"
-+            }
-+          ]
-+        },
-+        "options": {}
++        "operation": "getAll",
++        "owner": "={{ $env.GITHUB_REPO_OWNER }}",
++        "repository": "={{ $env.GITHUB_REPO_NAME }}",
++        "returnAll": true,
++        "options": {
++          "since": "={{ $now.minus({ days: 7 }).toISO() }}"
++        }
 +      },
 +      "id": "fetch-commits",
-+      "name": "Fetch Commits",
-+      "type": "n8n-nodes-base.httpRequest",
-+      "typeVersion": 4.1,
-+      "position": [450, 300]
++      "name": "Fetch Commits (7 days)",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [450, 200],
++      "credentials": {
++        "githubApi": {
++          "id": "1",
++          "name": "GitHub API"
++        }
++      }
 +    },
 +    {
 +      "parameters": {
-+        "method": "GET",
-+        "url": "=https://api.github.com/repos/{{ $json.repo }}/issues",
-+        "authentication": "genericCredentialType",
-+        "genericAuthType": "httpHeaderAuth",
-+        "sendHeaders": true,
-+        "headerParameters": {
-+          "parameters": [
-+            {
-+              "name": "Accept",
-+              "value": "application/vnd.github+json"
-+            },
-+            {
-+              "name": "Authorization",
-+              "value": "=Bearer {{ $json.githubToken }}"
-+            }
-+          ]
-+        },
-+        "queryParameters": {
-+          "parameters": [
-+            {
-+              "name": "state",
-+              "value": "closed"
-+            },
-+            {
-+              "name": "since",
-+              "value": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}"
-+            },
-+            {
-+              "name": "per_page",
-+              "value": "100"
-+            },
-+            {
-+              "name": "filter",
-+              "value": "all"
-+            }
-+          ]
-+        },
-+        "options": {}
++        "operation": "getAll",
++        "owner": "={{ $env.GITHUB_REPO_OWNER }}",
++        "repository": "={{ $env.GITHUB_REPO_NAME }}",
++        "returnAll": true,
++        "options": {
++          "state": "closed",
++          "since": "={{ $now.minus({ days: 7 }).toISO() }}"
++        }
 +      },
 +      "id": "fetch-issues",
-+      "name": "Fetch Closed Issues",
-+      "type": "n8n-nodes-base.httpRequest",
-+      "typeVersion": 4.1,
-+      "position": [450, 500]
++      "name": "Fetch Closed Issues (7 days)",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [450, 400],
++      "credentials": {
++        "githubApi": {
++          "id": "1",
++          "name": "GitHub API"
++        }
++      }
 +    },
 +    {
 +      "parameters": {
-+        "method": "GET",
-+        "url": "=https://api.github.com/repos/{{ $json.repo }}/pulls",
-+        "authentication": "genericCredentialType",
-+        "genericAuthType": "httpHeaderAuth",
-+        "sendHeaders": true,
-+        "headerParameters": {
-+          "parameters": [
-+            {
-+              "name": "Accept",
-+              "value": "application/vnd.github+json"
-+            },
-+            {
-+              "name": "Authorization",
-+              "value": "=Bearer {{ $json.githubToken }}"
-+            }
-+          ]
-+        },
-+        "queryParameters": {
-+          "parameters": [
-+            {
-+              "name": "state",
-+              "value": "closed"
-+            },
-+            {
-+              "name": "sort",
-+              "value": "updated"
-+            },
-+            {
-+              "name": "direction",
-+              "value": "desc"
-+            },
-+            {
-+              "name": "per_page",
-+              "value": "100"
-+            }
-+          ]
-+        },
-+        "options": {}
++        "operation": "getAll",
++        "owner": "={{ $env.GITHUB_REPO_OWNER }}",
++        "repository": "={{ $env.GITHUB_REPO_NAME }}",
++        "returnAll": true,
++        "options": {
++          "state": "closed",
++          "sort": "updated",
++          "direction": "desc"
++        }
 +      },
 +      "id": "fetch-prs",
-+      "name": "Fetch Merged PRs",
-+      "type": "n8n-nodes-base.httpRequest",
-+      "typeVersion": 4.1,
-+      "position": [450, 700]
++      "name": "Fetch Merged PRs (7 days)",
++      "type": "n8n-nodes-base.github",
++      "typeVersion": 1,
++      "position": [450, 600],
++      "credentials": {
++        "githubApi": {
++          "id": "1",
++          "name": "GitHub API"
++        }
++      }
 +    },
 +    {
 +      "parameters": {
-+        "jsCode": "// Merge all GitHub data into a single structured payload\nconst commits = $input.all()[0].json;\nconst issues = $input.all()[1].json;\nconst prs = $input.all()[2].json;\n\n// Filter PRs to only merged ones (merged_at is not null)\nconst mergedPRs = Array.isArray(prs) ? prs.filter(p => p.merged_at) : [];\n\n// Filter issues to exclude pull requests (issues that have pull_request field)\nconst pureIssues = Array.isArray(issues) ? issues.filter(i => !i.pull_request) : [];\n\n// Extract relevant fields from commits\nconst commitSummaries = Array.isArray(commits) ? commits.slice(0, 20).map(c => ({\n  message: c.commit.message.split('\\n')[0],\n  author: c.commit.author.name,\n  date: c.commit.author.date,\n  sha: c.sha.substring(0, 7)\n})) : [];\n\n// Extract relevant fields from issues\nconst issueSummaries = pureIssues.slice(0, 20).map(i => ({\n  title: i.title,\n  number: i.number,\n  closed_at: i.closed_at,\n  html_url: i.html_url\n}));\n\n// Extract relevant fields from PRs\nconst prSummaries = mergedPRs.slice(0, 20).map(p => ({\n
++        "jsCode": "// ── Aggregate GitHub data ──────────────────────────────────────────\nconst commits = $input.all()[0].json;\nconst issues = $input.all()[1].json;\nconst prs = $input.all()[2].json;\n\nconst now = new Date();\nconst weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\n\n// Filter commits within the last 7 days\nconst recentCommits = commits.filter(c => {\n  const d = c.commit?.author?.date || c.commit?.committer?.date;\n  return d && new Date(d) >= weekAgo;\n});\n\n// Filter issues closed within the last 7 days\nconst recentIssues = issues.filter(i => {\n  return i.closed_at && new Date(i.closed_at) >= weekAgo;\n});\n\n// Filter PRs merged within the last 7 days\nconst recentPRs = prs.filter(p => {\n  return p.merged_at && new Date(p.merged_at) >= weekAgo;\n});\n\n// Build a structured summary object\nconst summary = {\n  repo: `${$env.GITHUB_REPO_OWNER}/${$env.GITHUB_REPO_NAME}`,\n  weekStart: weekAgo.toISOString().split('T')[0],\n  weekEnd: now.toISOString().split('T')[0],\n  totalCommits: recentCommits.length,\n  totalIssuesClosed: recentIssues.length,\n  totalPRsMerged: recentPRs.length,\n  commits: recentCommits.slice(0, 20).map(c => ({\n    message: c.commit.message.split('\\n')[0],\n    author: c.commit.author?.name || c.author?.login || 'unknown',\n    date: c.commit.author?.date || c.commit.committer?.date\n  })),\n  issues: recentIssues.slice(0, 20).map(i => ({\n   
