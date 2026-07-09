@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""
-Claude Code pre-tool-use hook that intercepts dangerous bash commands.
-
-Blocks destructive patterns like rm -rf, DROP TABLE, git push --force,
-TRUNCATE, and DELETE FROM without a WHERE clause.
-
-Installation:
-    mkdir -p ~/.claude/hooks
-    cp hooks/pre-tool-use ~/.claude/hooks/pre-tool-use
-    chmod +x ~/.claude/hooks/pre-tool-use
-"""
+"""Claude Code pre-tool-use hook that blocks destructive bash commands."""
 
 import json
 import os
@@ -17,102 +7,110 @@ import re
 import sys
 from datetime import datetime, timezone
 
-BLOCKED_LOG = os.path.expanduser("~/.claude/hooks/blocked.log")
+LOG_FILE = os.path.expanduser("~/.claude/hooks/blocked.log")
 
-# Patterns that trigger blocking
-DANGEROUS_PATTERNS = [
-    # rm -rf variants
-    (re.compile(r'\brm\s+.*-r.*f\b', re.IGNORECASE),
-     "Destructive deletion: 'rm -rf' can irreversibly delete files/directories"),
-    (re.compile(r'\brm\s+.*-f.*r\b', re.IGNORECASE),
+DESTRUCTIVE_PATTERNS = [
+    # rm -rf variations
+    (re.compile(r'\brm\s+.*-rf\b', re.IGNORECASE),
      "Destructive deletion: 'rm -rf' can irreversibly delete files/directories"),
     (re.compile(r'\brm\s+.*--recursive.*--force\b', re.IGNORECASE),
      "Destructive deletion: 'rm --recursive --force' can irreversibly delete files/directories"),
-    (re.compile(r'\brm\s+.*--force.*--recursive\b', re.IGNORECASE),
-     "Destructive deletion: 'rm --recursive --force' can irreversibly delete files/directories"),
-
-    # DROP TABLE / DROP DATABASE
-    (re.compile(r'\bDROP\s+(TABLE|DATABASE|SCHEMA)\b', re.IGNORECASE),
-     "Destructive SQL: DROP TABLE/DATABASE/SCHEMA permanently removes data"),
-
+    (re.compile(r'\brm\s+.*-r\s+.*-f\b', re.IGNORECASE),
+     "Destructive deletion: 'rm -r -f' can irreversibly delete files/directories"),
+    # DROP TABLE
+    (re.compile(r'\bDROP\s+TABLE\b', re.IGNORECASE),
+     "Database destruction: 'DROP TABLE' permanently deletes a table and all its data"),
     # TRUNCATE
     (re.compile(r'\bTRUNCATE\s+(TABLE\s+)?\w+\b', re.IGNORECASE),
-     "Destructive SQL: TRUNCATE removes all rows from a table"),
-
+     "Database destruction: 'TRUNCATE' removes all rows from a table without logging individual deletions"),
     # DELETE FROM without WHERE
-    (re.compile(r'\bDELETE\s+FROM\s+\w+\s*(;|$)', re.IGNORECASE),
-     "Destructive SQL: DELETE FROM without WHERE clause removes all rows"),
-    (re.compile(r'\bDELETE\s+FROM\s+\w+\s+WHERE\s+1\s*=\s*1', re.IGNORECASE),
-     "Destructive SQL: DELETE FROM with tautology (WHERE 1=1) removes all rows"),
-
-    # git push --force variants
+    (re.compile(r'\bDELETE\s+FROM\s+\w+\s*(?:;|$)', re.IGNORECASE),
+     "Database destruction: 'DELETE FROM' without a WHERE clause removes all rows from the table"),
+    (re.compile(r'\bDELETE\s+FROM\s+\w+\s+WHERE\s*$', re.IGNORECASE),
+     "Database destruction: 'DELETE FROM' with an empty/incomplete WHERE clause"),
+    # git push --force variations
     (re.compile(r'\bgit\s+push\s+.*--force\b', re.IGNORECASE),
-     "Destructive git: 'git push --force' overwrites remote history"),
+     "Destructive git operation: 'git push --force' overwrites remote history and can lose commits"),
     (re.compile(r'\bgit\s+push\s+.*-f\b', re.IGNORECASE),
-     "Destructive git: 'git push -f' overwrites remote history"),
+     "Destructive git operation: 'git push -f' overwrites remote history and can lose commits"),
     (re.compile(r'\bgit\s+push\s+.*--force-with-lease\b', re.IGNORECASE),
-     "Potentially destructive git: 'git push --force-with-lease' may overwrite remote history"),
-    (re.compile(r'\bgit\s+push\s+.*--delete\b', re.IGNORECASE),
-     "Destructive git: 'git push --delete' removes remote branches/tags"),
+     "Potentially destructive git operation: 'git push --force-with-lease' can still overwrite remote history"),
 ]
 
 
-def log_blocked(command: str, reason: str, project_path: str) -> None:
-    """Log a blocked command attempt to the blocked log file."""
-    os.makedirs(os.path.dirname(BLOCKED_LOG), exist_ok=True)
+def log_blocked(attempted_command: str, project_path: str, reason: str) -> None:
+    """Log a blocked command attempt to the log file."""
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
     timestamp = datetime.now(timezone.utc).isoformat()
-    entry = {
-        "timestamp": timestamp,
-        "attempted_command": command,
-        "reason": reason,
-        "project_path": project_path,
-    }
-    with open(BLOCKED_LOG, "a") as f:
-        f.write(json.dumps(entry) + "\n")
+    entry = (
+        f"[{timestamp}] BLOCKED\n"
+        f"  Project: {project_path}\n"
+        f"  Command: {attempted_command}\n"
+        f"  Reason:  {reason}\n"
+        f"{'-' * 60}\n"
+    )
+    with open(LOG_FILE, "a") as f:
+        f.write(entry)
 
 
-def check_command(command: str) -> tuple[bool, str]:
-    """Check if a command matches any dangerous pattern.
+def check_command(command: str) -> tuple[bool, str | None]:
+    """Check if a command matches any destructive pattern.
 
-    Returns (is_dangerous, reason).
+    Returns (is_destructive, reason_string).
     """
-    for pattern, reason in DANGEROUS_PATTERNS:
+    for pattern, reason in DESTRUCTIVE_PATTERNS:
         if pattern.search(command):
             return True, reason
-    return False, ""
+    return False, None
 
 
 def main() -> None:
-    """Main hook entry point."""
+    """Main entry point: read hook input from stdin, check command, and respond."""
     try:
         hook_input = json.load(sys.stdin)
     except json.JSONDecodeError:
-        # If we can't parse input, allow the command to proceed
+        # If we can't parse input, allow the tool to proceed
         sys.exit(0)
 
     tool_name = hook_input.get("tool_name", "")
     tool_input = hook_input.get("tool_input", {})
 
-    # Only intercept bash commands
-    if tool_name != "bash":
+    # Only intercept Bash commands
+    if tool_name != "Bash":
+        # Allow all other tools to proceed
+        print(json.dumps({"continue": True}))
         sys.exit(0)
 
     command = tool_input.get("command", "")
     if not command:
+        print(json.dumps({"continue": True}))
         sys.exit(0)
 
     project_path = hook_input.get("cwd", os.getcwd())
 
-    is_dangerous, reason = check_command(command)
+    is_destructive, reason = check_command(command)
 
-    if is_dangerous:
-        log_blocked(command, reason, project_path)
-        # Output a clear message to Claude explaining why the command was blocked
-        print(json.dumps({
-            "decision": "block",
+    if is_destructive:
+        log_blocked(command, project_path, reason)
+        response = {
+            "continue": False,
             "reason": reason,
-        }))
+            "message": (
+                f"⚠️  BLOCKED DESTRUCTIVE COMMAND\n\n"
+                f"The following command was blocked because it could cause irreversible damage:\n\n"
+                f"  {command}\n\n"
+                f"Reason: {reason}\n\n"
+                f"If you are absolutely certain this command is safe and intentional, "
+                f"please run it manually outside of Claude Code.\n\n"
+                f"This attempt has been logged to: {LOG_FILE}"
+            ),
+        }
+        print(json.dumps(response))
         sys.exit(2)
+
+    # Command is safe — allow it
+    print(json.dumps({"continue": True}))
+    sys.exit(0)
 
 
 if __name__ == "__main__":
