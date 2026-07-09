@@ -1,37 +1,15 @@
+Based on the issue, I need to create:
+1. An n8n workflow JSON file
+2. Update the README.md to mark the bounty as completed
+
+Let me create the complete n8n workflow and update the README.
+
 ```diff
---- a/README.md
-+++ b/README.md
-@@ -1,6 +1,6 @@
- # Claude Builders Bounty 🤖
- 
--> A community bounty board for Claude Code builders.
-+> A community bounty board for Claude Code builders — with automated weekly dev summaries.
- 
- Building with Claude Code? Have tasks to delegate?
- Want to get paid for contributing to AI projects?
-@@ -39,6 +39,16 @@
- 
- ---
- 
-+## Weekly Dev Summary Workflow
-+
-+This repo includes an n8n workflow that automatically generates a weekly narrative summary of repo activity using the Claude API.
-+
-+**Quick setup (5 steps):**
-+1. Import `workflows/weekly-dev-summary.json` into your n8n instance
-+2. Set the `GitHub Repo`, `Destination Webhook URL`, and `Language` variables in the workflow
-+3. Configure your GitHub and Anthropic API credentials in n8n
-+4. Activate the workflow — it runs every Friday at 5pm UTC
-+5. Receive a beautifully formatted narrative summary via Discord/Slack webhook
-+
- ## Community
- 
- - 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 --- /dev/null
 +++ b/workflows/weekly-dev-summary.json
-@@ -0,0 +1,345 @@
+@@ -0,0 +1,298 @@
 +{
-+  "name": "Weekly Dev Summary — Claude API",
++  "name": "Weekly Dev Summary - Claude AI",
 +  "nodes": [
 +    {
 +      "parameters": {
@@ -45,28 +23,93 @@
 +        }
 +      },
 +      "id": "cron-trigger",
-+      "name": "Friday 5pm Cron",
++      "name": "Weekly Cron (Friday 5pm)",
 +      "type": "n8n-nodes-base.scheduleTrigger",
 +      "typeVersion": 1.1,
 +      "position": [250, 300]
 +    },
 +    {
 +      "parameters": {
-+        "operation": "getAll",
-+        "owner": "={{ $env.GITHUB_REPO_OWNER }}",
-+        "repository": "={{ $env.GITHUB_REPO_NAME }}",
-+        "returnAll": true,
++        "values": {
++          "string": [
++            {
++              "name": "repoOwner",
++              "value": "claude-builders-bounty"
++            },
++            {
++              "name": "repoName",
++              "value": "claude-builders-bounty"
++            },
++            {
++              "name": "language",
++              "value": "EN"
++            },
++            {
++              "name": "webhookUrl",
++              "value": ""
++            },
++            {
++              "name": "emailRecipient",
++              "value": ""
++            },
++            {
++              "name": "deliveryMethod",
++              "value": "discord"
++            }
++          ]
++        },
++        "options": {}
++      },
++      "id": "config-vars",
++      "name": "Configuration Variables",
++      "type": "n8n-nodes-base.set",
++      "typeVersion": 3.4,
++      "position": [450, 300]
++    },
++    {
++      "parameters": {
++        "jsCode": "// Calculate date range for the past week\nconst now = new Date();\nconst oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\n\nconst since = oneWeekAgo.toISOString();\nconst until = now.toISOString();\n\n// Format dates for display\nconst formatDate = (date) => {\n  return date.toLocaleDateString('en-US', { \n    weekday: 'long', \n    year: 'numeric', \n    month: 'long', \n    day: 'numeric' \n  });\n};\n\nreturn {\n  since: since,\n  until: until,\n  sinceFormatted: formatDate(oneWeekAgo),\n  untilFormatted: formatDate(now),\n  repoOwner: $input.first().json.repoOwner,\n  repoName: $input.first().json.repoName,\n  language: $input.first().json.language,\n  webhookUrl: $input.first().json.webhookUrl,\n  emailRecipient: $input.first().json.emailRecipient,\n  deliveryMethod: $input.first().json.deliveryMethod\n};"
++      },
++      "id": "date-calc",
++      "name": "Calculate Date Range",
++      "type": "n8n-nodes-base.code",
++      "typeVersion": 2,
++      "position": [650, 300]
++    },
++    {
++      "parameters": {
++        "method": "GET",
++        "url": "=https://api.github.com/repos/{{ $json.repoOwner }}/{{ $json.repoName }}/commits",
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "since",
++              "value": "={{ $json.since }}"
++            },
++            {
++              "name": "until",
++              "value": "={{ $json.until }}"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
++            }
++          ]
++        },
 +        "options": {
-+          "since": "={{ $now.minus({ days: 7 }).toISO() }}"
++          "timeout": 30000
 +        }
 +      },
 +      "id": "fetch-commits",
-+      "name": "Fetch Commits (7 days)",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [450, 200],
++      "name": "Fetch Commits",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 4.2,
++      "position": [850, 200],
 +      "credentials": {
-+        "githubApi": {
++        "httpHeaderAuth": {
 +          "id": "1",
 +          "name": "GitHub API"
 +        }
@@ -74,22 +117,42 @@
 +    },
 +    {
 +      "parameters": {
-+        "operation": "getAll",
-+        "owner": "={{ $env.GITHUB_REPO_OWNER }}",
-+        "repository": "={{ $env.GITHUB_REPO_NAME }}",
-+        "returnAll": true,
++        "method": "GET",
++        "url": "=https://api.github.com/repos/{{ $('date-calc').item.json.repoOwner }}/{{ $('date-calc').item.json.repoName }}/issues",
++        "authentication": "genericCredentialType",
++        "genericAuthType": "httpHeaderAuth",
++        "sendQuery": true,
++        "queryParameters": {
++          "parameters": [
++            {
++              "name": "state",
++              "value": "closed"
++            },
++            {
++              "name": "since",
++              "value": "={{ $('date-calc').item.json.since }}"
++            },
++            {
++              "name": "per_page",
++              "value": "100"
++            },
++            {
++              "name": "filter",
++              "value": "all"
++            }
++          ]
++        },
 +        "options": {
-+          "state": "closed",
-+          "since": "={{ $now.minus({ days: 7 }).toISO() }}"
++          "timeout": 30000
 +        }
 +      },
 +      "id": "fetch-issues",
-+      "name": "Fetch Closed Issues (7 days)",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [450, 400],
++      "name": "Fetch Closed Issues",
++      "type": "n8n-nodes-base.httpRequest",
++      "typeVersion": 4.2,
++      "position": [850, 400],
 +      "credentials": {
-+        "githubApi": {
++        "httpHeaderAuth": {
 +          "id": "1",
 +          "name": "GitHub API"
 +        }
@@ -97,28 +160,5 @@
 +    },
 +    {
 +      "parameters": {
-+        "operation": "getAll",
-+        "owner": "={{ $env.GITHUB_REPO_OWNER }}",
-+        "repository": "={{ $env.GITHUB_REPO_NAME }}",
-+        "returnAll": true,
-+        "options": {
-+          "state": "closed",
-+          "sort": "updated",
-+          "direction": "desc"
-+        }
-+      },
-+      "id": "fetch-prs",
-+      "name": "Fetch Merged PRs (7 days)",
-+      "type": "n8n-nodes-base.github",
-+      "typeVersion": 1,
-+      "position": [450, 600],
-+      "credentials": {
-+        "githubApi": {
-+          "id": "1",
-+          "name": "GitHub API"
-+        }
-+      }
-+    },
-+    {
-+      "parameters": {
-+        "jsCode": "// ── Aggregate GitHub data ──────────────────────────────────────────\nconst commits = $input.all()[0].json;\nconst issues = $input.all()[1].json;\nconst prs = $input.all()[2].json;\n\nconst now = new Date();\nconst weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\n\n// Filter commits within the last 7 days\nconst recentCommits = commits.filter(c => {\n  const d = c.commit?.author?.date || c.commit?.committer?.date;\n  return d && new Date(d) >= weekAgo;\n});\n\n// Filter issues closed within the last 7 days\nconst recentIssues = issues.filter(i => {\n  return i.closed_at && new Date(i.closed_at) >= weekAgo;\n});\n\n// Filter PRs merged within the last 7 days\nconst recentPRs = prs.filter(p => {\n  return p.merged_at && new Date(p.merged_at) >= weekAgo;\n});\n\n// Build a structured summary object\nconst summary = {\n  repo: `${$env.GITHUB_REPO_OWNER}/${$env.GITHUB_REPO_NAME}`,\n  weekStart: weekAgo.toISOString().split('T')[0],\n  weekEnd: now.toISOString().split('T')[0],\n  totalCommits: recentCommits.length,\n  totalIssuesClosed: recentIssues.length,\n  totalPRsMerged: recentPRs.length,\n  commits: recentCommits.slice(0, 20).map(c => ({\n    message: c.commit.message.split('\\n')[0],\n    author: c.commit.author?.name || c.author?.login || 'unknown',\n    date: c.commit.author?.date || c.commit.committer?.date\n  })),\n  issues: recentIssues.slice(0, 20).map(i => ({\n   
++        "method": "GET",
++        "url": "=https://api.github.com/repos/{{ $('date-calc').item.json.repoOwner }}/{{ $('date-c
