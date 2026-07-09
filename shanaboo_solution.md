@@ -1,4 +1,4 @@
-Based on the issue, I need to create a Claude Code agent that reviews PRs and posts structured Markdown comments. Since the repo only shows README.md and LICENSE, I'll create the necessary files for the agent.
+Based on the issue, I need to create a Claude Code agent that reviews PRs and posts structured Markdown comments. Since the repo only has README.md and LICENSE, I'll create the necessary files for the agent.
 
 ```diff
 --- /dev/null
@@ -7,7 +7,7 @@ Based on the issue, I need to create a Claude Code agent that reviews PRs and po
 +#!/usr/bin/env bash
 +# Claude Code PR Review Agent
 +# Usage: claude-review --pr https://github.com/owner/repo/pull/123
-+#        claude-review --diff <file.diff>
++#        claude-review --diff <file> (for local diff files)
 +
 +set -euo pipefail
 +
@@ -24,14 +24,14 @@ Based on the issue, I need to create a Claude Code agent that reviews PRs and po
 +
 +Options:
 +  --pr <URL>         GitHub PR URL (e.g., https://github.com/owner/repo/pull/123)
-+  --diff <FILE>      Path to a local diff file
-+  --output <FILE>    Write review to file (default: stdout)
-+  --post-comment     Post review as PR comment (requires GITHUB_TOKEN)
++  --diff <FILE>      Path to a local diff/patch file
++  --output <FILE>    Write review to file instead of stdout
++  --post-comment     Post the review as a PR comment (requires GITHUB_TOKEN)
 +  --help             Show this help message
 +
 +Examples:
 +  claude-review --pr https://github.com/owner/repo/pull/123
-+  claude-review --diff changes.diff --output review.md
++  claude-review --diff changes.patch --output review.md
 +  claude-review --pr https://github.com/owner/repo/pull/123 --post-comment
 +EOF
 +}
@@ -72,97 +72,91 @@ Based on the issue, I need to create a Claude Code agent that reviews PRs and po
 +    esac
 +done
 +
-+# Validate input
 +if [[ -z "$PR_URL" && -z "$DIFF_FILE" ]]; then
-+    echo -e "${RED}Error: Must provide either --pr or --diff${NC}"
++    echo -e "${RED}Error: Either --pr or --diff must be provided${NC}"
 +    print_usage
 +    exit 1
 +fi
 +
-+# Fetch diff from PR URL
++# Fetch PR diff if URL provided
++TEMP_DIR=$(mktemp -d)
++trap 'rm -rf "$TEMP_DIR"' EXIT
++
++DIFF_PATH=""
++
 +if [[ -n "$PR_URL" ]]; then
-+    echo -e "${BLUE}Fetching diff from $PR_URL...${NC}" >&2
++    echo -e "${BLUE}Fetching PR diff from: $PR_URL${NC}" >&2
 +    
-+    # Extract owner/repo/pull/number from URL
++    # Extract owner, repo, and PR number from URL
++    # Supports formats: https://github.com/owner/repo/pull/123
 +    if [[ "$PR_URL" =~ github\.com/([^/]+)/([^/]+)/pull/([0-9]+) ]]; then
 +        OWNER="${BASH_REMATCH[1]}"
 +        REPO="${BASH_REMATCH[2]}"
 +        PR_NUMBER="${BASH_REMATCH[3]}"
 +    else
-+        echo -e "${RED}Error: Invalid GitHub PR URL format${NC}"
++        echo -e "${RED}Error: Invalid GitHub PR URL format${NC}" >&2
 +        exit 1
 +    fi
 +    
-+    DIFF_CONTENT=$(curl -sL "https://github.com/${OWNER}/${REPO}/pull/${PR_NUMBER}.diff" || true)
++    # Fetch the PR diff using GitHub API
++    API_URL="https://api.github.com/repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}"
 +    
-+    if [[ -z "$DIFF_CONTENT" ]]; then
-+        echo -e "${RED}Error: Failed to fetch diff from GitHub${NC}"
++    # Try to get diff via API
++    if command -v curl &> /dev/null; then
++        DIFF_PATH="${TEMP_DIR}/pr.diff"
++        
++        # Fetch PR details first
++        PR_TITLE=$(curl -s "${API_URL}" | grep -o '"title": "[^"]*"' | head -1 | sed 's/"title": "//;s/"$//' || echo "Unknown")
++        
++        # Fetch the actual diff
++        curl -s -H "Accept: application/vnd.github.v3.diff" "${API_URL}" > "$DIFF_PATH" 2>/dev/null || {
++            echo -e "${RED}Error: Failed to fetch PR diff. Check the URL or network.${NC}" >&2
++            exit 1
++        }
++        
++        # Check if we got a valid diff
++        if [[ ! -s "$DIFF_PATH" ]]; then
++            echo -e "${RED}Error: Empty diff received. The PR may not exist or is inaccessible.${NC}" >&2
++            exit 1
++        }
++        
++        echo -e "${GREEN}✓ Fetched diff for PR #${PR_NUMBER}: ${PR_TITLE}${NC}" >&2
++    else
++        echo -e "${RED}Error: curl is required to fetch PR diffs${NC}" >&2
 +        exit 1
 +    fi
-+    
-+    # Save to temp file for Claude
-+    TEMP_DIFF=$(mktemp)
-+    echo "$DIFF_CONTENT" > "$TEMP_DIFF"
-+    DIFF_FILE="$TEMP_DIFF"
-+    trap "rm -f $TEMP_DIFF" EXIT
-+fi
-+
-+# Verify diff file exists
-+if [[ ! -f "$DIFF_FILE" ]]; then
-+    echo -e "${RED}Error: Diff file not found: $DIFF_FILE${NC}"
-+    exit 1
-+fi
-+
-+DIFF_CONTENT=$(cat "$DIFF_FILE")
-+
-+echo -e "${GREEN}Analyzing diff with Claude Code...${NC}" >&2
-+
-+# Build the prompt for Claude
-+PROMPT=$(cat << 'CLAUDE_PROMPT'
-+You are an expert code reviewer. Analyze the following git diff and produce a structured Markdown review.
-+
-+Your review MUST follow this exact format:
-+
-+## 📋 PR Review
-+
-+### Summary
-+[2-3 sentences summarizing what this PR changes, the scope, and the overall approach]
-+
-+### Identified Risks
-+- [Risk 1: specific concern with file/line reference if possible]
-+- [Risk 2: ...]
-+- [Risk 3: ...]
-+[List at least 2-3 risks. If no risks found, state "No significant risks identified."]
-+
-+### Improvement Suggestions
-+- [Suggestion 1: actionable improvement]
-+- [Suggestion 2: ...]
-+- [Suggestion 3: ...]
-+[List at least 2-3 suggestions. Be constructive and specific.]
-+
-+### Confidence Score
-+**Confidence: [Low / Medium / High]**
-+[One sentence explaining the confidence level]
-+
-+Rules:
-+- Be concise but thorough
-+- Reference specific files and line numbers when possible
-+- Focus on logic, security, performance, and maintainability
-+- Do NOT comment on formatting/style unless it's a real problem
-+- If the diff is empty or trivial, state that clearly
-+
-+Here is the diff to review:
-+
-+CLAUDE_PROMPT
-+)
-+
-+# Combine prompt with diff
-+FULL_PROMPT="${PROMPT}\n\n\`\`\`diff\n${DIFF_CONTENT}\n\`\`\`"
-+
-+# Check if Claude CLI is available
-+if command -v claude &> /dev/null; then
-+    REVIEW=$(echo -e "$FULL_PROMPT" | claude --print 2>/dev/null || true)
-+elif command -v claude-code &> /dev/null; then
-+    REVIEW=$(echo -e "$FULL_PROMPT" | claude-code --print 2>/dev/null || true)
 +else
-+    echo -e "${Y
++    DIFF_PATH="$DIFF_FILE"
++    if [[ ! -f "$DIFF_PATH" ]]; then
++        echo -e "${RED}Error: Diff file not found: $DIFF_PATH${NC}" >&2
++        exit 1
++    fi
++fi
++
++# Generate the review using Claude Code
++echo -e "${BLUE}Analyzing diff with Claude Code...${NC}" >&2
++
++REVIEW_PROMPT="You are an expert code reviewer. Analyze the following git diff and produce a structured Markdown review.
+
+## Required Output Format
+
+\`\`\`markdown
+# PR Review
+
+## Summary
+[2-3 sentences summarizing what this PR changes and its overall impact]
+
+## Identified Risks
+- [Risk 1: specific concern with file/line reference]
+- [Risk 2: ...]
+- [Risk 3: ...]
+(If no risks found, state: \"No significant risks identified.\")
+
+## Improvement Suggestions
+- [Suggestion 1: actionable improvement]
+- [Suggestion 2: ...]
+- [Suggestion 3: ...]
+(If no suggestions, state: \"No improvement suggestions.\")
+
+## Confidence Score
+**Confidence: [Low / Medium / High
