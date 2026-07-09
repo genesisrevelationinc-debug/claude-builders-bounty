@@ -1,6 +1,6 @@
 # Claude Builders Bounty 🤖
 
-> A community bounty board for Claude Code builders — now with built-in PR reviewer agent.
+> A community bounty board for Claude Code builders — now with built-in PR review agent.
 
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
@@ -19,35 +19,36 @@ You're in the right place.
 1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
-| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
+
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
 | [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
-| [#6](../../issues/6) | AGENT: Claude Code sub-agent that reviews a PR and posts a structured comment | $150 | ✅ Complete |
+
+> ✅ **Bounty #4 delivered!** See [`claude-review/`](claude-review/) for the PR review agent.
 
 ---
 
-|---|------|--------|--------|
+## Rules
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
 | [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
 | [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
-| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
-
----
-
+- Quality over speed — a solid PR beats a fast one
 
 ---
 
 ## Built-in Tools
 
-### `claude-review` — PR Reviewer Agent
+### `claude-review` — PR Review Agent
 
-A Claude Code sub-agent that takes a PR diff as input, analyzes it, and returns a structured Markdown review comment.
+A Claude Code sub-agent that analyzes a GitHub PR diff and posts a structured Markdown review comment.
 
-#### Usage
+- **CLI usage:** `claude-review --pr https://github.com/owner/repo/pull/123`
+- **GitHub Action:** included workflow YAML in `claude-review/`
+- **Output:** Summary, risks, improvement suggestions, and confidence score.
 
-**CLI mode:**
+## Community
 
+- 🐦 X: [@ClaudeBounty](https://x.com/ClaudeBounty)
 - Every issue must have clear acceptance criteria before a bounty is activated
 - Payment is handled by [Opire](https://opire.dev) (Stripe)
 - Quality over speed — a solid PR beats a fast one
