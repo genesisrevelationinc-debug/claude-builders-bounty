@@ -1,15 +1,9 @@
-Based on the issue, I need to create:
-1. An n8n workflow JSON file
-2. Update the README.md to mark the bounty as completed
-
-Let me create the complete n8n workflow and update the README.
-
 ```diff
 --- /dev/null
 +++ b/workflows/weekly-dev-summary.json
-@@ -0,0 +1,298 @@
+@@ -0,0 +1,450 @@
 +{
-+  "name": "Weekly Dev Summary - Claude API",
++  "name": "Weekly Dev Summary – Claude API",
 +  "nodes": [
 +    {
 +      "parameters": {
@@ -23,20 +17,10 @@ Let me create the complete n8n workflow and update the README.
 +        }
 +      },
 +      "id": "cron-trigger",
-+      "name": "Weekly Cron (Friday 5pm)",
-+      "type": "n8n-nodes-base.scheduleTrigger",
-+      "typeVersion": 1.1,
++      "name": "Friday 5pm Cron",
++      "type": "n8n-nodes-base.cron",
++      "typeVersion": 1,
 +      "position": [250, 300]
-+    },
-+    {
-+      "parameters": {
-+        "jsCode": "// Calculate date range for the past week\nconst now = new Date();\nconst oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\n\nconst since = oneWeekAgo.toISOString();\nconst until = now.toISOString();\n\nreturn {\n  since: since,\n  until: until,\n  repo: $env.GITHUB_REPO || \"claude-builders-bounty/claude-builders-bounty\",\n  language: $env.SUMMARY_LANGUAGE || \"EN\"\n};"
-+      },
-+      "id": "set-date-range",
-+      "name": "Set Date Range",
-+      "type": "n8n-nodes-base.code",
-+      "typeVersion": 2,
-+      "position": [450, 300]
 +    },
 +    {
 +      "parameters": {
@@ -44,16 +28,24 @@ Let me create the complete n8n workflow and update the README.
 +        "url": "=https://api.github.com/repos/{{ $json.repo }}/commits",
 +        "authentication": "genericCredentialType",
 +        "genericAuthType": "httpHeaderAuth",
-+        "sendQuery": true,
++        "sendHeaders": true,
++        "headerParameters": {
++          "parameters": [
++            {
++              "name": "Accept",
++              "value": "application/vnd.github+json"
++            },
++            {
++              "name": "Authorization",
++              "value": "=Bearer {{ $json.githubToken }}"
++            }
++          ]
++        },
 +        "queryParameters": {
 +          "parameters": [
 +            {
 +              "name": "since",
-+              "value": "={{ $json.since }}"
-+            },
-+            {
-+              "name": "until",
-+              "value": "={{ $json.until }}"
++              "value": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}"
 +            },
 +            {
 +              "name": "per_page",
@@ -61,29 +53,33 @@ Let me create the complete n8n workflow and update the README.
 +            }
 +          ]
 +        },
-+        "options": {
-+          "timeout": 30000
-+        }
++        "options": {}
 +      },
 +      "id": "fetch-commits",
 +      "name": "Fetch Commits",
 +      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 4.1,
-+      "position": [650, 200],
-+      "credentials": {
-+        "httpHeaderAuth": {
-+          "id": "1",
-+          "name": "GitHub API Token"
-+        }
-+      }
++      "position": [450, 300]
 +    },
 +    {
 +      "parameters": {
 +        "method": "GET",
-+        "url": "=https://api.github.com/repos/{{ $('Set Date Range').item.json.repo }}/issues",
++        "url": "=https://api.github.com/repos/{{ $json.repo }}/issues",
 +        "authentication": "genericCredentialType",
 +        "genericAuthType": "httpHeaderAuth",
-+        "sendQuery": true,
++        "sendHeaders": true,
++        "headerParameters": {
++          "parameters": [
++            {
++              "name": "Accept",
++              "value": "application/vnd.github+json"
++            },
++            {
++              "name": "Authorization",
++              "value": "=Bearer {{ $json.githubToken }}"
++            }
++          ]
++        },
 +        "queryParameters": {
 +          "parameters": [
 +            {
@@ -92,7 +88,7 @@ Let me create the complete n8n workflow and update the README.
 +            },
 +            {
 +              "name": "since",
-+              "value": "={{ $('Set Date Range').item.json.since }}"
++              "value": "={{ new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() }}"
 +            },
 +            {
 +              "name": "per_page",
@@ -104,29 +100,33 @@ Let me create the complete n8n workflow and update the README.
 +            }
 +          ]
 +        },
-+        "options": {
-+          "timeout": 30000
-+        }
++        "options": {}
 +      },
 +      "id": "fetch-issues",
 +      "name": "Fetch Closed Issues",
 +      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 4.1,
-+      "position": [650, 400],
-+      "credentials": {
-+        "httpHeaderAuth": {
-+          "id": "1",
-+          "name": "GitHub API Token"
-+        }
-+      }
++      "position": [450, 500]
 +    },
 +    {
 +      "parameters": {
 +        "method": "GET",
-+        "url": "=https://api.github.com/repos/{{ $('Set Date Range').item.json.repo }}/pulls",
++        "url": "=https://api.github.com/repos/{{ $json.repo }}/pulls",
 +        "authentication": "genericCredentialType",
 +        "genericAuthType": "httpHeaderAuth",
-+        "sendQuery": true,
++        "sendHeaders": true,
++        "headerParameters": {
++          "parameters": [
++            {
++              "name": "Accept",
++              "value": "application/vnd.github+json"
++            },
++            {
++              "name": "Authorization",
++              "value": "=Bearer {{ $json.githubToken }}"
++            }
++          ]
++        },
 +        "queryParameters": {
 +          "parameters": [
 +            {
@@ -147,22 +147,14 @@ Let me create the complete n8n workflow and update the README.
 +            }
 +          ]
 +        },
-+        "options": {
-+          "timeout": 30000
-+        }
++        "options": {}
 +      },
 +      "id": "fetch-prs",
 +      "name": "Fetch Merged PRs",
 +      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 4.1,
-+      "position": [650, 600],
-+      "credentials": {
-+        "httpHeaderAuth": {
-+          "id": "1",
-+          "name": "GitHub API Token"
-+        }
-+      }
++      "position": [450, 700]
 +    },
 +    {
 +      "parameters": {
-+        "jsCode": "// Aggregate all fetched data\nconst commits = $input.all()[0].json;\nconst issues = $input.all()[1].json;\nconst prs = $input.all()[2].json;\nconst config = $('Set Date Range').item.json;\n\n// Filter merged PRs (merged_at is not null)\nconst mergedPRs = Array.isArray(prs) ? prs.filter(pr => pr.merged_at && new Date(pr.merged_at) >= new Date(config.since)) : [];\n\n// Filter issues closed this week (exclude
++        "jsCode": "// Merge all GitHub data into a single structured payload\nconst commits = $input.all()[0].json;\nconst issues = $input.all()[1].json;\nconst prs = $input.all()[2].json;\n\n// Filter PRs to only merged ones (merged_at is not null)\nconst mergedPRs = Array.isArray(prs) ? prs.filter(p => p.merged_at) : [];\n\n// Filter issues to exclude pull requests (issues that have pull_request field)\nconst pureIssues = Array.isArray(issues) ? issues.filter(i => !i.pull_request) : [];\n\n// Extract relevant fields from commits\nconst commitSummaries = Array.isArray(commits) ? commits.slice(0, 20).map(c => ({\n  message: c.commit.message.split('\\n')[0],\n  author: c.commit.author.name,\n  date: c.commit.author.date,\n  sha: c.sha.substring(0, 7)\n})) : [];\n\n// Extract relevant fields from issues\nconst issueSummaries = pureIssues.slice(0, 20).map(i => ({\n  title: i.title,\n  number: i.number,\n  closed_at: i.closed_at,\n  html_url: i.html_url\n}));\n\n// Extract relevant fields from PRs\nconst prSummaries = mergedPRs.slice(0, 20).map(p => ({\n
