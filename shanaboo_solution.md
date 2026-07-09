@@ -1,129 +1,158 @@
-Based on the issue, I need to create a bash script (`changelog.sh`) and update the `README.md` with setup instructions. Let me create both files.
-
 ```diff
 --- /dev/null
 +++ b/changelog.sh
-@@ -0,0 +1,145 @@
+@@ -0,0 +1,168 @@
 +#!/usr/bin/env bash
 +#
 +# changelog.sh — Generate a structured CHANGELOG.md from git history
 +#
 +# Usage:
-+#   ./changelog.sh                    # writes CHANGELOG.md in current directory
-+#   ./changelog.sh -o RELEASE.md      # custom output filename
-+#   ./changelog.sh -t v1.0.0          # start from a specific tag
-+#   ./changelog.sh -r                 # include release date in header
++#   ./changelog.sh [--since <tag>] [--output <file>]
 +#
-+# Requirements: git, bash 4+
++# Defaults:
++#   --since   latest git tag (or first commit if no tags exist)
++#   --output  CHANGELOG.md
++#
++# Categories:
++#   Added   — commits with "add", "new", "feat", "feature", "implement"
++#   Fixed   — commits with "fix", "bug", "resolve", "patch", "hotfix"
++#   Changed — commits with "change", "update", "refactor", "improve", "tweak"
++#   Removed — commits with "remove", "delete", "drop", "deprecate"
++#
++# Everything else goes into a "Misc" bucket.
 +
 +set -euo pipefail
 +
-+# ── defaults ──────────────────────────────────────────────────────────
-+OUTPUT="CHANGELOG.md"
-+SINCE_TAG=""
-+INCLUDE_DATE=false
++# ── helpers ──────────────────────────────────────────────────────────────
 +
-+# ── parse flags ───────────────────────────────────────────────────────
++die() { echo "ERROR: $*" >&2; exit 1; }
++
++latest_tag() {
++  git describe --tags --abbrev=0 2>/dev/null || true
++}
++
++first_commit() {
++  git rev-list --max-parents=0 HEAD 2>/dev/null || true
++}
++
++format_date() {
++  date -u +"%Y-%m-%d" 2>/dev/null || date +"%Y-%m-%d"
++}
++
++# ── argument parsing ─────────────────────────────────────────────────────
++
++SINCE=""
++OUTPUT="CHANGELOG.md"
++
 +while [[ $# -gt 0 ]]; do
 +  case "$1" in
-+    -o|--output) OUTPUT="$2"; shift 2 ;;
-+    -t|--since-tag) SINCE_TAG="$2"; shift 2 ;;
-+    -r|--with-date) INCLUDE_DATE=true; shift ;;
++    --since) SINCE="$2"; shift 2 ;;
++    --output) OUTPUT="$2"; shift 2 ;;
 +    -h|--help)
-+      echo "Usage: changelog.sh [-o FILE] [-t TAG] [-r]"
-+      echo ""
-+      echo "  -o, --output FILE     Write changelog to FILE (default: CHANGELOG.md)"
-+      echo "  -t, --since-tag TAG   Start from TAG instead of latest tag"
-+      echo "  -r, --with-date       Include the release date in the header"
-+      echo "  -h, --help            Show this help"
++      echo "Usage: ./changelog.sh [--since <tag>] [--output <file>]"
 +      exit 0
 +      ;;
-+    *) echo "Unknown option: $1"; exit 1 ;;
++    *) die "Unknown argument: $1" ;;
 +  esac
 +done
 +
-+# ── determine starting point ──────────────────────────────────────────
-+if [[ -n "$SINCE_TAG" ]]; then
-+  RANGE="$SINCE_TAG..HEAD"
-+  TAG_NAME="$SINCE_TAG"
-+else
-+  LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
-+  if [[ -z "$LATEST_TAG" ]]; then
-+    # No tags exist — use the first commit
-+    FIRST_COMMIT=$(git rev-list --max-parents=0 HEAD)
-+    RANGE="$FIRST_COMMIT..HEAD"
-+    TAG_NAME="initial"
++# ── determine range ──────────────────────────────────────────────────────
++
++if [[ -z "$SINCE" ]]; then
++  TAG=$(latest_tag)
++  if [[ -n "$TAG" ]]; then
++    SINCE="$TAG"
 +  else
-+    RANGE="$LATEST_TAG..HEAD"
-+    TAG_NAME="$LATEST_TAG"
++    SINCE=$(first_commit)
++    [[ -z "$SINCE" ]] && die "No commits found in this repository."
 +  fi
 +fi
 +
-+# ── collect commits ───────────────────────────────────────────────────
-+COMMITS=$(git log "$RANGE" --pretty=format:"%s" --no-merges 2>/dev/null || true)
++# Validate that SINCE exists in history
++if ! git rev-parse --verify "$SINCE" >/dev/null 2>&1; then
++  die "Ref '$SINCE' does not exist in this repository."
++fi
++
++RANGE="${SINCE}..HEAD"
++
++# ── collect commits ──────────────────────────────────────────────────────
++
++# We use %s for subject, %h for short hash, %an for author name
++COMMITS=$(git log "$RANGE" --pretty=format:"%h %s" 2>/dev/null || true)
 +
 +if [[ -z "$COMMITS" ]]; then
-+  echo "No commits found in range $RANGE. Nothing to do."
++  echo "No new commits since $SINCE — nothing to generate."
 +  exit 0
 +fi
 +
-+# ── categorise commits ────────────────────────────────────────────────
-+declare -a ADDED=()
-+declare -a FIXED=()
-+declare -a CHANGED=()
-+declare -a REMOVED=()
-+declare -a OTHER=()
++# ── categorisation ───────────────────────────────────────────────────────
++
++declare -a ADDED FIXED CHANGED REMOVED MISC
 +
 +while IFS= read -r line; do
 +  [[ -z "$line" ]] && continue
 +
-+  # Normalise: strip leading/trailing whitespace, collapse spaces
-+  msg=$(echo "$line" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]+/ /g')
++  # Extract short hash and the rest as message
++  HASH="${line%% *}"
++  MSG="${line#* }"
 +
-+  # Categorise by conventional-commit prefix or keyword
-+  if echo "$msg" | grep -qiE '^(feat|add|added|implement|create|introduce|new)[^a-z]'; then
-+    ADDED+=("- $msg")
-+  elif echo "$msg" | grep -qiE '^(fix|fixed|bug|patch|resolve|repair|hotfix)[^a-z]'; then
-+    FIXED+=("- $msg")
-+  elif echo "$msg" | grep -qiE '^(remove|removed|delete|drop|deprecate|retire)[^a-z]'; then
-+    REMOVED+=("- $msg")
-+  elif echo "$msg" | grep -qiE '^(change|changed|update|refactor|tweak|adjust|improve|enhance|modify|rework|revamp)[^a-z]'; then
-+    CHANGED+=("- $msg")
++  # Normalise to lowercase for matching
++  LOWER_MSG=$(echo "$MSG" | tr '[:upper:]' '[:lower:]')
++
++  # Category matching (order matters — first match wins)
++  if   echo "$LOWER_MSG" | grep -qE '\b(add|new|feat|feature|implement)\b'; then
++    ADDED+=("- $MSG ($HASH)")
++  elif echo "$LOWER_MSG" | grep -qE '\b(fix|bug|resolve|patch|hotfix)\b'; then
++    FIXED+=("- $MSG ($HASH)")
++  elif echo "$LOWER_MSG" | grep -qE '\b(change|update|refactor|improve|tweak)\b'; then
++    CHANGED+=("- $MSG ($HASH)")
++  elif echo "$LOWER_MSG" | grep -qE '\b(remove|delete|drop|deprecate)\b'; then
++    REMOVED+=("- $MSG ($HASH)")
 +  else
-+    # Fallback: keyword scanning inside the message
-+    if echo "$msg" | grep -qiE '\b(add|added|implement|create|introduce|new)\b'; then
-+      ADDED+=("- $msg")
-+    elif echo "$msg" | grep -qiE '\b(fix|fixed|bug|patch|resolve|repair|hotfix)\b'; then
-+      FIXED+=("- $msg")
-+    elif echo "$msg" | grep -qiE '\b(remove|removed|delete|drop|deprecate|retire)\b'; then
-+      REMOVED+=("- $msg")
-+    elif echo "$msg" | grep -qiE '\b(change|changed|update|refactor|tweak|adjust|improve|enhance|modify|rework|revamp)\b'; then
-+      CHANGED+=("- $msg")
-+    else
-+      OTHER+=("- $msg")
-+    fi
++    MISC+=("- $MSG ($HASH)")
 +  fi
 +done <<< "$COMMITS"
 +
-+# ── build changelog ───────────────────────────────────────────────────
++# ── build changelog ──────────────────────────────────────────────────────
++
++TODAY=$(format_date)
++
 +{
 +  echo "# Changelog"
 +  echo ""
-+
-+  # Header
-+  if $INCLUDE_DATE; then
-+    echo "## $(date +%Y-%m-%d) — since \`$TAG_NAME\`"
-+  else
-+    echo "## Unreleased — since \`$TAG_NAME\`"
-+  fi
++  echo "## [$TODAY] — since \`$SINCE\`"
 +  echo ""
 +
-+  # Added
-+  if [[ ${#ADDED[@]} -gt 0 ]]; then
-+    echo "### Added"
-+    printf '%s\n' "${ADDED[@]}"
-+    echo ""
-+  fi
++  # Helper to print a section only if it has entries
++  print_section() {
++    local title="$1"
++    shift
++    local -a entries=("$@")
++    if [[ ${#entries[@]} -gt 0 ]]; then
++      echo "### $title"
++      echo ""
++      for entry in "${entries[@]}"; do
++        echo "$entry"
++      done
++      echo ""
++    fi
++  }
 +
-+  # Fixed
-+  if [[ ${#FIXED[@]} -gt 0 ]]; then
++  print_section "Added"   "${ADDED[@]}"
++  print_section "Fixed"   "${FIXED[@]}"
++  print_section "Changed" "${CHANGED[@]}"
++  print_section "Removed" "${REMOVED[@]}"
++  print_section "Misc"    "${MISC[@]}"
++
++  echo "---"
++  echo ""
++  echo "*Auto-generated by [changelog.sh](./changelog.sh) — $(date +"%Y-%m-%d %H:%M %Z")*"
++} > "$OUTPUT"
++
++echo "✅ CHANGELOG written to $OUTPUT ($(wc -l < "$OUTPUT" | tr -d ' ') lines)"
+--- /dev/null
++++ b/SKILL.md
+@@ -0,0 +1,68 @@
++---
++name: generate-changelog
++description: Generate a structured CHANGEL
