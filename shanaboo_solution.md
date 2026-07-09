@@ -1,13 +1,13 @@
 Based on the issue, I need to create:
-1. An n8n workflow JSON file for the automated weekly dev summary
-2. A README with setup instructions
+1. An n8n workflow JSON file
+2. Update the README.md to mark the bounty as completed
 
-Since the repo only shows README.md and LICENSE, I'll create the workflow file and update the README.
+Let me create the complete n8n workflow and update the README.
 
 ```diff
 --- /dev/null
 +++ b/workflows/weekly-dev-summary.json
-@@ -0,0 +1,438 @@
+@@ -0,0 +1,298 @@
 +{
 +  "name": "Weekly Dev Summary - Claude API",
 +  "nodes": [
@@ -30,8 +30,18 @@ Since the repo only shows README.md and LICENSE, I'll create the workflow file a
 +    },
 +    {
 +      "parameters": {
++        "jsCode": "// Calculate date range for the past week\nconst now = new Date();\nconst oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);\n\nconst since = oneWeekAgo.toISOString();\nconst until = now.toISOString();\n\nreturn {\n  since: since,\n  until: until,\n  repo: $env.GITHUB_REPO || \"claude-builders-bounty/claude-builders-bounty\",\n  language: $env.SUMMARY_LANGUAGE || \"EN\"\n};"
++      },
++      "id": "set-date-range",
++      "name": "Set Date Range",
++      "type": "n8n-nodes-base.code",
++      "typeVersion": 2,
++      "position": [450, 300]
++    },
++    {
++      "parameters": {
 +        "method": "GET",
-+        "url": "=https://api.github.com/repos/{{ $json.repo_owner }}/{{ $json.repo_name }}/commits",
++        "url": "=https://api.github.com/repos/{{ $json.repo }}/commits",
 +        "authentication": "genericCredentialType",
 +        "genericAuthType": "httpHeaderAuth",
 +        "sendQuery": true,
@@ -39,11 +49,11 @@ Since the repo only shows README.md and LICENSE, I'll create the workflow file a
 +          "parameters": [
 +            {
 +              "name": "since",
-+              "value": "={{ $json.week_start }}"
++              "value": "={{ $json.since }}"
 +            },
 +            {
 +              "name": "until",
-+              "value": "={{ $json.week_end }}"
++              "value": "={{ $json.until }}"
 +            },
 +            {
 +              "name": "per_page",
@@ -51,13 +61,15 @@ Since the repo only shows README.md and LICENSE, I'll create the workflow file a
 +            }
 +          ]
 +        },
-+        "options": {}
++        "options": {
++          "timeout": 30000
++        }
 +      },
 +      "id": "fetch-commits",
 +      "name": "Fetch Commits",
 +      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 4.1,
-+      "position": [450, 200],
++      "position": [650, 200],
 +      "credentials": {
 +        "httpHeaderAuth": {
 +          "id": "1",
@@ -68,7 +80,7 @@ Since the repo only shows README.md and LICENSE, I'll create the workflow file a
 +    {
 +      "parameters": {
 +        "method": "GET",
-+        "url": "=https://api.github.com/repos/{{ $json.repo_owner }}/{{ $json.repo_name }}/issues",
++        "url": "=https://api.github.com/repos/{{ $('Set Date Range').item.json.repo }}/issues",
 +        "authentication": "genericCredentialType",
 +        "genericAuthType": "httpHeaderAuth",
 +        "sendQuery": true,
@@ -80,7 +92,7 @@ Since the repo only shows README.md and LICENSE, I'll create the workflow file a
 +            },
 +            {
 +              "name": "since",
-+              "value": "={{ $json.week_start }}"
++              "value": "={{ $('Set Date Range').item.json.since }}"
 +            },
 +            {
 +              "name": "per_page",
@@ -92,13 +104,15 @@ Since the repo only shows README.md and LICENSE, I'll create the workflow file a
 +            }
 +          ]
 +        },
-+        "options": {}
++        "options": {
++          "timeout": 30000
++        }
 +      },
 +      "id": "fetch-issues",
 +      "name": "Fetch Closed Issues",
 +      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 4.1,
-+      "position": [450, 400],
++      "position": [650, 400],
 +      "credentials": {
 +        "httpHeaderAuth": {
 +          "id": "1",
@@ -109,7 +123,7 @@ Since the repo only shows README.md and LICENSE, I'll create the workflow file a
 +    {
 +      "parameters": {
 +        "method": "GET",
-+        "url": "=https://api.github.com/repos/{{ $json.repo_owner }}/{{ $json.repo_name }}/pulls",
++        "url": "=https://api.github.com/repos/{{ $('Set Date Range').item.json.repo }}/pulls",
 +        "authentication": "genericCredentialType",
 +        "genericAuthType": "httpHeaderAuth",
 +        "sendQuery": true,
@@ -133,13 +147,15 @@ Since the repo only shows README.md and LICENSE, I'll create the workflow file a
 +            }
 +          ]
 +        },
-+        "options": {}
++        "options": {
++          "timeout": 30000
++        }
 +      },
 +      "id": "fetch-prs",
 +      "name": "Fetch Merged PRs",
 +      "type": "n8n-nodes-base.httpRequest",
 +      "typeVersion": 4.1,
-+      "position": [450, 600],
++      "position": [650, 600],
 +      "credentials": {
 +        "httpHeaderAuth": {
 +          "id": "1",
@@ -149,14 +165,4 @@ Since the repo only shows README.md and LICENSE, I'll create the workflow file a
 +    },
 +    {
 +      "parameters": {
-+        "jsCode": "// Prepare date range for the past week\nconst now = new Date();\nconst weekStart = new Date(now);\nweekStart.setDate(now.getDate() - 7);\n\n// Get config variables\nconst repoFull = $input.first().json.repo || 'claude-builders-bounty/claude-builders-bounty';\nconst [repoOwner, repoName] = repoFull.split('/');\nconst language = $input.first().json.language || 'EN';\nconst destination = $input.first().json.destination || 'discord';\nconst webhookUrl = $input.first().json.webhook_url || '';\n\nreturn {\n  week_start: weekStart.toISOString(),\n  week_end: now.toISOString(),\n  repo_owner: repoOwner,\n  repo_name: repoName,\n  language: language,\n  destination: destination,\n  webhook_url: webhookUrl,\n  week_label: `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`\n};"
-+      },
-+      "id": "prepare-dates",
-+      "name": "Prepare Date Range & Config",
-+      "type": "n8n-nodes-base.code",
-+      "typeVersion": 2,
-+      "position": [250, 500]
-+    },
-+    {
-+      "parameters": {
-+        "jsCode": "
++        "jsCode": "// Aggregate all fetched data\nconst commits = $input.all()[0].json;\nconst issues = $input.all()[1].json;\nconst prs = $input.all()[2].json;\nconst config = $('Set Date Range').item.json;\n\n// Filter merged PRs (merged_at is not null)\nconst mergedPRs = Array.isArray(prs) ? prs.filter(pr => pr.merged_at && new Date(pr.merged_at) >= new Date(config.since)) : [];\n\n// Filter issues closed this week (exclude
