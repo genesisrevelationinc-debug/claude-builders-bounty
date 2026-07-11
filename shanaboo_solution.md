@@ -1,18 +1,11 @@
 ```diff
 --- /dev/null
 +++ b/hooks/pre-tool-use
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,131 @@
 +#!/usr/bin/env python3
 +"""
-+Claude Code pre-tool-use hook that intercepts and blocks destructive bash commands.
-+
-+Blocks patterns:
-+  - rm -rf (and variants like rm -r, rm -rf --no-preserve-root, etc.)
-+  - DROP TABLE / DROP DATABASE
-+  - git push --force / git push -f / git push --force-with-lease (to main/master)
-+  - TRUNCATE TABLE
-+  - DELETE FROM without a WHERE clause
-+
++Claude Code pre-tool-use hook that intercepts dangerous bash commands.
++Blocks destructive patterns like rm -rf, DROP TABLE, git push --force, etc.
 +Logs blocked attempts to ~/.claude/hooks/blocked.log
 +"""
 +
@@ -22,124 +15,135 @@
 +import sys
 +from datetime import datetime, timezone
 +
-+LOG_FILE = os.path.expanduser("~/.claude/hooks/blocked.log")
++LOG_DIR = os.path.expanduser("~/.claude/hooks")
++LOG_FILE = os.path.join(LOG_DIR, "blocked.log")
 +
-+# Patterns that will be blocked
-+DESTRUCTIVE_PATTERNS = [
-+    # rm -rf and variants
-+    (re.compile(r'\brm\s+.*(-r\b|-rf\b|--recursive\b)', re.IGNORECASE),
-+     "rm with recursive flag — can delete entire directory trees"),
++DANGEROUS_PATTERNS = [
++    # rm -rf variants
++    (re.compile(r'\brm\s+.*-rf\b', re.IGNORECASE),
++     "rm -rf is destructive and can permanently delete files/directories"),
++    (re.compile(r'\brm\s+.*--recursive\s+.*--force\b', re.IGNORECASE),
++     "rm --recursive --force is destructive and can permanently delete files/directories"),
++    (re.compile(r'\brm\s+.*-r\s+.*-f\b', re.IGNORECASE),
++     "rm -r -f is destructive and can permanently delete files/directories"),
 +
-+    # DROP TABLE / DROP DATABASE
-+    (re.compile(r'\bDROP\s+(TABLE|DATABASE|SCHEMA)\b', re.IGNORECASE),
-+     "DROP TABLE/DATABASE/SCHEMA — irreversible data destruction"),
++    # DROP TABLE / TRUNCATE
++    (re.compile(r'\bDROP\s+TABLE\b', re.IGNORECASE),
++     "DROP TABLE permanently deletes a database table and all its data"),
++    (re.compile(r'\bTRUNCATE\s+(TABLE\s+)?\b', re.IGNORECASE),
++     "TRUNCATE permanently removes all rows from a database table"),
 +
-+    # git push --force / -f to main or master
-+    (re.compile(r'\bgit\s+push\s+.*(--force\b|-f\b|--force-with-lease\b)', re.IGNORECASE),
-+     "git push --force — can overwrite remote history"),
++    # DELETE FROM without WHERE
++    (re.compile(r'\bDELETE\s+FROM\s+\w+', re.IGNORECASE),
++     "DELETE FROM without a WHERE clause will delete all rows in the table"),
 +
-+    # TRUNCATE TABLE
-+    (re.compile(r'\bTRUNCATE\s+(TABLE\s+)?\S+', re.IGNORECASE),
-+     "TRUNCATE TABLE — removes all rows without possibility of rollback in some engines"),
-+
-+    # DELETE FROM without WHERE clause
-+    (re.compile(r'\bDELETE\s+FROM\s+\S+', re.IGNORECASE),
-+     "DELETE FROM — check for missing WHERE clause"),
++    # git push --force variants
++    (re.compile(r'\bgit\s+push\s+.*--force\b', re.IGNORECASE),
++     "git push --force can overwrite remote history and cause data loss for collaborators"),
++    (re.compile(r'\bgit\s+push\s+.*-f\b', re.IGNORECASE),
++     "git push -f can overwrite remote history and cause data loss for collaborators"),
++    (re.compile(r'\bgit\s+push\s+.*--force-with-lease\b', re.IGNORECASE),
++     "git push --force-with-lease can still overwrite remote history; use with caution"),
++    (re.compile(r'\bgit\s+push\s+.*--delete\b', re.IGNORECASE),
++     "git push --delete permanently removes a remote branch"),
 +]
 +
-+# DELETE FROM is only blocked if there is no WHERE clause
-+DELETE_FROM_PATTERN = re.compile(r'\bDELETE\s+FROM\s+\S+', re.IGNORECASE)
-+WHERE_PATTERN = re.compile(r'\bWHERE\b', re.IGNORECASE)
++
++def is_delete_without_where(command: str) -> bool:
++    """Check if a DELETE FROM statement lacks a WHERE clause."""
++    match = re.search(r'\bDELETE\s+FROM\s+\w+', command, re.IGNORECASE)
++    if not match:
++        return False
++    # Get the portion of the command after DELETE FROM <table>
++    after_delete = command[match.end():]
++    # Check if WHERE appears anywhere after (case-insensitive)
++    if re.search(r'\bWHERE\b', after_delete, re.IGNORECASE):
++        return False
++    return True
 +
 +
-+def log_blocked(command: str, project_path: str, reason: str) -> None:
++def get_project_path() -> str:
++    """Get the current working directory as the project path."""
++    try:
++        return os.getcwd()
++    except Exception:
++        return "unknown"
++
++
++def log_blocked(command: str, reason: str, project_path: str) -> None:
 +    """Log a blocked command attempt to the log file."""
-+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-+    timestamp = datetime.now(timezone.utc).isoformat()
-+    entry = {
++    os.makedirs(LOG_DIR, exist_ok=True)
++    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
++    log_entry = {
 +        "timestamp": timestamp,
 +        "attempted_command": command,
-+        "project_path": project_path,
 +        "reason": reason,
++        "project_path": project_path,
 +    }
-+    with open(LOG_FILE, "a") as f:
-+        f.write(json.dumps(entry) + "\n")
-+
-+
-+def is_destructive(command: str) -> tuple[bool, str]:
-+    """
-+    Check if a command matches any destructive pattern.
-+    Returns (is_destructive, reason_string).
-+    """
-+    # Special handling for DELETE FROM — only block if no WHERE clause
-+    if DELETE_FROM_PATTERN.search(command):
-+        if not WHERE_PATTERN.search(command):
-+            return True, "DELETE FROM without WHERE clause — would delete all rows"
-+        # Has WHERE clause, allow it
-+        return False, ""
-+
-+    for pattern, reason in DESTRUCTIVE_PATTERNS:
-+        if pattern.search(command):
-+            return True, reason
-+
-+    return False, ""
++    try:
++        with open(LOG_FILE, "a") as f:
++            f.write(json.dumps(log_entry) + "\n")
++    except Exception as e:
++        print(f"Warning: Could not write to log file: {e}", file=sys.stderr)
 +
 +
 +def main():
-+    # Claude Code passes hook input as JSON on stdin
++    # Read the hook input from stdin
 +    try:
 +        hook_input = json.load(sys.stdin)
 +    except json.JSONDecodeError:
-+        # If no valid JSON, exit cleanly (don't block)
++        # If we can't parse input, allow the tool to proceed
 +        sys.exit(0)
 +
-+    # Extract the command and project path
-+    # Claude Code hook format: {"tool_name": "Bash", "tool_input": {"command": "..."}, "cwd": "..."}
 +    tool_name = hook_input.get("tool_name", "")
-+    if tool_name != "Bash":
-+        # Not a bash command — allow
-+        sys.exit(0)
-+
 +    tool_input = hook_input.get("tool_input", {})
-+    command = tool_input.get("command", "")
-+    project_path = hook_input.get("cwd", os.getcwd())
 +
-+    if not command:
++    # Only intercept Bash commands
++    if tool_name != "Bash":
++        # Allow all other tools to proceed
++        print(json.dumps({"continue": True}))
 +        sys.exit(0)
 +
-+    destructive, reason = is_destructive(command)
++    command = tool_input.get("command", "")
++    if not command:
++        print(json.dumps({"continue": True}))
++        sys.exit(0)
 +
-+    if destructive:
-+        # Log the blocked attempt
-+        log_blocked(command, project_path, reason)
++    project_path = get_project_path()
 +
-+        # Output a clear message to Claude (goes to stderr so Claude sees it)
-+        message = (
-+            f"\n"
-+            f"╔══════════════════════════════════════════════════════════════╗\n"
-+            f"║  ⛔ DESTRUCTIVE COMMAND BLOCKED                              ║\n"
-+            f"╠══════════════════════════════════════════════════════════════╣\n"
-+            f"║  Command: {command[:50]}...\n"
-+            f"║  Reason:  {reason}\n"
-+            f"║                                                              ║\n"
-+            f"║  This command could cause irreversible damage.               ║\n"
-+            f"║  If you are absolutely sure you need to run this,            ║\n"
-+            f"║  please review the command manually and run it outside       ║\n"
-+            f"║  of Claude Code, or modify the hook configuration.           ║\n"
-+            f"╚══════════════════════════════════════════════════════════════╝\n"
-+        )
-+        print(message, file=sys.stderr)
++    # Check against dangerous patterns
++    for pattern, reason in DANGEROUS_PATTERNS:
++        if pattern.search(command):
++            # Special handling for DELETE FROM — must lack WHERE
++            if "DELETE FROM" in reason:
++                if not is_delete_without_where(command):
++                    continue
 +
-+        # Exit with non-zero to block the tool call
-+        sys.exit(1)
++            log_blocked(command, reason, project_path)
++            print(json.dumps({
++                "continue": False,
++                "reason": f"BLOCKED: {reason}\nCommand: {command}\nThis attempt has been logged."
++            }))
++            sys.exit(0)
 +
-+    # Allow the command
++    # Command is safe — allow it
++    print(json.dumps({"continue": True}))
 +    sys.exit(0)
 +
 +
 +if __name__ == "__main__":
 +    main()
+--- a/README.md
++++ b/README.md
+@@ -1,3 +1,5 @@
++<!-- BEGIN_OPIRE_BOUNTY -->
 +
---- /dev/null
-+++ b/hooks/README.md
-@@ -0,0 +1
+ # Claude Builders Bounty 🤖
+ 
+ > A community bounty board for Claude Code builders.
+@@ -48,3 +50,35 @@
+ ---
+ 
+ *Started by the Claude builder community · March 2026 · MIT License*
++
++<!-- END_OPIRE_BO
