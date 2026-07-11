@@ -1,6 +1,6 @@
 # Claude Builders Bounty 🤖
 
-> A community bounty board for Claude Code builders — now with a PR review agent!
+> A community bounty board for Claude Code builders — with built-in tools.
 
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
@@ -19,12 +19,13 @@ You're in the right place.
 1. Browse the open issues below
 2. Comment `/opire try` in the issue you want to work on
 3. Submit a PR — payment is automatic on merge ✅
+| [#3](../../issues/3) | HOOK: Block destructive bash commands in Claude Code | $100 | 🟢 Open |
+| [#4](../../issues/4) | AGENT: PR reviewer with structured Markdown output | $150 | 🟢 Open |
+| [#5](../../issues/5) | WORKFLOW: n8n + Claude API — automated weekly dev summary | $200 | 🟢 Open |
+| [#6](../../issues/6) | AGENT: Claude Code sub-agent that reviews a PR and posts a structured comment | $150 | 🟢 Open |
 
 ---
 
-## Active Bounties
-
-| # | Task | Amount | Status |
 |---|------|--------|--------|
 | [#1](../../issues/1) | SKILL: Generate a CHANGELOG from git history | $50 | 🟢 Open |
 | [#2](../../issues/2) | TEMPLATE: CLAUDE.md for a Next.js + SQLite project | $75 | 🟢 Open |
@@ -36,22 +37,19 @@ You're in the right place.
 
 ## Rules
 
-- Tasks must be related to Claude Code or AI tooling
----
-
-*Started by the Claude builder community · March 2026 · MIT License*
-
 ---
 
 ## Tools
 
-### `claude-review` — PR Review Agent
+### `claude-review` — PR Reviewer Agent
 
-A Claude Code sub-agent that analyzes a GitHub PR diff and posts a structured Markdown review comment.
+A Claude Code sub-agent that fetches a GitHub PR diff, analyzes it with Claude, and outputs a structured Markdown review.
 
-#### Quick Start
+#### Setup
 
 
+- Payment is handled by [Opire](https://opire.dev) (Stripe)
+- Quality over speed — a solid PR beats a fast one
 
 ---
 
