@@ -3,115 +3,80 @@
 # changelog.sh — Generate a structured CHANGELOG.md from git history
 #
 # Usage:
-#   ./changelog.sh                    # generate CHANGELOG.md in current dir
-#   ./changelog.sh -o RELEASE.md      # output to a custom file
+#   ./changelog.sh                    # writes CHANGELOG.md in current directory
+#   ./changelog.sh -o RELEASE.md      # custom output filename
 #   ./changelog.sh -t v1.0.0          # start from a specific tag
-#   ./changelog.sh -r                 # include full release (all commits)
 #
-# Requires: git, bash 4+
+# Auto-categorizes commits into: Added / Fixed / Changed / Removed
 
 set -euo pipefail
 
-# ── defaults ──────────────────────────────────────────────
 OUTPUT="CHANGELOG.md"
 START_TAG=""
-FULL_RELEASE=false
 
-# ── helpers ───────────────────────────────────────────────
-usage() {
-  cat <<EOF
-Usage: $(basename "$0") [OPTIONS]
-
-Options:
-  -o FILE     Output file (default: CHANGELOG.md)
-  -t TAG      Start from a specific tag (default: latest tag)
-  -r          Include all commits (ignore tags)
-  -h          Show this help
-EOF
-  exit 0
-}
-
-die() { echo "ERROR: $*" >&2; exit 1; }
-
-# ── parse args ────────────────────────────────────────────
-while getopts "o:t:rh" opt; do
-  case $opt in
-    o) OUTPUT="$OPTARG" ;;
-    t) START_TAG="$OPTARG" ;;
-    r) FULL_RELEASE=true ;;
-    h) usage ;;
-    *) usage ;;
+# --- Parse arguments ---
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -o|--output)
+      OUTPUT="$2"; shift 2 ;;
+    -t|--tag)
+      START_TAG="$2"; shift 2 ;;
+    -h|--help)
+      echo "Usage: $0 [-o OUTPUT] [-t TAG]"
+      echo "  -o, --output   Output file (default: CHANGELOG.md)"
+      echo "  -t, --tag      Start from this tag (default: latest tag)"
+      exit 0 ;;
+    *)
+      echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
-# ── ensure we are in a git repo ───────────────────────────
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "Not inside a git repository."
-
-# ── determine commit range ────────────────────────────────
-if $FULL_RELEASE; then
-  RANGE=""
-  RANGE_DESC="all commits"
-elif [[ -n "$START_TAG" ]]; then
-  if ! git rev-parse "$START_TAG" >/dev/null 2>&1; then
-    die "Tag '$START_TAG' does not exist."
-  fi
-  RANGE="$START_TAG..HEAD"
-  RANGE_DESC="$START_TAG → HEAD"
-else
-  LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
-  if [[ -z "$LATEST_TAG" ]]; then
-    RANGE=""
-    RANGE_DESC="all commits (no tags found)"
-  else
-    RANGE="$LATEST_TAG..HEAD"
-    RANGE_DESC="$LATEST_TAG → HEAD"
-  fi
+# --- Determine starting point ---
+if [[ -z "$START_TAG" ]]; then
+  START_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 fi
 
-# ── fetch commits ─────────────────────────────────────────
-if [[ -z "$RANGE" ]]; then
-  COMMITS=$(git log --oneline --no-merges --format="%s")
+if [[ -n "$START_TAG" ]]; then
+  RANGE="${START_TAG}..HEAD"
+  echo "→ Collecting commits since tag: $START_TAG"
 else
-  COMMITS=$(git log --oneline --no-merges --format="%s" "$RANGE")
+  RANGE="HEAD"
+  echo "→ No tags found — collecting all commits"
 fi
+
+# --- Fetch commits ---
+COMMITS=$(git log "$RANGE" --no-merges --pretty=format:"%s" 2>/dev/null || true)
 
 if [[ -z "$COMMITS" ]]; then
-  echo "No commits found in range ($RANGE_DESC). Nothing to do."
-  exit 0
+  echo "⚠️  No commits found in range: $RANGE"
+  COMMITS=""
 fi
 
-# ── categorize commits ────────────────────────────────────
-declare -a ADDED FIXED CHANGED REMOVED OTHER
+# --- Categorization ---
+declare -a ADDED FIXED CHANGED REMOVED
 
 while IFS= read -r line; do
-  # Normalise: strip leading whitespace, lowercase for matching
-  msg=$(echo "$line" | sed 's/^[[:space:]]*//')
-  lower=$(echo "$msg" | tr '[:upper:]' '[:lower:]')
+  [[ -z "$line" ]] && continue
 
-  if   [[ "$lower" =~ ^(add|feat|feature|new|implement|introduce) ]]; then
-    ADDED+=("$msg")
-  elif [[ "$lower" =~ ^(fix|bug|patch|repair|resolve|hotfix) ]]; then
-    FIXED+=("$msg")
-  elif [[ "$lower" =~ ^(remove|drop|delete|deprecate|retire) ]]; then
-    REMOVED+=("$msg")
-  elif [[ "$lower" =~ ^(change|update|refactor|improve|tweak|adjust|modify|enhance|upgrade|rework) ]]; then
-    CHANGED+=("$msg")
+  # Normalize: trim whitespace, lowercase for matching
+  lower=$(echo "$line" | tr '[:upper:]' '[:lower:]')
+
+  if   [[ "$lower" =~ ^(add|added|feat|feature|new|introduce) ]]; then
+    ADDED+=("$line")
+  elif [[ "$lower" =~ ^(fix|fixed|bug|patch|resolve|hotfix) ]]; then
+    FIXED+=("$line")
+  elif [[ "$lower" =~ ^(remove|removed|drop|delete|deprecate) ]]; then
+    REMOVED+=("$line")
   else
-    OTHER+=("$msg")
+    CHANGED+=("$line")
   fi
 done <<< "$COMMITS"
 
-# ── build changelog ───────────────────────────────────────
-TODAY=$(date +%Y-%m-%d)
-VERSION="${START_TAG:-unreleased}"
-[[ -z "$START_TAG" && -z "$FULL_RELEASE" ]] && VERSION="Unreleased"
-
+# --- Generate CHANGELOG ---
 {
   echo "# Changelog"
   echo ""
-  echo "## [$VERSION] — $TODAY"
-  echo ""
-  echo "_Range: $RANGE_DESC_"
+  echo "## $(git describe --tags --abbrev=0 2>/dev/null || echo 'Unreleased') — $(date +%Y-%m-%d)"
   echo ""
 
   section() {
@@ -122,7 +87,7 @@ VERSION="${START_TAG:-unreleased}"
       echo "### $title"
       echo ""
       for item in "${items[@]}"; do
-        echo "- $item"
+        echo "- ${item}"
       done
       echo ""
     fi
@@ -133,14 +98,15 @@ VERSION="${START_TAG:-unreleased}"
   section "Changed" "${CHANGED[@]}"
   section "Removed" "${REMOVED[@]}"
 
-  if [[ ${#OTHER[@]} -gt 0 ]]; then
-    echo "### Other"
-    echo ""
-    for item in "${OTHER[@]}"; do
-      echo "- $item"
-    done
-    echo ""
-  fi
+  # --- Stats footer ---
+  total=$((${#ADDED[@]} + ${#FIXED[@]} + ${#CHANGED[@]} + ${#REMOVED[@]}))
+  echo "---"
+  echo ""
+  echo "*Generated on $(date -u +"%Y-%m-%dT%H:%M:%SZ") • ${total} commits since ${START_TAG:-initial commit}*"
 } > "$OUTPUT"
 
-echo "✅ Changelog written to $OUTPUT ($(wc -l < "$OUTPUT") lines)"
+echo "✅ CHANGELOG written to: $OUTPUT"
+echo "   Added:   ${#ADDED[@]}"
+echo "   Fixed:   ${#FIXED[@]}"
+echo "   Changed: ${#CHANGED[@]}"
+echo "   Removed: ${#REMOVED[@]}"
