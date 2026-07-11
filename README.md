@@ -1,6 +1,8 @@
 # Claude Builders Bounty 🤖
 
 > A community bounty board for Claude Code builders.
+>
+> **New:** Use `./changelog.sh` to auto-generate structured CHANGELOGs from git history!
 
 Building with Claude Code? Have tasks to delegate?
 Want to get paid for contributing to AI projects?
@@ -8,10 +10,19 @@ You're in the right place.
 
 ---
 
-## 🚀 Quick Start
+## 🛠️ Tools
 
-Generate a changelog from your git history in 3 steps:
+### `changelog.sh` — Auto-generate CHANGELOG.md
 
+Generate a structured changelog from your git history in 3 steps:
+
+1. **Make it executable:** `chmod +x changelog.sh`
+2. **Run it:** `./changelog.sh`
+3. **Done!** A `CHANGELOG.md` appears, auto-categorized into Added / Fixed / Changed / Removed
+
+Options:
+- `-o FILE` — custom output filename
+- `-t TAG` — start from a specific tag (default: latest tag)
 
 ---
 
